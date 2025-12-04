@@ -1,0 +1,68 @@
+'use client';
+
+import { useState } from 'react';
+import { Input, Textarea } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
+import { ClipboardList, Save } from 'lucide-react';
+
+interface PlannerSidebarProps {
+  personName: string;
+  goal: string;
+  wantedSkills: string;
+  notes: string;
+  onUpdate: () => void;
+}
+
+export function PlannerSidebar({
+  personName,
+  goal: initialGoal,
+  wantedSkills: initialSkills,
+  notes: initialNotes,
+  onUpdate,
+}: PlannerSidebarProps) {
+  const [goal, setGoal] = useState(initialGoal);
+  const [wantedSkills, setWantedSkills] = useState(initialSkills);
+  const [notes, setNotes] = useState(initialNotes);
+
+  return (
+    <Card className="h-fit sticky top-24">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ClipboardList className="w-5 h-5 text-primary" />
+          Plan Details
+        </CardTitle>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        <Input
+          label="Person"
+          value={personName}
+          readOnly
+          className="bg-secondary/50"
+        />
+        <Textarea 
+          label="Goal" 
+          value={goal} 
+          onChange={(e) => setGoal(e.target.value)}
+          className="min-h-[100px]"
+        />
+        <Textarea
+          label="Wanted Skills"
+          value={wantedSkills}
+          onChange={(e) => setWantedSkills(e.target.value)}
+          className="min-h-[100px]"
+        />
+        <Textarea 
+          label="Notes" 
+          value={notes} 
+          onChange={(e) => setNotes(e.target.value)}
+          className="min-h-[100px]"
+        />
+        <Button className="w-full mt-2" onClick={onUpdate}>
+          <Save className="w-4 h-4 mr-2" /> Update Plan
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
