@@ -1,10 +1,11 @@
 'use client';
 
 import { Task } from '@/types';
-import { ListTodo, CheckSquare, Clock, Check } from 'lucide-react';
+import { Check, Clock, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface TaskListProps {
   tasks: Task[];
@@ -14,54 +15,55 @@ interface TaskListProps {
 const priorityConfig = {
   urgent: { variant: 'destructive', label: 'Urgent' },
   'this-week': { variant: 'warning', label: 'This week' },
-  'on-track': { variant: 'success', label: 'On track' },
+  'on-track': { variant: 'success', label: 'Later' },
 } as const;
 
 export function TaskList({ tasks, onTaskToggle }: TaskListProps) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ListTodo className="w-5 h-5 text-primary" />
-          Open Tasks
+      <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
+        <CardTitle className="text-base font-semibold">
+          My Priorities
         </CardTitle>
+        <Button variant="ghost" size="icon" className="h-6 w-6">
+          <Plus className="w-4 h-4" />
+        </Button>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-1">
         {tasks.map((task) => (
           <div
             key={task.id}
             className={cn(
-              "group flex items-center gap-4 p-4 rounded-lg border transition-all duration-200",
-              task.completed 
-                ? "bg-secondary/50 opacity-75" 
-                : "bg-card hover:border-primary/50 hover:shadow-sm"
+              "group flex items-start gap-3 p-2 rounded-md transition-colors hover:bg-secondary/40 cursor-pointer",
+              task.completed && "opacity-50"
             )}
+            onClick={() => onTaskToggle(task.id)}
           >
-            <button
-              onClick={() => onTaskToggle(task.id)}
+            <div
               className={cn(
-                "w-5 h-5 rounded border flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                "mt-0.5 h-4 w-4 rounded border flex items-center justify-center transition-colors shrink-0",
                 task.completed 
                   ? "bg-primary border-primary text-primary-foreground" 
                   : "border-input text-transparent hover:border-primary"
               )}
             >
-              <Check className="w-3.5 h-3.5" />
-            </button>
+              <Check className="h-3 w-3" />
+            </div>
             
-            <span
-              className={cn(
-                "flex-1 font-medium transition-colors text-sm",
-                task.completed ? "line-through text-muted-foreground" : "text-foreground"
-              )}
-            >
-              {task.title}
-            </span>
-            
-            <Badge variant={priorityConfig[task.priority].variant as any} className="gap-1.5">
-              {task.priority === 'urgent' && <Clock className="w-3 h-3" />}
-              {priorityConfig[task.priority].label}
-            </Badge>
+            <div className="flex-1 space-y-1">
+               <p className={cn(
+                  "text-sm font-medium leading-none transition-colors",
+                  task.completed ? "line-through text-muted-foreground" : "text-foreground"
+                )}>
+                {task.title}
+              </p>
+              <div className="flex items-center gap-2">
+                <Badge variant={priorityConfig[task.priority].variant as any} className="h-4 px-1 text-[10px] gap-1 font-normal bg-opacity-10 border-opacity-20 bg-transparent border">
+                  {task.priority === 'urgent' && <Clock className="w-2.5 h-2.5" />}
+                  {priorityConfig[task.priority].label}
+                </Badge>
+              </div>
+            </div>
           </div>
         ))}
       </CardContent>
