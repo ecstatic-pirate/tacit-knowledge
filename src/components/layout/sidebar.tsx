@@ -49,7 +49,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen w-[240px] flex-col border-r bg-muted/10">
+    <div className="flex h-screen w-[240px] flex-col border-r bg-secondary/30">
       <div className="p-4">
         <div className="flex items-center gap-2 mb-6 px-2">
           <div className="flex items-center justify-center w-7 h-7 rounded-md bg-primary text-primary-foreground shadow-sm">

@@ -21,19 +21,19 @@ const statusConfig: Record<string, {
 }> = {
   'on-track': {
     icon: CheckCircle2,
-    textClass: 'text-emerald-600',
+    textClass: 'text-emerald-800 bg-emerald-100/50',
     label: 'On Track',
     progressVariant: 'success',
   },
   'keep-track': {
     icon: AlertCircle,
-    textClass: 'text-amber-600',
+    textClass: 'text-amber-800 bg-amber-100/50',
     label: 'Needs Attention',
     progressVariant: 'warning',
   },
   danger: {
     icon: AlertOctagon,
-    textClass: 'text-red-600',
+    textClass: 'text-rose-800 bg-rose-100/50',
     label: 'At Risk',
     progressVariant: 'danger',
   },
@@ -45,18 +45,18 @@ export function CampaignCard({ campaign, onViewDetails, onEdit }: CampaignCardPr
   const percentage = Math.round((campaign.completedSessions / campaign.totalSessions) * 100);
 
   return (
-    <Card className="group transition-all hover:shadow-md">
+    <Card className="group transition-all hover:shadow-md border-border/60">
       <CardHeader className="p-6 pb-4">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <h3 className="font-semibold leading-none tracking-tight">
+            <h3 className="font-semibold leading-none tracking-tight font-serif text-lg">
               {campaign.name}
             </h3>
             <p className="text-sm text-muted-foreground">
               {campaign.role}
             </p>
           </div>
-          <div className={cn("flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full bg-secondary", config.textClass)}>
+          <div className={cn("flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full", config.textClass)}>
             <Icon className="w-3.5 h-3.5" />
             {config.label}
           </div>

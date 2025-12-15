@@ -70,6 +70,25 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
+// Status conversion helpers (DB uses underscores, UI uses hyphens)
+function dbStatusToUi(dbStatus: string | null): Campaign['status'] {
+  const map: Record<string, Campaign['status']> = {
+    'on_track': 'on-track',
+    'keep_track': 'keep-track',
+    'danger': 'danger',
+  }
+  return map[dbStatus ?? 'on_track'] ?? 'on-track'
+}
+
+function uiStatusToDb(uiStatus: Campaign['status']): string {
+  const map: Record<Campaign['status'], string> = {
+    'on-track': 'on_track',
+    'keep-track': 'keep_track',
+    'danger': 'danger',
+  }
+  return map[uiStatus] ?? 'on_track'
+}
+
 // Helper to map database campaign to app campaign
 function mapDBCampaignToApp(dbCampaign: DBCampaign, skillsCount: number): Campaign {
   return {
@@ -79,7 +98,7 @@ function mapDBCampaignToApp(dbCampaign: DBCampaign, skillsCount: number): Campai
     department: dbCampaign.department ?? undefined,
     yearsExperience: dbCampaign.years_experience ?? undefined,
     goal: dbCampaign.goal ?? undefined,
-    status: (dbCampaign.status as Campaign['status']) ?? 'on-track',
+    status: dbStatusToUi(dbCampaign.status),
     progress: dbCampaign.progress ?? 0,
     totalSessions: dbCampaign.total_sessions ?? 14,
     completedSessions: dbCampaign.completed_sessions ?? 0,
@@ -233,7 +252,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [supabase, fetchUserData, refreshData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Sign out
   const signOut = useCallback(async () => {
@@ -283,7 +303,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         department: campaign.department,
         years_experience: campaign.yearsExperience,
         goal: campaign.goal,
-        status: campaign.status,
+        status: uiStatusToDb(campaign.status),
         progress: campaign.progress,
         total_sessions: campaign.totalSessions,
         completed_sessions: campaign.completedSessions,
@@ -316,7 +336,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         department: campaign.department,
         years_experience: campaign.yearsExperience,
         goal: campaign.goal,
-        status: campaign.status,
+        status: uiStatusToDb(campaign.status),
         progress: campaign.progress,
         total_sessions: campaign.totalSessions,
         completed_sessions: campaign.completedSessions,

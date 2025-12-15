@@ -1,13 +1,19 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Libre_Baskerville, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 import { Sidebar } from '@/components/layout/sidebar';
 import { ToastProvider } from '@/components/ui/toast';
 import { AppProvider } from '@/context/app-context';
 
-const inter = Inter({
+const libreBaskerville = Libre_Baskerville({
   subsets: ['latin'],
-  variable: '--font-inter',
+  weight: ['400', '700'],
+  variable: '--font-serif',
+});
+
+const sourceSans3 = Source_Sans_3({
+  subsets: ['latin'],
+  variable: '--font-sans',
 });
 
 export const metadata: Metadata = {
@@ -22,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased min-h-screen bg-background`}>
+      <body className={`${sourceSans3.variable} ${libreBaskerville.variable} antialiased min-h-screen bg-background font-sans`}>
         <AppProvider>
           <ToastProvider>
             <div className="flex h-screen overflow-hidden">

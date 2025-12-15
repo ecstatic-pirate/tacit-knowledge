@@ -1,18 +1,28 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useApp } from '@/context/app-context';
 import { useToast } from '@/components/ui/toast';
 import { DashboardTab } from '@/components/tabs';
 import { Modal } from '@/components/ui/modal';
 import { Campaign } from '@/types';
-import { CheckCircle2, BarChart3, CalendarClock, Rocket, Star, Check } from 'lucide-react';
+import { CheckCircle2, BarChart3, CalendarClock, Rocket, Star, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { createClient } from '@/lib/supabase/client';
+
+interface AISuggestion {
+  id: string;
+  expertName: string;
+  message: string;
+  type: 'sessions' | 'attention' | 'skill';
+  campaignId?: string;
+}
 
 export default function DashboardPage() {
   const { campaigns, tasks, toggleTask } = useApp();
   const { showToast } = useToast();
-  
+  const supabase = createClient();
+
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -88,36 +98,154 @@ export default function DashboardPage() {
     [showToast]
   );
 
-  const handleReviewAISuggestions = useCallback(() => {
+  const handleReviewAISuggestions = useCallback(async () => {
+    // Show loading state first
+    setModalState({
+      isOpen: true,
+      title: 'AI Suggestions',
+      content: (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ),
+    });
+
+    // Fetch suggestions inline
+    const suggestions: AISuggestion[] = [];
+
+    try {
+      const { data: dbCampaigns } = await supabase
+        .from('campaigns')
+        .select('id, expert_name, total_sessions, completed_sessions, status')
+        .is('deleted_at', null)
+        .is('completed_at', null);
+
+      if (dbCampaigns) {
+        for (const campaign of dbCampaigns) {
+          const progress = campaign.total_sessions
+            ? (campaign.completed_sessions || 0) / campaign.total_sessions
+            : 0;
+
+          if (progress > 0.5 && progress < 1) {
+            const remaining = (campaign.total_sessions || 0) - (campaign.completed_sessions || 0);
+            suggestions.push({
+              id: `sessions-${campaign.id}`,
+              expertName: campaign.expert_name,
+              message: `Recommend ${remaining} additional sessions to reach 100% coverage.`,
+              type: 'sessions',
+              campaignId: campaign.id,
+            });
+          }
+
+          if (campaign.status === 'danger' || campaign.status === 'keep_track') {
+            suggestions.push({
+              id: `attention-${campaign.id}`,
+              expertName: campaign.expert_name,
+              message: 'Campaign needs attention - consider scheduling sessions soon.',
+              type: 'attention',
+              campaignId: campaign.id,
+            });
+          }
+        }
+      }
+
+      const { data: uncapturedSkills } = await supabase
+        .from('skills')
+        .select('name, campaigns(expert_name)')
+        .eq('captured', false)
+        .is('deleted_at', null)
+        .limit(3);
+
+      if (uncapturedSkills) {
+        for (const skill of uncapturedSkills) {
+          const campaign = skill.campaigns as { expert_name: string } | null;
+          if (campaign) {
+            suggestions.push({
+              id: `skill-${skill.name}`,
+              expertName: campaign.expert_name,
+              message: `Focus on capturing "${skill.name}" skill in the next session.`,
+              type: 'skill',
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching AI suggestions:', error);
+    }
+
+    const finalSuggestions = suggestions.slice(0, 5);
+
+    // Update modal with real content
     setModalState({
       isOpen: true,
       title: 'AI Suggestions',
       content: (
         <div className="space-y-4">
-          <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-lg">
-            <div className="font-medium text-emerald-800 mb-1 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" />
-              Campaign Duration: Patricia Rodriguez
+          {finalSuggestions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>No suggestions at this time</p>
+              <p className="text-xs mt-1">All campaigns are on track!</p>
             </div>
-            <p className="text-sm text-emerald-700 mb-3">
-              Recommend 2 additional sessions to reach 100% coverage.
-            </p>
-            <Button
-              size="sm"
-              onClick={() => {
-                showToast('Suggestion approved');
-                closeModal();
-              }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              Approve
-            </Button>
-          </div>
-          {/* ... other suggestions ... */}
+          ) : (
+            finalSuggestions.map((suggestion) => (
+              <div
+                key={suggestion.id}
+                className={`p-4 rounded-lg border ${
+                  suggestion.type === 'sessions'
+                    ? 'bg-emerald-50/50 border-emerald-100'
+                    : suggestion.type === 'attention'
+                    ? 'bg-amber-50/50 border-amber-100'
+                    : 'bg-stone-50/50 border-stone-100'
+                }`}
+              >
+                <div
+                  className={`font-medium mb-1 flex items-center gap-2 ${
+                    suggestion.type === 'sessions'
+                      ? 'text-emerald-900'
+                      : suggestion.type === 'attention'
+                      ? 'text-amber-900'
+                      : 'text-stone-900'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {suggestion.expertName}
+                </div>
+                <p
+                  className={`text-sm mb-3 ${
+                    suggestion.type === 'sessions'
+                      ? 'text-emerald-800'
+                      : suggestion.type === 'attention'
+                      ? 'text-amber-800'
+                      : 'text-stone-700'
+                  }`}
+                >
+                  {suggestion.message}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    showToast('Suggestion approved');
+                    closeModal();
+                  }}
+                  className={
+                    suggestion.type === 'sessions'
+                      ? 'border-emerald-200 hover:bg-emerald-100 hover:text-emerald-900'
+                      : suggestion.type === 'attention'
+                      ? 'border-amber-200 hover:bg-amber-100 hover:text-amber-900'
+                      : 'border-stone-200 hover:bg-stone-100 hover:text-stone-900'
+                  }
+                >
+                  Approve
+                </Button>
+              </div>
+            ))
+          )}
         </div>
       ),
     });
-  }, [showToast]);
+  }, [supabase, showToast]);
 
   return (
     <>

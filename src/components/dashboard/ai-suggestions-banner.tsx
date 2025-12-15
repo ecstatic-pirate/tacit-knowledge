@@ -1,34 +1,137 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ArrowRight, Zap, ChevronRight } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, ChevronRight, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { createClient } from '@/lib/supabase/client';
 
 interface AISuggestionsBannerProps {
   onReviewAll: () => void;
 }
 
-const suggestions = [
-  {
-    text: 'Recommend 2 additional sessions for Patricia to reach 100% coverage',
-    highlight: '2 additional sessions',
-    priority: 'high',
-  },
-  {
-    text: 'Consider focusing on "Team Leadership" skill gap for Michael',
-    highlight: '"Team Leadership"',
-    priority: 'medium',
-  },
-  {
-    text: 'James Morrison: Ready to start initial sessions',
-    highlight: 'Ready to start',
-    priority: 'low',
-  },
-];
+interface Suggestion {
+  text: string;
+  highlight: string;
+  priority: 'high' | 'medium' | 'low';
+  campaignId?: string;
+}
 
 export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function generateSuggestions() {
+      setIsLoading(true);
+      const generatedSuggestions: Suggestion[] = [];
+
+      try {
+        // Fetch campaigns with their progress
+        const { data: campaigns } = await supabase
+          .from('campaigns')
+          .select('id, expert_name, total_sessions, completed_sessions, status')
+          .is('deleted_at', null)
+          .is('completed_at', null);
+
+        // Fetch skills that are not captured
+        const { data: uncapturedSkills } = await supabase
+          .from('skills')
+          .select('name, campaign_id, campaigns(expert_name)')
+          .eq('captured', false)
+          .is('deleted_at', null)
+          .limit(5);
+
+        // Fetch upcoming sessions
+        const { data: scheduledSessions } = await supabase
+          .from('sessions')
+          .select('id, session_number, scheduled_at, campaigns(expert_name)')
+          .eq('status', 'scheduled')
+          .is('deleted_at', null)
+          .order('scheduled_at', { ascending: true })
+          .limit(3);
+
+        // Generate suggestions based on real data
+        if (campaigns) {
+          for (const campaign of campaigns) {
+            const progress = campaign.total_sessions
+              ? (campaign.completed_sessions || 0) / campaign.total_sessions
+              : 0;
+
+            // Campaign needs more sessions
+            if (progress > 0.5 && progress < 1) {
+              const remaining = (campaign.total_sessions || 0) - (campaign.completed_sessions || 0);
+              generatedSuggestions.push({
+                text: `Recommend ${remaining} more sessions for ${campaign.expert_name} to reach 100% coverage`,
+                highlight: `${remaining} more sessions`,
+                priority: progress > 0.8 ? 'high' : 'medium',
+                campaignId: campaign.id,
+              });
+            }
+
+            // Campaign at risk
+            if (campaign.status === 'danger' || campaign.status === 'keep-track') {
+              generatedSuggestions.push({
+                text: `${campaign.expert_name}: Campaign needs attention - consider scheduling sessions`,
+                highlight: 'needs attention',
+                priority: campaign.status === 'danger' ? 'high' : 'medium',
+                campaignId: campaign.id,
+              });
+            }
+          }
+        }
+
+        // Skill gap suggestions
+        if (uncapturedSkills && uncapturedSkills.length > 0) {
+          const skillsByExpert = uncapturedSkills.reduce((acc, skill) => {
+            const expertName = (skill.campaigns as { expert_name: string } | null)?.expert_name || 'Unknown';
+            if (!acc[expertName]) acc[expertName] = [];
+            acc[expertName].push(skill.name);
+            return acc;
+          }, {} as Record<string, string[]>);
+
+          for (const [expert, skills] of Object.entries(skillsByExpert)) {
+            if (skills.length > 0) {
+              generatedSuggestions.push({
+                text: `Focus on "${skills[0]}" skill gap for ${expert}`,
+                highlight: `"${skills[0]}"`,
+                priority: 'medium',
+              });
+            }
+          }
+        }
+
+        // Ready to start suggestions
+        if (scheduledSessions && scheduledSessions.length > 0) {
+          const session = scheduledSessions[0];
+          const expertName = (session.campaigns as { expert_name: string } | null)?.expert_name || 'Expert';
+          generatedSuggestions.push({
+            text: `${expertName}: Ready to start Session ${session.session_number}`,
+            highlight: 'Ready to start',
+            priority: 'low',
+          });
+        }
+
+        setSuggestions(generatedSuggestions.slice(0, 3));
+      } catch (error) {
+        console.error('Error generating suggestions:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    generateSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Don't render if no suggestions
+  if (!isLoading && suggestions.length === 0) {
+    return null;
+  }
+
   return (
     <Card className="mb-8">
       <CardHeader className="pb-3">
@@ -38,54 +141,64 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
               <Sparkles className="h-4 w-4" />
             </div>
             <div className="space-y-1">
-              <CardTitle className="text-base">AI Suggested Changes</CardTitle>
+              <CardTitle className="text-base">AI Suggested Actions</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Based on progress, skills captured, and report analysis
+                Based on campaign progress and skill coverage
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="px-2.5">
-            3 new
-          </Badge>
+          {suggestions.length > 0 && (
+            <Badge variant="secondary" className="px-2.5">
+              {suggestions.length} new
+            </Badge>
+          )}
         </div>
       </CardHeader>
-      
+
       <CardContent className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
-        <div className="grid gap-2">
-          {suggestions.map((suggestion, index) => (
-            <div
-              key={index}
-              className="flex items-start gap-3 rounded-md border p-3 hover:bg-secondary/40 transition-colors cursor-pointer"
-            >
-              <div className={cn(
-                "mt-0.5 rounded-full p-1",
-                suggestion.priority === 'high' && "text-red-600 bg-red-50",
-                suggestion.priority === 'medium' && "text-amber-600 bg-amber-50",
-                suggestion.priority === 'low' && "text-emerald-600 bg-emerald-50"
-              )}>
-                <Zap className="h-3 w-3" />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            {suggestions.map((suggestion, index) => (
+              <div
+                key={index}
+                className="flex items-start gap-3 rounded-md border p-3 hover:bg-secondary/40 transition-colors cursor-pointer"
+              >
+                <div className={cn(
+                  "mt-0.5 rounded-full p-1",
+                  suggestion.priority === 'high' && "text-red-600 bg-red-50",
+                  suggestion.priority === 'medium' && "text-amber-600 bg-amber-50",
+                  suggestion.priority === 'low' && "text-emerald-600 bg-emerald-50"
+                )}>
+                  <Zap className="h-3 w-3" />
+                </div>
+                <div className="flex-1 text-sm">
+                  {suggestion.text.split(suggestion.highlight).map((part, i, arr) => (
+                    <span key={i} className="text-muted-foreground">
+                      {part}
+                      {i < arr.length - 1 && (
+                        <span className="font-medium text-foreground">
+                          {suggestion.highlight}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
               </div>
-              <div className="flex-1 text-sm">
-                {suggestion.text.split(suggestion.highlight).map((part, i, arr) => (
-                  <span key={i} className="text-muted-foreground">
-                    {part}
-                    {i < arr.length - 1 && (
-                      <span className="font-medium text-foreground">
-                        {suggestion.highlight}
-                      </span>
-                    )}
-                  </span>
-                ))}
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
-            </div>
-          ))}
-        </div>
-        
-        <Button onClick={onReviewAll} className="w-full md:w-auto mt-2 md:mt-0">
-          Review All
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+            ))}
+          </div>
+        )}
+
+        {suggestions.length > 0 && (
+          <Button onClick={onReviewAll} className="w-full md:w-auto mt-2 md:mt-0">
+            Review All
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

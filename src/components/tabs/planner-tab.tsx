@@ -30,17 +30,17 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
     return (
       <Container className="animate-fade-in">
         <SectionTitle>Interview Planner</SectionTitle>
-        <div className="bg-white rounded-2xl border border-neutral-200 p-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mx-auto mb-4">
-            <Calendar className="w-8 h-8 text-neutral-400" />
+        <div className="bg-card rounded-2xl border border-border p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
+            <Calendar className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h3 className="text-xl font-bold text-neutral-900 mb-2">No Campaigns Yet</h3>
-          <p className="text-neutral-500 mb-6">
+          <h3 className="text-xl font-bold text-foreground mb-2">No Campaigns Yet</h3>
+          <p className="text-muted-foreground mb-6">
             Create a campaign in the Prepare tab to start planning interview sessions.
           </p>
           <a
             href="/prepare"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Users className="w-4 h-4" />
             Create Campaign
@@ -60,26 +60,26 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className={cn(
-              'flex items-center gap-3 px-4 py-2.5 rounded-xl border bg-white hover:bg-neutral-50 transition-colors min-w-[250px]',
-              isDropdownOpen ? 'border-primary ring-2 ring-primary/20' : 'border-neutral-200'
+              'flex items-center gap-3 px-4 py-2.5 rounded-xl border bg-card hover:bg-secondary/50 transition-colors min-w-[250px]',
+              isDropdownOpen ? 'border-primary ring-2 ring-primary/20' : 'border-border'
             )}
           >
             <div className="flex-1 text-left">
-              <div className="text-xs text-neutral-500">Active Campaign</div>
-              <div className="font-medium text-neutral-900 truncate">
+              <div className="text-xs text-muted-foreground">Active Campaign</div>
+              <div className="font-medium text-foreground truncate">
                 {selectedCampaign?.name || 'Select campaign'}
               </div>
             </div>
             <ChevronDown
               className={cn(
-                'w-4 h-4 text-neutral-400 transition-transform',
+                'w-4 h-4 text-muted-foreground transition-transform',
                 isDropdownOpen && 'rotate-180'
               )}
             />
           </button>
 
           {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-full bg-white rounded-xl border border-neutral-200 shadow-lg z-50 py-2">
+            <div className="absolute right-0 mt-2 w-full bg-popover rounded-xl border border-border shadow-lg z-50 py-2">
               {campaigns.map((campaign) => (
                 <button
                   key={campaign.id}
@@ -88,12 +88,12 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
                     setIsDropdownOpen(false);
                   }}
                   className={cn(
-                    'w-full px-4 py-2.5 text-left hover:bg-neutral-50 transition-colors',
-                    campaign.id === selectedCampaignId && 'bg-primary/5'
+                    'w-full px-4 py-2.5 text-left hover:bg-secondary/50 transition-colors',
+                    campaign.id === selectedCampaignId && 'bg-secondary'
                   )}
                 >
-                  <div className="font-medium text-neutral-900">{campaign.name}</div>
-                  <div className="text-xs text-neutral-500">
+                  <div className="font-medium text-foreground">{campaign.name}</div>
+                  <div className="text-xs text-muted-foreground">
                     {campaign.role}
                     {campaign.department && ` • ${campaign.department}`}
                   </div>
@@ -131,7 +131,7 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
           />
         </div>
       ) : (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+        <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-4 flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-amber-600" />
           <p className="text-amber-800">Please select a campaign to view the planner.</p>
         </div>

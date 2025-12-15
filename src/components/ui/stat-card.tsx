@@ -17,16 +17,16 @@ const variantConfig: Record<StatCardVariant, {
   iconColor: string;
 }> = {
   success: {
-    iconColor: 'text-emerald-600',
+    iconColor: 'text-emerald-800',
   },
   warning: {
-    iconColor: 'text-amber-600',
+    iconColor: 'text-amber-800',
   },
   primary: {
     iconColor: 'text-primary',
   },
   purple: {
-    iconColor: 'text-violet-600',
+    iconColor: 'text-stone-700',
   },
 };
 
@@ -35,10 +35,10 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
     const config = variantConfig[variant];
 
     return (
-      <Card ref={ref} className={cn("", className)} {...props}>
+      <Card ref={ref} className={cn("border-border/60 shadow-sm", className)} {...props}>
         <CardContent className="p-6">
           <div className="flex items-center justify-between space-y-0 pb-2">
-            <span className="text-sm font-medium text-muted-foreground">
+            <span className="text-sm font-medium text-muted-foreground font-sans uppercase tracking-wide text-[10px]">
               {label}
             </span>
             {Icon && (
@@ -46,7 +46,7 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
             )}
           </div>
           <div className="flex flex-col gap-1">
-             <div className="text-2xl font-bold">{value}</div>
+             <div className="text-3xl font-bold font-serif text-foreground">{value}</div>
              {subtitle && (
               <p className="text-xs text-muted-foreground">
                 {subtitle}
