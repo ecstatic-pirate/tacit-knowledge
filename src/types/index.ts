@@ -1,50 +1,74 @@
-export type CampaignStatus = 'on-track' | 'keep-track' | 'danger';
+// Re-export app-level types from context for backward compatibility
+export type { Campaign, Task, AppUser } from '@/context/app-context'
 
-export interface Campaign {
-  id: string;
-  name: string;
-  role: string;
-  department?: string;
-  yearsExperience?: number;
-  goal?: string;
-  status: CampaignStatus;
-  progress: number;
-  totalSessions: number;
-  completedSessions: number;
-  skillsCaptured: number;
-}
+// Additional UI types
+export type CampaignStatus = 'on-track' | 'keep-track' | 'danger'
 
 export interface Skill {
-  id: string;
-  name: string;
-  category: string;
-  captured: boolean;
+  id: string
+  name: string
+  category: string
+  captured: boolean
+  confidence?: number
+  source?: 'manual' | 'ai_detected'
 }
 
 export interface Session {
-  id: string;
-  campaignId: string;
-  sessionNumber: number;
-  date: string;
-  duration: number;
-  topics: string[];
-  status: 'scheduled' | 'in-progress' | 'completed';
+  id: string
+  campaignId: string
+  sessionNumber: number
+  scheduledAt?: string
+  startedAt?: string
+  endedAt?: string
+  durationMinutes?: number
+  topics: string[]
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+  notes?: string
 }
 
 export interface Report {
-  id: string;
-  title: string;
-  type: 'summary' | 'skills' | 'transcript' | 'export';
-  date: string;
-  campaignId?: string;
-  preview: string;
+  id: string
+  title: string
+  type: 'summary' | 'skills' | 'transcript' | 'graph' | 'export'
+  status: 'processing' | 'ready' | 'failed'
+  campaignId?: string
+  sessionId?: string
+  preview?: string
+  fileUrl?: string
+  createdAt?: string
 }
 
-export interface Task {
-  id: string;
-  title: string;
-  priority: 'urgent' | 'this-week' | 'on-track';
-  completed: boolean;
+export interface GraphNode {
+  id: string
+  campaignId: string
+  label: string
+  type: 'core' | 'skill' | 'concept' | 'system' | 'process'
+  description?: string
+  positionX?: number
+  positionY?: number
 }
 
-export type TabName = 'dashboard' | 'prepare' | 'capture' | 'planner' | 'reports';
+export interface GraphEdge {
+  id: string
+  campaignId: string
+  sourceNodeId: string
+  targetNodeId: string
+  relationship: 'requires' | 'enables' | 'related_to' | 'part_of'
+  weight?: number
+}
+
+export interface Document {
+  id: string
+  campaignId?: string
+  filename: string
+  fileType?: string
+  fileSize?: number
+  storagePath: string
+  aiProcessed: boolean
+  extractedSkills?: unknown[]
+}
+
+export type TabName = 'dashboard' | 'prepare' | 'capture' | 'planner' | 'reports'
+
+// Re-export database types for direct database access
+export type * from '@/lib/supabase/database.types'
