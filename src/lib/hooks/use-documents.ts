@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Document } from '@/lib/supabase/database.types'
 
@@ -27,7 +27,7 @@ export function useDocuments({ campaignId, orgId }: UseDocumentsOptions) {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Fetch documents for a campaign
   const fetchDocuments = useCallback(async () => {

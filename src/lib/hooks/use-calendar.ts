@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface CalendarConnection {
@@ -31,7 +31,7 @@ export function useCalendar() {
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Check for existing connection
   const checkConnection = useCallback(async () => {

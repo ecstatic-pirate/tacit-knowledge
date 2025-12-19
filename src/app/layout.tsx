@@ -1,9 +1,14 @@
 import type { Metadata } from 'next';
-import { Libre_Baskerville, Source_Sans_3 } from 'next/font/google';
+import { Inter, Libre_Baskerville } from 'next/font/google';
 import './globals.css';
-import { Sidebar } from '@/components/layout/sidebar';
+import { TopNav } from '@/components/layout/top-nav';
 import { ToastProvider } from '@/components/ui/toast';
 import { AppProvider } from '@/context/app-context';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+});
 
 const libreBaskerville = Libre_Baskerville({
   subsets: ['latin'],
@@ -11,14 +16,9 @@ const libreBaskerville = Libre_Baskerville({
   variable: '--font-serif',
 });
 
-const sourceSans3 = Source_Sans_3({
-  subsets: ['latin'],
-  variable: '--font-sans',
-});
-
 export const metadata: Metadata = {
-  title: 'Tacit Knowledge Platform',
-  description: 'Preserve expertise. Capture insight. Enable intelligence.',
+  title: 'Tacit',
+  description: 'Capture expert knowledge before it walks out the door.',
 };
 
 export default function RootLayout({
@@ -28,12 +28,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${sourceSans3.variable} ${libreBaskerville.variable} antialiased min-h-screen bg-background font-sans`}>
+      <body className={`${inter.variable} ${libreBaskerville.variable} antialiased min-h-screen bg-background font-sans`}>
         <AppProvider>
           <ToastProvider>
-            <div className="flex h-screen overflow-hidden">
-              <Sidebar />
-              <main className="flex-1 overflow-y-auto bg-secondary/20">
+            <div className="min-h-screen flex flex-col">
+              <TopNav />
+              <main className="flex-1">
                 {children}
               </main>
             </div>

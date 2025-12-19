@@ -1,3 +1,2 @@
-export { Header } from './header';
-export { Navigation } from './navigation';
+export { TopNav } from './top-nav';
 export { Container, SectionTitle } from './container';

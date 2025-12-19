@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Bot, ClipboardList, Layers, Target, Lightbulb, RefreshCw, Loader2, MessageSquare } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,7 +46,7 @@ export function AICoachPanel({
   const [error, setError] = useState<string | null>(null);
   const [lastFetchedNotes, setLastFetchedNotes] = useState<string>('');
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Fetch AI guidance
   const fetchGuidance = useCallback(async () => {

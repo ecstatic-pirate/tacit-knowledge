@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { BrainCircuit, Loader2 } from 'lucide-react'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -39,7 +40,7 @@ function LoginForm() {
   }
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+    <form className="space-y-4" onSubmit={handleLogin}>
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
           {error}
@@ -48,8 +49,8 @@ function LoginForm() {
 
       <div className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email address
+          <label htmlFor="email" className="block text-sm font-medium mb-1.5">
+            Email
           </label>
           <Input
             id="email"
@@ -59,13 +60,12 @@ function LoginForm() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1"
             placeholder="you@example.com"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="password" className="block text-sm font-medium mb-1.5">
             Password
           </label>
           <Input
@@ -76,25 +76,25 @@ function LoginForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1"
             placeholder="Your password"
           />
         </div>
       </div>
 
-      <div>
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={loading}
-        >
-          {loading ? 'Signing in...' : 'Sign in'}
-        </Button>
-      </div>
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Signing in...
+          </>
+        ) : (
+          'Sign in'
+        )}
+      </Button>
 
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+        <Link href="/signup" className="font-medium text-foreground hover:underline">
           Sign up
         </Link>
       </p>
@@ -104,27 +104,28 @@ function LoginForm() {
 
 function LoginFormFallback() {
   return (
-    <div className="mt-8 space-y-6 animate-pulse">
+    <div className="space-y-4 animate-pulse">
       <div className="space-y-4">
-        <div className="h-10 bg-gray-200 rounded" />
-        <div className="h-10 bg-gray-200 rounded" />
+        <div className="h-10 bg-secondary rounded" />
+        <div className="h-10 bg-secondary rounded" />
       </div>
-      <div className="h-10 bg-gray-200 rounded" />
+      <div className="h-10 bg-secondary rounded" />
     </div>
   )
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h1 className="text-center text-3xl font-bold text-gray-900">
-            Tacit Knowledge
-          </h1>
-          <h2 className="mt-6 text-center text-xl text-gray-600">
-            Sign in to your account
-          </h2>
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
+            <BrainCircuit className="w-5 h-5" />
+          </div>
+          <h1 className="text-xl font-semibold">Sign in to Tacit</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Capture expert knowledge before it walks out the door.
+          </p>
         </div>
 
         <Suspense fallback={<LoginFormFallback />}>

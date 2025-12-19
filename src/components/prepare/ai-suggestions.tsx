@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Sparkles,
@@ -58,7 +58,7 @@ export function AISuggestions({
   const [plan, setPlan] = useState<CampaignPlan | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Fetch AI suggestions
   const fetchSuggestions = useCallback(async () => {

@@ -147,6 +147,57 @@ export type Database = {
           },
         ]
       }
+      captured_insights: {
+        Row: {
+          campaign_id: string
+          confidence: number | null
+          created_at: string | null
+          deleted_at: string | null
+          id: string
+          insight: string
+          session_id: string
+          source_transcript_ids: string[] | null
+          title: string
+        }
+        Insert: {
+          campaign_id: string
+          confidence?: number | null
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          insight: string
+          session_id: string
+          source_transcript_ids?: string[] | null
+          title: string
+        }
+        Update: {
+          campaign_id?: string
+          confidence?: number | null
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          insight?: string
+          session_id?: string
+          source_transcript_ids?: string[] | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captured_insights_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captured_insights_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           ai_processed: boolean | null
@@ -684,6 +735,47 @@ export type Database = {
           },
         ]
       }
+      transcript_lines: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          id: string
+          is_final: boolean | null
+          session_id: string
+          speaker: string
+          text: string
+          timestamp_seconds: number
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          is_final?: boolean | null
+          session_id: string
+          speaker?: string
+          text: string
+          timestamp_seconds?: number
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          is_final?: boolean | null
+          session_id?: string
+          speaker?: string
+          text?: string
+          timestamp_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_lines_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           avatar_url: string | null
@@ -763,6 +855,8 @@ export type Document = Tables<'documents'>
 export type GraphNode = Tables<'graph_nodes'>
 export type GraphEdge = Tables<'graph_edges'>
 export type CalendarConnection = Tables<'calendar_connections'>
+export type TranscriptLine = Tables<'transcript_lines'>
+export type CapturedInsight = Tables<'captured_insights'>
 
 // Insert types
 export type OrganizationInsert = TablesInsert<'organizations'>
@@ -776,6 +870,8 @@ export type DocumentInsert = TablesInsert<'documents'>
 export type GraphNodeInsert = TablesInsert<'graph_nodes'>
 export type GraphEdgeInsert = TablesInsert<'graph_edges'>
 export type CalendarConnectionInsert = TablesInsert<'calendar_connections'>
+export type TranscriptLineInsert = TablesInsert<'transcript_lines'>
+export type CapturedInsightInsert = TablesInsert<'captured_insights'>
 
 // Update types
 export type OrganizationUpdate = TablesUpdate<'organizations'>
@@ -789,3 +885,5 @@ export type DocumentUpdate = TablesUpdate<'documents'>
 export type GraphNodeUpdate = TablesUpdate<'graph_nodes'>
 export type GraphEdgeUpdate = TablesUpdate<'graph_edges'>
 export type CalendarConnectionUpdate = TablesUpdate<'calendar_connections'>
+export type TranscriptLineUpdate = TablesUpdate<'transcript_lines'>
+export type CapturedInsightUpdate = TablesUpdate<'captured_insights'>

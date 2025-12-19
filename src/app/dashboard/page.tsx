@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/app-context';
 import { useToast } from '@/components/ui/toast';
 import { DashboardTab } from '@/components/tabs';
@@ -21,7 +21,7 @@ interface AISuggestion {
 export default function DashboardPage() {
   const { campaigns, tasks, toggleTask } = useApp();
   const { showToast } = useToast();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;

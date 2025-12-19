@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { GraphNode, GraphEdge } from '@/lib/supabase/database.types'
 
@@ -50,7 +50,7 @@ export function useKnowledgeGraph(campaignId?: string): UseKnowledgeGraphReturn 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const fetchGraph = useCallback(async () => {
     setIsLoading(true)

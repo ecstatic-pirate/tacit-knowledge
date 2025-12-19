@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { BrainCircuit, Loader2 } from 'lucide-react'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -24,7 +25,6 @@ export default function SignupPage() {
 
     const supabase = createClient()
 
-    // Sign up the user
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -49,29 +49,30 @@ export default function SignupPage() {
       return
     }
 
-    // Check if email confirmation is required
     if (authData.user && !authData.session) {
       setSuccess(true)
       setLoading(false)
       return
     }
 
-    // If auto-confirmed, redirect to dashboard
     router.push('/dashboard')
     router.refresh()
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8 text-center">
-          <div className="bg-green-50 border border-green-200 text-green-700 px-6 py-8 rounded-lg">
-            <h2 className="text-xl font-semibold mb-2">Check your email</h2>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
+            <BrainCircuit className="w-5 h-5" />
+          </div>
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-6 rounded-lg mb-4">
+            <h2 className="text-lg font-semibold mb-2">Check your email</h2>
             <p className="text-sm">
               We&apos;ve sent you a confirmation link. Please check your email to verify your account.
             </p>
           </div>
-          <Link href="/login" className="text-blue-600 hover:text-blue-500 text-sm">
+          <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
             Back to login
           </Link>
         </div>
@@ -80,18 +81,19 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h1 className="text-center text-3xl font-bold text-gray-900">
-            Tacit Knowledge
-          </h1>
-          <h2 className="mt-6 text-center text-xl text-gray-600">
-            Create your account
-          </h2>
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
+            <BrainCircuit className="w-5 h-5" />
+          </div>
+          <h1 className="text-xl font-semibold">Create your account</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Get started with Tacit in minutes.
+          </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSignup}>
+        <form className="space-y-4" onSubmit={handleSignup}>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {error}
@@ -100,7 +102,7 @@ export default function SignupPage() {
 
           <div className="space-y-4">
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="fullName" className="block text-sm font-medium mb-1.5">
                 Full name
               </label>
               <Input
@@ -110,14 +112,13 @@ export default function SignupPage() {
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="mt-1"
                 placeholder="John Doe"
               />
             </div>
 
             <div>
-              <label htmlFor="orgName" className="block text-sm font-medium text-gray-700">
-                Organization name
+              <label htmlFor="orgName" className="block text-sm font-medium mb-1.5">
+                Organization
               </label>
               <Input
                 id="orgName"
@@ -126,14 +127,13 @@ export default function SignupPage() {
                 required
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
-                className="mt-1"
                 placeholder="Acme Inc."
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+              <label htmlFor="email" className="block text-sm font-medium mb-1.5">
+                Email
               </label>
               <Input
                 id="email"
@@ -143,13 +143,12 @@ export default function SignupPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium mb-1.5">
                 Password
               </label>
               <Input
@@ -161,25 +160,25 @@ export default function SignupPage() {
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1"
                 placeholder="At least 8 characters"
               />
             </div>
           </div>
 
-          <div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? 'Creating account...' : 'Create account'}
-            </Button>
-          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating account...
+              </>
+            ) : (
+              'Create account'
+            )}
+          </Button>
 
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link href="/login" className="font-medium text-foreground hover:underline">
               Sign in
             </Link>
           </p>

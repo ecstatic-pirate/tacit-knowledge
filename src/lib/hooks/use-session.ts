@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Session as DBSession, Campaign, Skill } from '@/lib/supabase/database.types'
 
@@ -55,7 +55,7 @@ export function useSession(sessionId: string | null): UseSessionReturn {
   const [error, setError] = useState<string | null>(null)
   const notesDebounceRef = useRef<NodeJS.Timeout | null>(null)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Fetch session data with related campaign and skills
   const fetchSession = useCallback(async () => {
@@ -240,6 +240,17 @@ export function useSession(sessionId: string | null): UseSessionReturn {
           .eq('id', session.campaignId)
       }
     }
+
+    // Trigger post-session processing (async, don't wait)
+    supabase.functions.invoke('process-session', {
+      body: { sessionId },
+    }).then(({ error: processError }) => {
+      if (processError) {
+        console.error('Error triggering session processing:', processError)
+      } else {
+        console.log('Session processing triggered successfully')
+      }
+    })
   }, [sessionId, session, supabase, fetchSession])
 
   // Update notes (debounced)

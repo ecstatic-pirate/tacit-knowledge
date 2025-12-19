@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Calendar,
   Clock,
@@ -12,7 +12,9 @@ import {
   AlertCircle,
   Loader2,
   Link2,
+  Play,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +45,7 @@ export function SessionScheduler({
   expertEmail,
   onSessionCreated,
 }: SessionSchedulerProps) {
+  const router = useRouter()
   const [sessions, setSessions] = useState<ScheduledSession[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
@@ -65,7 +68,7 @@ export function SessionScheduler({
     error: calendarError,
   } = useCalendar()
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Fetch existing sessions
   const fetchSessions = useCallback(async () => {
@@ -74,6 +77,7 @@ export function SessionScheduler({
       .from('sessions')
       .select('*')
       .eq('campaign_id', campaignId)
+      .is('deleted_at', null)
       .order('session_number', { ascending: true })
 
     if (fetchError) {
@@ -452,11 +456,26 @@ export function SessionScheduler({
                         ? 'bg-green-100 text-green-700'
                         : session.status === 'in_progress'
                         ? 'bg-amber-100 text-amber-700'
+                        : session.status === 'paused'
+                        ? 'bg-orange-100 text-orange-700'
                         : 'bg-blue-100 text-blue-700'
                     )}
                   >
-                    {session.status === 'in_progress' ? 'In Progress' : session.status}
+                    {session.status === 'in_progress' ? 'In Progress' : session.status === 'paused' ? 'Paused' : session.status}
                   </div>
+
+                  {/* Start/Continue Capture Button */}
+                  {(session.status === 'scheduled' || session.status === 'in_progress' || session.status === 'paused') && (
+                    <Button
+                      size="sm"
+                      variant={session.status === 'in_progress' || session.status === 'paused' ? 'default' : 'outline'}
+                      onClick={() => router.push(`/capture/${session.id}`)}
+                      className="gap-1"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      {session.status === 'in_progress' ? 'Continue' : session.status === 'paused' ? 'Resume' : 'Start'}
+                    </Button>
+                  )}
 
                   {session.status === 'scheduled' && (
                     <button

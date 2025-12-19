@@ -1,12 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Calendar, Play, AlertCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, Calendar, Play, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SessionListItem {
@@ -22,7 +20,7 @@ export default function CapturePage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function fetchSessions() {
@@ -72,8 +70,7 @@ export default function CapturePage() {
     }
 
     fetchSessions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [supabase, router]);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return 'Not scheduled';
@@ -87,82 +84,77 @@ export default function CapturePage() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'in_progress':
-        return <Badge className="bg-rose-600 hover:bg-rose-700 border-transparent text-white">In Progress</Badge>;
-      case 'paused':
-        return <Badge variant="warning">Paused</Badge>;
-      case 'scheduled':
-        return <Badge variant="secondary" className="bg-stone-200 text-stone-700 hover:bg-stone-300">Scheduled</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="container max-w-3xl py-12">
+    <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">Capture Sessions</h1>
+        <h1 className="text-2xl font-semibold mb-1">Capture Sessions</h1>
         <p className="text-muted-foreground">
           Select a session to start or continue capturing knowledge.
         </p>
       </div>
 
       {sessions.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-semibold mb-2">No Sessions Available</h3>
-            <p className="text-muted-foreground mb-4">
-              Schedule a session in the Planner to start capturing knowledge.
-            </p>
-            <Button onClick={() => router.push('/planner')}>
-              <Calendar className="w-4 h-4 mr-2" />
-              Go to Planner
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center py-12 border rounded-lg bg-card">
+          <Mic className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
+          <p className="text-muted-foreground mb-4">No sessions available</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Schedule a session in the Sessions page to start capturing.
+          </p>
+          <Button onClick={() => router.push('/planner')}>
+            <Calendar className="w-4 h-4 mr-2" />
+            Go to Sessions
+          </Button>
+        </div>
       ) : (
-        <div className="space-y-4">
+        <div className="border rounded-lg divide-y bg-card">
           {sessions.map((session) => (
-            <Card
+            <div
               key={session.id}
               className={cn(
-                "cursor-pointer transition-all hover:shadow-md hover:border-primary/50",
-                (session.status === 'in_progress' || session.status === 'paused') && "border-primary"
+                "flex items-center justify-between p-4 hover:bg-secondary/50 cursor-pointer transition-colors",
+                (session.status === 'in_progress' || session.status === 'paused') && "bg-secondary/30"
               )}
               onClick={() => router.push(`/capture/${session.id}`)}
             >
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                    {session.sessionNumber}
-                  </div>
-                  <div>
-                    <div className="font-medium">{session.campaignName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {session.campaignRole} · {formatDate(session.scheduledAt)}
-                    </div>
-                  </div>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-medium">
+                  {session.sessionNumber}
                 </div>
-                <div className="flex items-center gap-3">
-                  {getStatusBadge(session.status)}
-                  <Button size="sm" variant={session.status === 'in_progress' ? 'default' : 'outline'}>
-                    <Play className="w-4 h-4 mr-1" />
-                    {session.status === 'in_progress' ? 'Continue' : session.status === 'paused' ? 'Resume' : 'Start'}
-                  </Button>
+                <div>
+                  <p className="font-medium">{session.campaignName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {session.campaignRole} · {formatDate(session.scheduledAt)}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "px-2 py-1 rounded text-xs font-medium",
+                  session.status === 'in_progress' && "bg-red-50 text-red-700",
+                  session.status === 'paused' && "bg-amber-50 text-amber-700",
+                  session.status === 'scheduled' && "bg-secondary text-muted-foreground"
+                )}>
+                  {session.status === 'in_progress' ? 'In Progress' :
+                   session.status === 'paused' ? 'Paused' : 'Scheduled'}
+                </div>
+                <Button
+                  size="sm"
+                  variant={session.status === 'in_progress' || session.status === 'paused' ? 'default' : 'outline'}
+                >
+                  <Play className="w-3.5 h-3.5 mr-1" />
+                  {session.status === 'in_progress' ? 'Continue' :
+                   session.status === 'paused' ? 'Resume' : 'Start'}
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
       )}

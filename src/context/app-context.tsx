@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 import type {
@@ -129,7 +129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Fetch user profile and organization
   const fetchUserData = useCallback(async (authUser: User) => {
@@ -173,6 +173,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { data: campaignsData, error: campaignsError } = await supabase
       .from('campaigns')
       .select('*')
+      .is('deleted_at', null)
+      .is('completed_at', null)
       .order('created_at', { ascending: false })
 
     if (campaignsError) {
@@ -201,7 +203,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { data: tasksData, error: tasksError } = await supabase
       .from('tasks')
       .select('*')
-      .order('created_at', { ascending: false })
+      .is('deleted_at', null)
+      .eq('completed', false)
+      .order('due_at', { ascending: true })
 
     if (tasksError) {
       console.error('Error fetching tasks:', tasksError)
@@ -218,38 +222,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Initialize auth and data
   useEffect(() => {
-    const initAuth = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+    let isMounted = true
+    let initialized = false
 
-      if (authUser) {
-        setUser(authUser)
-        await fetchUserData(authUser)
-        await refreshData()
-      }
+    const initializeUser = async (authUser: User) => {
+      if (!isMounted || initialized) return
+      initialized = true
 
+      setUser(authUser)
+      await fetchUserData(authUser)
+      await refreshData()
       setIsLoading(false)
     }
 
-    initAuth()
+    const clearUser = () => {
+      if (!isMounted) return
+      setUser(null)
+      setAppUser(null)
+      setOrganization(null)
+      setCampaigns([])
+      setTasks([])
+      setIsLoading(false)
+    }
 
-    // Listen for auth changes
+    // Set up auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return
+
         if (event === 'SIGNED_IN' && session?.user) {
-          setUser(session.user)
-          await fetchUserData(session.user)
-          await refreshData()
+          await initializeUser(session.user)
         } else if (event === 'SIGNED_OUT') {
-          setUser(null)
-          setAppUser(null)
-          setOrganization(null)
-          setCampaigns([])
-          setTasks([])
+          initialized = false
+          clearUser()
+        } else if (event === 'INITIAL_SESSION') {
+          if (session?.user) {
+            await initializeUser(session.user)
+          } else {
+            setIsLoading(false)
+          }
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Just update the user object, don't refetch everything
+          setUser(session.user)
         }
       }
     )
 
+    // Fallback: check current session after a short delay
+    // This handles cases where INITIAL_SESSION doesn't fire
+    const timeoutId = setTimeout(async () => {
+      if (!isMounted || initialized) return
+
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser) {
+        await initializeUser(authUser)
+      } else {
+        setIsLoading(false)
+      }
+    }, 100)
+
     return () => {
+      isMounted = false
+      clearTimeout(timeoutId)
       subscription.unsubscribe()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

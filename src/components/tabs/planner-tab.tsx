@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Container, SectionTitle } from '@/components/layout';
-import { PlannerSidebar, Timeline, SessionScheduler } from '@/components/planner';
+import { SessionScheduler } from '@/components/planner';
 import { useApp, Campaign } from '@/context/app-context';
 import { cn } from '@/lib/utils';
-import { ChevronDown, Calendar, Users, AlertCircle } from 'lucide-react';
+import { ChevronDown, Calendar, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 interface PlannerTabProps {
   onUpdatePlan: () => void;
@@ -13,10 +14,10 @@ interface PlannerTabProps {
 
 export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
   const { campaigns } = useApp();
+  const router = useRouter();
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Auto-select first campaign if none selected
   useEffect(() => {
     if (!selectedCampaignId && campaigns.length > 0) {
       setSelectedCampaignId(campaigns[0].id);
@@ -25,48 +26,53 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
 
   const selectedCampaign = campaigns.find((c) => c.id === selectedCampaignId);
 
-  // No campaigns state
   if (campaigns.length === 0) {
     return (
-      <Container className="animate-fade-in">
-        <SectionTitle>Interview Planner</SectionTitle>
-        <div className="bg-card rounded-2xl border border-border p-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
-            <Calendar className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-xl font-bold text-foreground mb-2">No Campaigns Yet</h3>
-          <p className="text-muted-foreground mb-6">
-            Create a campaign in the Prepare tab to start planning interview sessions.
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold mb-1">Sessions</h1>
+          <p className="text-muted-foreground">
+            Schedule and manage capture sessions with experts.
           </p>
-          <a
-            href="/prepare"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Users className="w-4 h-4" />
-            Create Campaign
-          </a>
         </div>
-      </Container>
+        <div className="text-center py-12 border rounded-lg bg-card">
+          <Calendar className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
+          <p className="text-muted-foreground mb-4">No campaigns yet</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Create a campaign first to schedule sessions.
+          </p>
+          <Button onClick={() => router.push('/prepare')}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Campaign
+          </Button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Container className="animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <SectionTitle className="mb-0">Interview Planner</SectionTitle>
+    <div className="max-w-5xl mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-semibold mb-1">Sessions</h1>
+          <p className="text-muted-foreground">
+            Schedule and manage capture sessions.
+          </p>
+        </div>
 
         {/* Campaign Selector */}
         <div className="relative">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className={cn(
-              'flex items-center gap-3 px-4 py-2.5 rounded-xl border bg-card hover:bg-secondary/50 transition-colors min-w-[250px]',
-              isDropdownOpen ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+              'flex items-center gap-3 px-4 py-2 rounded-lg border bg-card hover:bg-secondary/50 transition-colors min-w-[220px]',
+              isDropdownOpen && 'ring-2 ring-foreground/10'
             )}
           >
             <div className="flex-1 text-left">
-              <div className="text-xs text-muted-foreground">Active Campaign</div>
-              <div className="font-medium text-foreground truncate">
+              <div className="text-xs text-muted-foreground">Campaign</div>
+              <div className="font-medium truncate">
                 {selectedCampaign?.name || 'Select campaign'}
               </div>
             </div>
@@ -79,63 +85,43 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
           </button>
 
           {isDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-full bg-popover rounded-xl border border-border shadow-lg z-50 py-2">
-              {campaigns.map((campaign) => (
-                <button
-                  key={campaign.id}
-                  onClick={() => {
-                    setSelectedCampaignId(campaign.id);
-                    setIsDropdownOpen(false);
-                  }}
-                  className={cn(
-                    'w-full px-4 py-2.5 text-left hover:bg-secondary/50 transition-colors',
-                    campaign.id === selectedCampaignId && 'bg-secondary'
-                  )}
-                >
-                  <div className="font-medium text-foreground">{campaign.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {campaign.role}
-                    {campaign.department && ` • ${campaign.department}`}
-                  </div>
-                </button>
-              ))}
-            </div>
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setIsDropdownOpen(false)}
+              />
+              <div className="absolute right-0 mt-2 w-full bg-popover rounded-lg border shadow-md z-50 py-1">
+                {campaigns.map((campaign) => (
+                  <button
+                    key={campaign.id}
+                    onClick={() => {
+                      setSelectedCampaignId(campaign.id);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={cn(
+                      'w-full px-4 py-2 text-left hover:bg-secondary/50 transition-colors',
+                      campaign.id === selectedCampaignId && 'bg-secondary'
+                    )}
+                  >
+                    <div className="font-medium">{campaign.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {campaign.role}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {selectedCampaign ? (
-        <div className="space-y-8">
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-8">
-            <PlannerSidebar
-              personName={selectedCampaign.name}
-              goal={selectedCampaign.goal || 'Capture expertise and institutional knowledge'}
-              wantedSkills="Skills will be populated from AI analysis"
-              notes="Focus on undocumented workarounds and institutional knowledge."
-              onUpdate={onUpdatePlan}
-            />
-            <Timeline
-              totalSessions={selectedCampaign.totalSessions}
-              cadence="1x/week"
-              duration={`${Math.ceil(selectedCampaign.totalSessions / 1.5)} weeks`}
-              weeks={Math.min(8, selectedCampaign.totalSessions)}
-            />
-          </div>
-
-          {/* Session Scheduler */}
-          <SessionScheduler
-            campaignId={selectedCampaign.id}
-            expertName={selectedCampaign.name}
-            expertEmail={selectedCampaign.expertEmail}
-          />
-        </div>
-      ) : (
-        <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600" />
-          <p className="text-amber-800">Please select a campaign to view the planner.</p>
-        </div>
+      {selectedCampaign && (
+        <SessionScheduler
+          campaignId={selectedCampaign.id}
+          expertName={selectedCampaign.name}
+          expertEmail={selectedCampaign.expertEmail}
+        />
       )}
-    </Container>
+    </div>
   );
 }

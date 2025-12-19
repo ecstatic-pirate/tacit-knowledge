@@ -12,11 +12,13 @@ interface TaskListProps {
   onTaskToggle: (taskId: string) => void;
 }
 
-const priorityConfig = {
+const priorityConfig: Record<string, { variant: string; label: string }> = {
   urgent: { variant: 'destructive', label: 'Urgent' },
   'this-week': { variant: 'warning', label: 'This week' },
   'on-track': { variant: 'success', label: 'Later' },
-} as const;
+};
+
+const defaultPriorityConfig = { variant: 'secondary', label: 'Normal' };
 
 export function TaskList({ tasks, onTaskToggle }: TaskListProps) {
   return (
@@ -58,9 +60,9 @@ export function TaskList({ tasks, onTaskToggle }: TaskListProps) {
                 {task.title}
               </p>
               <div className="flex items-center gap-2">
-                <Badge variant={priorityConfig[task.priority].variant as any} className="h-4 px-1 text-[10px] gap-1 font-normal bg-opacity-10 border-opacity-20 bg-transparent border">
+                <Badge variant={(priorityConfig[task.priority] ?? defaultPriorityConfig).variant as any} className="h-4 px-1 text-[10px] gap-1 font-normal bg-opacity-10 border-opacity-20 bg-transparent border">
                   {task.priority === 'urgent' && <Clock className="w-2.5 h-2.5" />}
-                  {priorityConfig[task.priority].label}
+                  {(priorityConfig[task.priority] ?? defaultPriorityConfig).label}
                 </Badge>
               </div>
             </div>
