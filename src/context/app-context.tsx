@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 import type {
@@ -122,6 +123,7 @@ function mapDBTaskToApp(dbTask: DBTask): Task {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [appUser, setAppUser] = useState<AppUser | null>(null)
   const [organization, setOrganization] = useState<Organization | null>(null)
@@ -310,7 +312,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Sign out
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
-  }, [supabase])
+    router.push('/login')
+  }, [supabase, router])
 
   // Toggle task completion
   const toggleTask = useCallback(async (taskId: string) => {
