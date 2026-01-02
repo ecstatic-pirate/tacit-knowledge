@@ -27,11 +27,11 @@ interface KnowledgeGraphExplorerProps {
 
 // Color mapping for node types
 const nodeColors: Record<GraphNode['type'], { bg: string; text: string; border: string }> = {
-  core: { bg: '#fee2e2', text: '#dc2626', border: '#991b1b' },      // red
-  system: { bg: '#fef3c7', text: '#d97706', border: '#92400e' },    // amber
-  process: { bg: '#ede9fe', text: '#7c3aed', border: '#5b21b6' },   // violet
-  skill: { bg: '#dbeafe', text: '#2563eb', border: '#1e40af' },     // blue
-  concept: { bg: '#d1fae5', text: '#059669', border: '#065f46' },   // emerald
+  core: { bg: '#fecaca', text: '#dc2626', border: '#991b1b' },      // red-300
+  system: { bg: '#fde68a', text: '#d97706', border: '#92400e' },    // amber-300
+  process: { bg: '#ddd6fe', text: '#7c3aed', border: '#5b21b6' },   // violet-300
+  skill: { bg: '#bfdbfe', text: '#2563eb', border: '#1e40af' },     // blue-300
+  concept: { bg: '#a7f3d0', text: '#059669', border: '#065f46' },   // emerald-300
 };
 
 const nodeLabels: Record<GraphNode['type'], string> = {
@@ -82,18 +82,18 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
       }
 
       // Position others by type
-      let yOffset = 180;
+      let yOffset = 200;
       const types: GraphNode['type'][] = ['system', 'process', 'skill', 'concept'];
 
       types.forEach(type => {
         const typeNodes = nodes.filter(n => n.type === type && n.id !== coreNode?.id);
         typeNodes.forEach((node, i) => {
           positions[node.id] = {
-            x: 50 + (i % 2) * 220,
+            x: 50 + (i % 2) * 300,
             y: yOffset,
           };
         });
-        yOffset += 120;
+        yOffset += 170;
       });
     } else if (selectedLayout === 'radial') {
       const coreNode = nodes.find(n => n.type === 'core') || nodes[0];
@@ -103,7 +103,7 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
 
       const otherNodes = nodes.filter(n => n.id !== coreNode?.id);
       const angle = (Math.PI * 2) / Math.max(otherNodes.length, 1);
-      const radius = 200;
+      const radius = 220;
 
       otherNodes.forEach((n, i) => {
         positions[n.id] = {
@@ -119,7 +119,7 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
           x: xOffset,
           y: 250,
         };
-        xOffset += 180;
+        xOffset += 240;
       });
     }
 
@@ -156,30 +156,30 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
           <div className="border border-border rounded-lg bg-card overflow-hidden">
             <svg
               width="100%"
-              height="600"
+              height="700"
               className="bg-gradient-to-br from-background to-secondary/10"
-              viewBox="0 0 600 500"
+              viewBox="0 0 650 600"
             >
               <defs>
                 <marker
                   id="arrowhead"
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="3"
+                  markerWidth="14"
+                  markerHeight="14"
+                  refX="12"
+                  refY="4.5"
                   orient="auto"
                 >
-                  <polygon points="0 0, 10 3, 0 6" fill="#9ca3af" />
+                  <polygon points="0 0, 14 4.5, 0 9" fill="#6b7280" />
                 </marker>
                 <marker
                   id="arrowhead-hover"
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="3"
+                  markerWidth="14"
+                  markerHeight="14"
+                  refX="12"
+                  refY="4.5"
                   orient="auto"
                 >
-                  <polygon points="0 0, 10 3, 0 6" fill="#3b82f6" />
+                  <polygon points="0 0, 14 4.5, 0 9" fill="#2563eb" />
                 </marker>
               </defs>
 
@@ -199,9 +199,9 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                       x2={target.x}
                       y2={target.y}
                       stroke={isSelected ? '#3b82f6' : '#d1d5db'}
-                      strokeWidth={isSelected ? 3 : 2}
+                      strokeWidth={isSelected ? 4 : 3}
                       markerEnd={isSelected ? 'url(#arrowhead-hover)' : 'url(#arrowhead)'}
-                      opacity={isSelected ? 1 : 0.6}
+                      opacity={isSelected ? 1 : 0.75}
                       className="transition-all"
                     />
                   </g>
@@ -217,7 +217,7 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                 const isSelected = selectedNodeId === node.id;
                 const isHovered = hoveredNodeId === node.id;
                 const isRelated = selectedNodeId && (selectedNodeId === node.id || relatedNodes.some(r => r.node.id === node.id));
-                const nodeSize = node.type === 'core' ? 80 : 60;
+                const nodeSize = node.type === 'core' ? 120 : 90;
 
                 return (
                   <g
@@ -232,9 +232,9 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                       <circle
                         cx={pos.x}
                         cy={pos.y}
-                        r={nodeSize / 2 + 8}
-                        fill={colors.bg}
-                        opacity="0.3"
+                        r={nodeSize / 2 + 12}
+                        fill={colors.text}
+                        opacity="0.15"
                       />
                     )}
 
@@ -245,7 +245,7 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                       r={nodeSize / 2}
                       fill={colors.bg}
                       stroke={isSelected || isHovered ? colors.text : colors.border}
-                      strokeWidth={isSelected ? 3 : isHovered ? 2 : 1.5}
+                      strokeWidth={isSelected ? 5 : isHovered ? 4 : 3}
                       opacity={isRelated || !selectedNodeId ? 1 : 0.4}
                       className="transition-all"
                     />
@@ -254,8 +254,8 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                     <text
                       x={pos.x}
                       y={pos.y}
-                      fontSize="13"
-                      fontWeight="600"
+                      fontSize="16"
+                      fontWeight="700"
                       fill={colors.text}
                       textAnchor="middle"
                       dominantBaseline="middle"
@@ -263,7 +263,7 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                     >
                       {node.label.split(' ').map((word, i) => (
                         <tspan key={i} x={pos.x} dy={i === 0 ? '-0.5em' : '1.2em'}>
-                          {word.length > 10 ? word.substring(0, 10) : word}
+                          {word.length > 15 ? word.substring(0, 13) + '...' : word}
                         </tspan>
                       ))}
                     </text>
@@ -271,8 +271,9 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                     {/* Type label below node */}
                     <text
                       x={pos.x}
-                      y={pos.y + nodeSize / 2 + 16}
-                      fontSize="10"
+                      y={pos.y + nodeSize / 2 + 20}
+                      fontSize="12"
+                      fontWeight="500"
                       fill={colors.text}
                       textAnchor="middle"
                       opacity="0.7"
@@ -291,9 +292,9 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
             {Object.entries(nodeLabels).map(([type, label]) => {
               const colors = nodeColors[type as GraphNode['type']];
               return (
-                <div key={type} className="flex items-center gap-2 text-xs">
+                <div key={type} className="flex items-center gap-2 text-sm">
                   <div
-                    className="w-4 h-4 rounded-full border-2"
+                    className="w-5 h-5 rounded-full border-2"
                     style={{
                       backgroundColor: colors.bg,
                       borderColor: colors.border,
