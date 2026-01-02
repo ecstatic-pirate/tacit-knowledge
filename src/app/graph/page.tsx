@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useApp } from '@/context/app-context';
-import { Lightbulb } from 'phosphor-react';
+import { Lightbulb, Rows } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -11,6 +11,8 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { SearchInput } from '@/components/ui/search-input';
 import { SectionDivider } from '@/components/ui/section-divider';
 import { containers, spacing, components } from '@/lib/design-system';
+import { GraphLayoutVisualizer } from '@/components/visualizations/graph-layout-visualizer';
+import type { GraphNode, GraphEdge } from '@/components/visualizations/graph-layout-visualizer';
 
 interface KnowledgeItem {
   id: string;
@@ -35,6 +37,7 @@ export default function GraphPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<KnowledgeItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'visualization' | 'list'>('visualization');
   const supabase = useMemo(() => createClient(), []);
 
   // Log auth state for debugging
@@ -192,20 +195,64 @@ export default function GraphPage() {
   const totalItems = Object.values(filteredByExpert).flat().length;
   const expertCount = Object.keys(itemsByExpert).length;
 
+  // Convert to graph nodes and edges for visualization
+  const graphNodes: GraphNode[] = items.map(item => ({
+    id: item.id,
+    label: item.title,
+    type: (item.type as GraphNode['type']) || 'concept',
+    description: item.insight,
+  }));
+
+  const graphEdges: GraphEdge[] = connections.map(conn => ({
+    id: conn.id,
+    sourceId: conn.sourceId,
+    targetId: conn.targetId,
+    relationship: (conn.relationship as GraphEdge['relationship']) || 'related_to',
+  }));
+
   return (
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
-        <PageHeader
-          title="Captured Knowledge"
-          subtitle={
-            items.length === 0
-              ? 'Your knowledge base will appear here as you capture expert insights'
-              : `${items.length} insight${items.length !== 1 ? 's' : ''} from ${expertCount} expert${expertCount !== 1 ? 's' : ''}`
-          }
-        />
+        <div className="flex items-start justify-between gap-4 mb-8">
+          <PageHeader
+            title="Captured Knowledge"
+            subtitle={
+              items.length === 0
+                ? 'Your knowledge base will appear here as you capture expert insights'
+                : `${items.length} insight${items.length !== 1 ? 's' : ''} from ${expertCount} expert${expertCount !== 1 ? 's' : ''}`
+            }
+          />
+          {items.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setViewMode('visualization')}
+                className={cn(
+                  'px-4 py-2 rounded-lg font-medium text-sm transition-colors',
+                  viewMode === 'visualization'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Visualize
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  'px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2',
+                  viewMode === 'list'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Rows className="w-4 h-4" weight="bold" />
+                List
+              </button>
+            </div>
+          )}
+        </div>
 
-        {/* Search - only show if there's data */}
-        {items.length > 0 && (
+        {/* Search - only show in list view */}
+        {items.length > 0 && viewMode === 'list' && (
           <SearchInput
             value={searchQuery}
             onChange={setSearchQuery}
@@ -225,7 +272,20 @@ export default function GraphPage() {
                 : 'Complete capture sessions with your experts to build your knowledge base. Knowledge will appear here once sessions are processed.'
             }
           />
+        ) : viewMode === 'visualization' ? (
+          // Visualization View
+          <div className="space-y-8">
+            {graphNodes.length > 0 && (
+              <GraphLayoutVisualizer
+                nodes={graphNodes}
+                edges={graphEdges}
+                title="Knowledge Graph"
+                defaultLayout="hierarchical"
+              />
+            )}
+          </div>
         ) : (
+          // List View
           <div className={spacing.sectionGap}>
           {Object.entries(filteredByExpert).map(([expertName, expertItems]) => (
             <div key={expertName} className="pt-6 first:pt-0">
