@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2, Calendar, Play, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { containers } from '@/lib/design-system';
 
 interface SessionListItem {
   id: string;
@@ -93,8 +94,9 @@ export default function CapturePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      <div className="mb-8">
+    <div className={containers.pageContainer}>
+      <div className={containers.pageInnerResponsive}>
+        <div className="mb-8">
         <h1 className="text-2xl font-semibold mb-1">Capture Sessions</h1>
         <p className="text-muted-foreground">
           Select a session to start or continue capturing knowledge.
@@ -158,6 +160,7 @@ export default function CapturePage() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useSession, useMediaCapture, TranscriptLine } from '@/lib/hooks';
 import { createClient } from '@/lib/supabase/client';
+import { components, spacing } from '@/lib/design-system';
 
 interface CaptureTabProps {
   sessionId: string | null;
@@ -306,7 +307,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
   const suggestedQuestions = getContextualQuestions(allTranscriptLines.length);
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex flex-col md:flex-row min-h-screen md:h-screen">
       {/* Top Bar */}
       <div className="h-12 border-b flex items-center justify-between px-4 bg-background">
         <div className="flex items-center gap-3">
@@ -430,7 +431,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
         </div>
 
         {/* Side Panel */}
-        <div className="w-96 border-l flex flex-col bg-background">
+        <div className={components.sidePanelResponsive}>
           {/* Panel Tabs */}
           <div className="flex border-b">
             <button
@@ -479,7 +480,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
           {/* Panel Content */}
           <div className="flex-1 overflow-y-auto">
             {activePanel === 'transcript' && (
-              <div className="p-4 space-y-4">
+              <div className={cn("p-4", spacing.sectionGapTiny)}>
                 {isActive || isPaused ? (
                   <>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">

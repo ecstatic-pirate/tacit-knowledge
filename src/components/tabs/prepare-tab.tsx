@@ -12,6 +12,7 @@ import { CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
+import { containers, typography, spacing } from '@/lib/design-system';
 
 interface PrepareTabProps {
   onCreateCampaign: (data: CampaignFormData) => Promise<Campaign>;
@@ -64,10 +65,11 @@ export function PrepareTab({
   }, []);
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold mb-1">New Campaign</h1>
+    <div className={containers.pageContainer}>
+      <div className={containers.narrowContainerResponsive}>
+        {/* Header */}
+        <div className={spacing.marginBottomSection}>
+        <h1 className={cn(typography.sectionTitle, spacing.marginBottomSection)}>New Campaign</h1>
         <p className="text-muted-foreground">
           Create a campaign to start capturing knowledge from an expert.
         </p>
@@ -111,7 +113,7 @@ export function PrepareTab({
       {!currentCampaign ? (
         <CampaignForm onSubmit={handleCreateCampaign} isSubmitting={isSubmitting} />
       ) : (
-        <div className="space-y-6">
+        <div className={spacing.sectionGapSmall}>
           {/* Campaign Summary */}
           <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -132,7 +134,7 @@ export function PrepareTab({
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className={cn(containers.gridDefault, 'lg:grid-cols-2')}>
             <FileUpload
               campaignId={currentCampaign.id}
               orgId={appUser?.orgId}
@@ -148,6 +150,7 @@ export function PrepareTab({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

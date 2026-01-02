@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, Libre_Baskerville } from 'next/font/google';
 import './globals.css';
-import { TopNav } from '@/components/layout/top-nav';
+import { Sidebar } from '@/components/layout/sidebar';
 import { ToastProvider } from '@/components/ui/toast';
 import { AppProvider } from '@/context/app-context';
 
@@ -31,9 +31,9 @@ export default function RootLayout({
       <body className={`${inter.variable} ${libreBaskerville.variable} antialiased min-h-screen bg-background font-sans`}>
         <AppProvider>
           <ToastProvider>
-            <div className="min-h-screen flex flex-col">
-              <TopNav />
-              <main className="flex-1">
+            <div className="min-h-screen flex flex-col lg:flex-row">
+              <Sidebar />
+              <main className="flex-1 w-full lg:w-[calc(100%-16rem)]">
                 {children}
               </main>
             </div>

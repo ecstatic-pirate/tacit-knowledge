@@ -1,11 +1,16 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { FileText, BarChart3, Network, ClipboardList, Loader2 } from 'lucide-react';
+import { FileText, BarChart3, Network, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingState } from '@/components/ui/loading-state';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { containers, spacing } from '@/lib/design-system';
 
 interface ReportsTabProps {
   onSaveSharing: () => void;
@@ -43,78 +48,85 @@ export function ReportsTab({
   useEffect(() => {
     async function fetchReports() {
       setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('reports')
+          .select(`
+            id,
+            title,
+            type,
+            status,
+            created_at,
+            campaigns (expert_name)
+          `)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-      const { data, error } = await supabase
-        .from('reports')
-        .select(`
-          id,
-          title,
-          type,
-          status,
-          created_at,
-          campaigns (expert_name)
-        `)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(20);
+        if (error) {
+          console.error('Error fetching reports:', error);
+          setReports([]);
+          setIsLoading(false);
+          return;
+        }
 
-      if (error) {
-        console.error('Error fetching reports:', error);
-        setIsLoading(false);
-        return;
-      }
+        if (!data || data.length === 0) {
+          setReports([]);
+          setIsLoading(false);
+          return;
+        }
 
-      const mappedReports: ReportItem[] = (data || []).map((report) => {
-        const campaign = report.campaigns as { expert_name: string } | null;
-        const date = report.created_at ? new Date(report.created_at) : new Date();
-        const formattedDate = date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
+        const mappedReports: ReportItem[] = data.map((report) => {
+          const campaign = report.campaigns as { expert_name: string } | null;
+          const date = report.created_at ? new Date(report.created_at) : new Date();
+          const formattedDate = date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          });
+
+          return {
+            id: report.id,
+            title: report.title,
+            type: report.type,
+            date: formattedDate,
+            status: report.status || 'ready',
+            icon: typeIconMap[report.type] || FileText,
+            expertName: campaign?.expert_name,
+          };
         });
 
-        return {
-          id: report.id,
-          title: report.title,
-          type: report.type,
-          date: formattedDate,
-          status: report.status || 'ready',
-          icon: typeIconMap[report.type] || FileText,
-          expertName: campaign?.expert_name,
-        };
-      });
-
-      setReports(mappedReports);
-      setIsLoading(false);
+        setReports(mappedReports);
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     fetchReports();
   }, [supabase]);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold mb-1">Reports</h1>
-        <p className="text-muted-foreground">
-          View generated reports and insights from capture sessions.
-        </p>
-      </div>
+    <div className={containers.pageContainer}>
+      <div className={containers.wideContainer}>
+        <PageHeader
+          title="Reports"
+          subtitle={
+            reports.length === 0
+              ? 'Generated reports will appear here after your capture sessions are processed'
+              : `${reports.length} report${reports.length !== 1 ? 's' : ''} from your capture sessions`
+          }
+        />
 
-      {/* Reports List */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : reports.length === 0 ? (
-        <div className="text-center py-12 border rounded-lg bg-card">
-          <FileText className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
-          <p className="text-muted-foreground mb-2">No reports yet</p>
-          <p className="text-sm text-muted-foreground">
-            Complete a capture session to generate your first report.
-          </p>
-        </div>
-      ) : (
-        <div className="border rounded-lg divide-y bg-card">
+        {/* Reports List */}
+        {isLoading ? (
+          <LoadingState />
+        ) : reports.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No reports yet"
+            description="Reports are automatically generated after you complete and process capture sessions with your experts."
+          />
+        ) : (
+          <div className="border rounded-lg divide-y bg-card overflow-hidden">
           {reports.map((report) => {
             const IconComponent = report.icon;
             return (
@@ -136,15 +148,13 @@ export function ReportsTab({
                 <div className="text-sm text-muted-foreground">
                   {report.date}
                 </div>
-                <div className={cn(
-                  "px-2 py-1 rounded text-xs",
-                  report.status === 'ready' && "bg-emerald-50 text-emerald-700",
-                  report.status === 'processing' && "bg-amber-50 text-amber-700",
-                  report.status === 'failed' && "bg-red-50 text-red-700"
-                )}>
+                <StatusBadge variant={
+                  report.status === 'ready' ? 'success' :
+                  report.status === 'processing' ? 'warning' : 'error'
+                }>
                   {report.status === 'ready' ? 'Ready' :
                    report.status === 'processing' ? 'Processing' : 'Failed'}
-                </div>
+                </StatusBadge>
                 <Button variant="ghost" size="sm" onClick={(e) => {
                   e.stopPropagation();
                   onViewReport(report.title, report.id);
@@ -155,7 +165,8 @@ export function ReportsTab({
             );
           })}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

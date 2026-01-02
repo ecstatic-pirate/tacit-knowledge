@@ -268,18 +268,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     )
 
-    // Fallback: check current session after a short delay
+    // Fallback: check current session after INITIAL_SESSION
     // This handles cases where INITIAL_SESSION doesn't fire
+    // Increased delay to ensure session context is fully established for RLS policies
     const timeoutId = setTimeout(async () => {
       if (!isMounted || initialized) return
 
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (authUser) {
-        await initializeUser(authUser)
-      } else {
+      console.log('[AppProvider] Checking session after timeout')
+
+      try {
+        // Use getSession() to properly wait for session to be established
+        const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (error) {
+          console.error('[AppProvider] Error getting session:', error)
+          setIsLoading(false)
+          return
+        }
+
+        if (session?.user) {
+          console.log('[AppProvider] Session found via fallback, initializing user')
+          await initializeUser(session.user)
+        } else {
+          console.log('[AppProvider] No session found, setting loading to false')
+          setIsLoading(false)
+        }
+      } catch (err) {
+        console.error('[AppProvider] Exception in session fallback:', err)
         setIsLoading(false)
       }
-    }, 100)
+    }, 500)  // Increased from 100ms to 500ms to ensure RLS context is ready
 
     return () => {
       isMounted = false

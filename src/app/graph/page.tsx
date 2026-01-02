@@ -2,8 +2,15 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Loader2, Lightbulb, Search } from 'lucide-react';
+import { useApp } from '@/context/app-context';
+import { Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingState } from '@/components/ui/loading-state';
+import { SearchInput } from '@/components/ui/search-input';
+import { SectionDivider } from '@/components/ui/section-divider';
+import { containers, spacing, components } from '@/lib/design-system';
 
 interface KnowledgeItem {
   id: string;
@@ -22,6 +29,7 @@ interface Connection {
 }
 
 export default function GraphPage() {
+  const { isLoading: authLoading, appUser } = useApp();
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,54 +37,105 @@ export default function GraphPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const supabase = useMemo(() => createClient(), []);
 
+  // Log auth state for debugging
+  useEffect(() => {
+    console.log('[Graph] Auth state changed:', { authLoading, appUser: appUser?.id });
+  }, [authLoading, appUser]);
+
   const fetchData = useCallback(async () => {
+    // Wait for auth to be ready before fetching
+    if (authLoading) {
+      console.log('[Graph] Auth still loading, skipping fetch');
+      return;
+    }
+
+    console.log('[Graph] Starting data fetch');
     setIsLoading(true);
 
-    const [nodesResult, edgesResult] = await Promise.all([
-      supabase
-        .from('graph_nodes')
-        .select(`
-          id,
-          label,
-          type,
-          description,
-          campaign_id,
-          campaigns (expert_name)
-        `)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('graph_edges')
-        .select('id, source_node_id, target_node_id, relationship')
-        .is('deleted_at', null),
-    ]);
+    try {
+      console.log('[Graph] Fetching graph nodes and edges');
+      const [nodesResult, edgesResult] = await Promise.all([
+        supabase
+          .from('graph_nodes')
+          .select(`
+            id,
+            label,
+            type,
+            description,
+            campaign_id,
+            campaigns (expert_name)
+          `)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('graph_edges')
+          .select('id, source_node_id, target_node_id, relationship')
+          .is('deleted_at', null),
+      ]);
 
-    if (nodesResult.data) {
-      setItems(nodesResult.data.map(n => ({
-        id: n.id,
-        title: n.label,
-        insight: n.description || '',
-        type: n.type,
-        expertName: (n.campaigns as { expert_name: string } | null)?.expert_name || 'Unknown',
-        campaignId: n.campaign_id,
-      })));
+      if (nodesResult.error) {
+        console.error('[Graph] Error fetching nodes:', nodesResult.error);
+        setItems([]);
+      } else if (nodesResult.data) {
+        console.log('[Graph] Fetched nodes:', nodesResult.data.length);
+        setItems(nodesResult.data.map(n => ({
+          id: n.id,
+          title: n.label,
+          insight: n.description || '',
+          type: n.type,
+          expertName: (n.campaigns as { expert_name: string } | null)?.expert_name || 'Unknown',
+          campaignId: n.campaign_id,
+        })));
+      } else {
+        console.log('[Graph] No nodes data returned');
+        setItems([]);
+      }
+
+      if (edgesResult.error) {
+        console.error('[Graph] Error fetching edges:', edgesResult.error);
+        setConnections([]);
+      } else if (edgesResult.data) {
+        console.log('[Graph] Fetched edges:', edgesResult.data.length);
+        setConnections(edgesResult.data.map(e => ({
+          id: e.id,
+          sourceId: e.source_node_id,
+          targetId: e.target_node_id,
+          relationship: e.relationship,
+        })));
+      } else {
+        console.log('[Graph] No edges data returned');
+        setConnections([]);
+      }
+      console.log('[Graph] Data fetch completed successfully');
+    } catch (error) {
+      console.error('[Graph] Exception during fetch:', error);
+      setItems([]);
+      setConnections([]);
+    } finally {
+      setIsLoading(false);
     }
-
-    if (edgesResult.data) {
-      setConnections(edgesResult.data.map(e => ({
-        id: e.id,
-        sourceId: e.source_node_id,
-        targetId: e.target_node_id,
-        relationship: e.relationship,
-      })));
-    }
-
-    setIsLoading(false);
-  }, [supabase]);
+  }, [supabase, authLoading]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!authLoading) {
+      console.log('[Graph] Auth ready, fetching data');
+      fetchData();
+    }
+  }, [fetchData, authLoading]);
+
+  // Safety timeout: if still loading after 5 seconds, show empty state
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('[Graph] Data fetch timeout after 5s, showing empty state');
+        setIsLoading(false);
+        setItems([]);
+        setConnections([]);
+      }
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
 
   // Group by expert
   const itemsByExpert = useMemo(() => {
@@ -122,61 +181,64 @@ export default function GraphPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className={containers.pageContainer}>
+        <div className={containers.pageInner}>
+          <LoadingState />
+        </div>
       </div>
     );
   }
 
   const totalItems = Object.values(filteredByExpert).flat().length;
+  const expertCount = Object.keys(itemsByExpert).length;
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold mb-1">Captured Knowledge</h1>
-        <p className="text-muted-foreground">
-          {items.length} insights from {Object.keys(itemsByExpert).length} experts
-        </p>
-      </div>
-
-      {/* Search */}
-      <div className="mb-6 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search insights..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+    <div className={containers.pageContainer}>
+      <div className={containers.wideContainer}>
+        <PageHeader
+          title="Captured Knowledge"
+          subtitle={
+            items.length === 0
+              ? 'Your knowledge base will appear here as you capture expert insights'
+              : `${items.length} insight${items.length !== 1 ? 's' : ''} from ${expertCount} expert${expertCount !== 1 ? 's' : ''}`
+          }
         />
-      </div>
 
-      {/* Knowledge Cards */}
-      {totalItems === 0 ? (
-        <div className="text-center py-12 border rounded-lg bg-card">
-          <Lightbulb className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
-          <p className="text-muted-foreground mb-2">
-            {searchQuery ? 'No matching insights' : 'No knowledge captured yet'}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {searchQuery ? 'Try a different search term' : 'Complete capture sessions to build your knowledge base.'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-8">
+        {/* Search - only show if there's data */}
+        {items.length > 0 && (
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search insights..."
+            className="mb-8"
+          />
+        )}
+
+        {/* Empty State */}
+        {totalItems === 0 ? (
+          <EmptyState
+            icon={Lightbulb}
+            title={searchQuery ? 'No matching insights' : 'No knowledge captured yet'}
+            description={
+              searchQuery
+                ? 'Try adjusting your search query to find insights'
+                : 'Complete capture sessions with your experts to build your knowledge base. Knowledge will appear here once sessions are processed.'
+            }
+          />
+        ) : (
+          <div className={spacing.sectionGap}>
           {Object.entries(filteredByExpert).map(([expertName, expertItems]) => (
-            <div key={expertName}>
+            <div key={expertName} className="pt-6 first:pt-0">
               {/* Expert Header */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-medium text-sm">
+              <SectionDivider>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center font-semibold text-sm text-primary">
                   {expertName.split(' ').map(n => n[0]).join('')}
                 </div>
-                <div>
-                  <h2 className="font-medium">{expertName}</h2>
-                  <p className="text-sm text-muted-foreground">{expertItems.length} insights</p>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-foreground">{expertName}</h2>
+                  <p className="text-sm text-muted-foreground">{expertItems.length} captured insight{expertItems.length !== 1 ? 's' : ''}</p>
                 </div>
-              </div>
+              </SectionDivider>
 
               {/* Insights */}
               <div className="grid gap-3">
@@ -188,21 +250,28 @@ export default function GraphPage() {
                     <div
                       key={item.id}
                       className={cn(
-                        "p-4 border rounded-lg bg-card cursor-pointer transition-all",
-                        isSelected ? "ring-2 ring-foreground border-foreground" : "hover:border-foreground/30"
+                        "p-4 border rounded-lg cursor-pointer transition-all duration-200",
+                        isSelected
+                          ? "bg-primary/5 border-primary/40 ring-1 ring-primary/20"
+                          : "bg-card border-border hover:border-foreground/20"
                       )}
                       onClick={() => setSelectedItem(isSelected ? null : item)}
                     >
                       <div className="flex items-start gap-3">
                         <Lightbulb className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium mb-1">{item.title}</p>
-                          <p className="text-sm text-muted-foreground">{item.insight}</p>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <p className="font-medium text-foreground">{item.title}</p>
+                            <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground capitalize">
+                              {item.type}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{item.insight}</p>
 
                           {/* Related items when selected */}
                           {isSelected && relatedItems.length > 0 && (
-                            <div className="mt-4 pt-4 border-t">
-                              <p className="text-xs text-muted-foreground uppercase font-medium mb-2">Related</p>
+                            <div className="mt-4 pt-4 border-t border-border/50">
+                              <p className="text-xs text-muted-foreground uppercase font-semibold mb-3 tracking-wide">Connected Insights</p>
                               <div className="space-y-2">
                                 {relatedItems.map(related => (
                                   <button
@@ -211,10 +280,10 @@ export default function GraphPage() {
                                       e.stopPropagation();
                                       setSelectedItem(related);
                                     }}
-                                    className="block w-full text-left p-2 rounded bg-secondary/50 hover:bg-secondary text-sm"
+                                    className="block w-full text-left p-3 rounded-md bg-secondary/30 hover:bg-secondary/60 text-sm transition-colors"
                                   >
-                                    <span className="font-medium">{related.title}</span>
-                                    <span className="text-muted-foreground"> — {related.insight.substring(0, 60)}...</span>
+                                    <span className="font-medium text-foreground">{related.title}</span>
+                                    <div className="text-xs text-muted-foreground mt-1">{related.insight.substring(0, 70)}</div>
                                   </button>
                                 ))}
                               </div>
@@ -229,7 +298,8 @@ export default function GraphPage() {
             </div>
           ))}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

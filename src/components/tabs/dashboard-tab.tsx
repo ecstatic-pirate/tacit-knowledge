@@ -13,6 +13,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDashboardMetrics } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { containers, spacing, typography } from '@/lib/design-system';
 
 interface DashboardTabProps {
   campaigns: Campaign[];
@@ -33,71 +37,72 @@ export function DashboardTab({
   const { metrics, isLoading } = useDashboardMetrics();
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold mb-1">Campaigns</h1>
-        <p className="text-muted-foreground">
-          Track and manage your knowledge capture campaigns.
-        </p>
-      </div>
+    <div className={containers.pageContainer}>
+      <div className={containers.wideContainer}>
+        <PageHeader
+          title="Campaigns"
+          subtitle="Track and manage your knowledge capture campaigns."
+        />
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="p-4 rounded-lg border bg-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-secondary">
-              <Users className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-2xl font-semibold">{metrics.activeCampaigns}</p>
-              <p className="text-xs text-muted-foreground">Active Campaigns</p>
-            </div>
-          </div>
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-secondary">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-2xl font-semibold">{metrics.upcomingSessions}</p>
-              <p className="text-xs text-muted-foreground">Upcoming Sessions</p>
+        {/* Stats Row */}
+        <div className={cn(containers.gridDefault, spacing.marginBottomSection)}>
+          <div className="border rounded-lg bg-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-secondary">
+                <Users className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold">{metrics.activeCampaigns}</p>
+                <p className="text-xs text-muted-foreground">Active Campaigns</p>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-secondary">
-              <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-2xl font-semibold">{metrics.totalSkillsCaptured}</p>
-              <p className="text-xs text-muted-foreground">Skills Captured</p>
+          <div className="border rounded-lg bg-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-secondary">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold">{metrics.upcomingSessions}</p>
+                <p className="text-xs text-muted-foreground">Upcoming Sessions</p>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Campaigns List */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            All Campaigns
-          </h2>
+          <div className="border rounded-lg bg-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-secondary">
+                <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold">{metrics.totalSkillsCaptured}</p>
+                <p className="text-xs text-muted-foreground">Skills Captured</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {campaigns.length === 0 ? (
-          <div className="text-center py-12 border rounded-lg bg-card">
-            <Users className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
-            <p className="text-muted-foreground mb-4">No campaigns yet</p>
-            <Button onClick={() => router.push('/prepare')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Campaign
-            </Button>
+        {/* Campaigns List */}
+        <div className={spacing.marginBottomSection}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className={typography.label}>
+              All Campaigns
+            </h2>
           </div>
-        ) : (
-          <div className="border rounded-lg divide-y bg-card">
+
+          {campaigns.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No campaigns yet"
+              description="Create your first campaign to start capturing expert knowledge."
+              action={
+                <Button onClick={() => router.push('/prepare')} size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Campaign
+                </Button>
+              }
+            />
+          ) : (
+            <div className="border rounded-lg divide-y bg-card">
             {campaigns.map((campaign) => (
               <div
                 key={campaign.id}
@@ -133,15 +138,13 @@ export function DashboardTab({
                       </span>
                     </div>
                   </div>
-                  <div className={cn(
-                    "px-2 py-1 rounded text-xs font-medium",
-                    campaign.status === 'on-track' && "bg-emerald-50 text-emerald-700",
-                    campaign.status === 'keep-track' && "bg-amber-50 text-amber-700",
-                    campaign.status === 'danger' && "bg-red-50 text-red-700"
-                  )}>
+                  <StatusBadge variant={
+                    campaign.status === 'on-track' ? 'success' :
+                    campaign.status === 'keep-track' ? 'warning' : 'error'
+                  }>
                     {campaign.status === 'on-track' ? 'On Track' :
                      campaign.status === 'keep-track' ? 'Attention' : 'At Risk'}
-                  </div>
+                  </StatusBadge>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
@@ -160,7 +163,7 @@ export function DashboardTab({
             {tasks.slice(0, 5).map((task) => (
               <div
                 key={task.id}
-                className="flex items-center gap-3 p-3"
+                className={cn("flex items-center gap-3", spacing.cardPaddingCompact)}
               >
                 <button
                   onClick={() => onTaskToggle(task.id)}
@@ -194,5 +197,6 @@ export function DashboardTab({
         </div>
       )}
     </div>
+  </div>
   );
 }

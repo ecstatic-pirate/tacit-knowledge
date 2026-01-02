@@ -8,6 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { BrainCircuit, Loader2 } from 'lucide-react'
 
+const DEMO_CREDENTIALS = {
+  email: 'demo@tacit.local',
+  password: 'DemoPass123!',
+}
+
 function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -38,6 +43,14 @@ function LoginForm() {
     router.push(redirectTo)
     router.refresh()
   }
+
+  const fillDemoCredentials = () => {
+    setEmail(DEMO_CREDENTIALS.email)
+    setPassword(DEMO_CREDENTIALS.password)
+    setError(null)
+  }
+
+  const isDevelopment = process.env.NODE_ENV === 'development'
 
   return (
     <form className="space-y-4" onSubmit={handleLogin}>
@@ -91,6 +104,17 @@ function LoginForm() {
           'Sign in'
         )}
       </Button>
+
+      {isDevelopment && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={fillDemoCredentials}
+        >
+          Fill Demo Credentials
+        </Button>
+      )}
 
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
