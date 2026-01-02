@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Briefcase, Building2, Clock, Target, Sparkles, Loader2, Mail } from 'lucide-react'
+import { User, Briefcase, Clock, Target, Sparkle, CircleNotch } from 'phosphor-react'
 import { Input, Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -90,7 +90,7 @@ export function CampaignForm({ onSubmit, isSubmitting = false }: CampaignFormPro
       <div className="p-6 border-b border-neutral-100 bg-gradient-to-r from-primary/5 to-violet-500/5">
         <h3 className="text-xl font-bold text-neutral-900 flex items-center gap-2">
           <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-violet-500 shadow-lg">
-            <User className="w-5 h-5 text-white" />
+            <User className="w-5 h-5 text-white" weight="bold" />
           </div>
           Create Knowledge Capture Campaign
         </h3>
@@ -103,7 +103,7 @@ export function CampaignForm({ onSubmit, isSubmitting = false }: CampaignFormPro
         {/* Expert Information */}
         <div className="space-y-4">
           <h4 className="font-semibold text-neutral-800 flex items-center gap-2 text-sm uppercase tracking-wide">
-            <Briefcase className="w-4 h-4 text-primary" />
+            <Briefcase className="w-4 h-4 text-primary" weight="bold" />
             Expert Information
           </h4>
 
@@ -172,7 +172,7 @@ export function CampaignForm({ onSubmit, isSubmitting = false }: CampaignFormPro
         {/* Campaign Goal */}
         <div className="space-y-4">
           <h4 className="font-semibold text-neutral-800 flex items-center gap-2 text-sm uppercase tracking-wide">
-            <Target className="w-4 h-4 text-primary" />
+            <Target className="w-4 h-4 text-primary" weight="bold" />
             Campaign Goal
           </h4>
 
@@ -196,7 +196,7 @@ export function CampaignForm({ onSubmit, isSubmitting = false }: CampaignFormPro
         {/* Capture Mode */}
         <div className="space-y-4">
           <h4 className="font-semibold text-neutral-800 flex items-center gap-2 text-sm uppercase tracking-wide">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <Sparkle className="w-4 h-4 text-primary" weight="bold" />
             Capture Mode
           </h4>
           <p className="text-sm text-neutral-500 -mt-2">
@@ -243,7 +243,7 @@ export function CampaignForm({ onSubmit, isSubmitting = false }: CampaignFormPro
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" />
                 Creating Campaign...
               </>
             ) : (

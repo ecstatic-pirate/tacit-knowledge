@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, Move, RefreshCw, Loader2, Network, Info } from 'lucide-react';
+import { MagnifyingGlassPlus, MagnifyingGlassMinus, ArrowsOutCardinal, ArrowClockwise, CircleNotch, ShareNetwork, Info } from 'phosphor-react';
 import { useKnowledgeGraph, KnowledgeNode } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 
@@ -91,7 +91,7 @@ export function KnowledgeGraphView({ campaignId }: KnowledgeGraphViewProps) {
     return (
       <div className="relative w-full h-[600px] bg-background rounded-xl border overflow-hidden flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
+          <CircleNotch className="w-8 h-8 animate-spin text-primary mx-auto mb-2" weight="bold" />
           <p className="text-sm text-muted-foreground">Loading knowledge graph...</p>
         </div>
       </div>
@@ -103,10 +103,10 @@ export function KnowledgeGraphView({ campaignId }: KnowledgeGraphViewProps) {
     return (
       <div className="relative w-full h-[600px] bg-background rounded-xl border overflow-hidden flex items-center justify-center">
         <div className="text-center">
-          <Network className="w-8 h-8 text-red-500 mx-auto mb-2" />
+          <ShareNetwork className="w-8 h-8 text-red-500 mx-auto mb-2" weight="bold" />
           <p className="text-sm text-red-500 mb-2">Failed to load graph</p>
           <Button variant="outline" size="sm" onClick={refresh}>
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <ArrowClockwise className="w-4 h-4 mr-2" weight="bold" />
             Retry
           </Button>
         </div>
@@ -119,14 +119,14 @@ export function KnowledgeGraphView({ campaignId }: KnowledgeGraphViewProps) {
     return (
       <div className="relative w-full h-[600px] bg-background rounded-xl border overflow-hidden flex items-center justify-center">
         <div className="text-center max-w-sm">
-          <Network className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <ShareNetwork className="w-12 h-12 text-muted-foreground mx-auto mb-4" weight="bold" />
           <h3 className="font-semibold mb-2">No Knowledge Graph Yet</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Complete interview sessions to automatically build your knowledge graph.
             The AI will extract concepts and relationships from your conversations.
           </p>
           <Button variant="outline" size="sm" onClick={refresh}>
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <ArrowClockwise className="w-4 h-4 mr-2" weight="bold" />
             Refresh
           </Button>
         </div>
@@ -139,13 +139,13 @@ export function KnowledgeGraphView({ campaignId }: KnowledgeGraphViewProps) {
       {/* Toolbar */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 bg-background/80 backdrop-blur-sm p-1 rounded-md border shadow-sm">
         <Button variant="ghost" size="icon" onClick={() => setScale(s => Math.min(s + 0.1, 2))}>
-          <ZoomIn className="w-4 h-4" />
+          <MagnifyingGlassPlus className="w-4 h-4" weight="bold" />
         </Button>
         <Button variant="ghost" size="icon" onClick={() => setScale(s => Math.max(s - 0.1, 0.5))}>
-          <ZoomOut className="w-4 h-4" />
+          <MagnifyingGlassMinus className="w-4 h-4" weight="bold" />
         </Button>
         <Button variant="ghost" size="icon" onClick={refresh}>
-          <RefreshCw className="w-4 h-4" />
+          <ArrowClockwise className="w-4 h-4" weight="bold" />
         </Button>
       </div>
 

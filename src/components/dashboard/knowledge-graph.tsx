@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Network, Share2, ZoomIn } from 'lucide-react';
+import { ShareNetwork, MagnifyingGlassPlus } from 'phosphor-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function KnowledgeGraph() {
@@ -10,13 +10,13 @@ export function KnowledgeGraph() {
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="flex items-center gap-2 text-lg">
           <div className="p-1.5 rounded-md bg-primary/10 text-primary">
-            <Network className="w-4 h-4" />
+            <ShareNetwork className="w-4 h-4" weight="bold" />
           </div>
           Knowledge Graph
           <span className="text-xs font-normal text-muted-foreground ml-2">47 nodes</span>
         </CardTitle>
         <Button variant="ghost" size="sm" className="h-8">
-          <Share2 className="w-4 h-4 mr-2" />
+          <ShareNetwork className="w-4 h-4 mr-2" weight="bold" />
           Share
         </Button>
       </CardHeader>
@@ -33,7 +33,7 @@ export function KnowledgeGraph() {
 
           <div className="text-center relative z-10 p-8 max-w-md">
             <div className="mx-auto mb-6 bg-background rounded-full p-4 w-16 h-16 flex items-center justify-center shadow-sm border">
-               <Network className="w-8 h-8 text-muted-foreground" />
+               <ShareNetwork className="w-8 h-8 text-muted-foreground" weight="bold" />
             </div>
 
             <h3 className="font-semibold text-lg mb-2">
@@ -44,7 +44,7 @@ export function KnowledgeGraph() {
             </p>
 
             <Button>
-              <ZoomIn className="w-4 h-4 mr-2" />
+              <MagnifyingGlassPlus className="w-4 h-4 mr-2" weight="bold" />
               Explore Full Graph
             </Button>
           </div>

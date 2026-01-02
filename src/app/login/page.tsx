@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { BrainCircuit, Loader2 } from 'lucide-react'
+import { Brain, CircleNotch } from 'phosphor-react'
 
 const DEMO_CREDENTIALS = {
   email: 'demo@tacit.local',
@@ -97,7 +97,7 @@ function LoginForm() {
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? (
           <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" />
             Signing in...
           </>
         ) : (
@@ -144,7 +144,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
-            <BrainCircuit className="w-5 h-5" />
+            <Brain className="w-5 h-5" weight="bold" />
           </div>
           <h1 className="text-xl font-semibold">Sign in to Tacit</h1>
           <p className="text-sm text-muted-foreground mt-1">

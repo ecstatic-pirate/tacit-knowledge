@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { BrainCircuit, Plus, LogOut, ChevronDown } from 'lucide-react';
+import { Brain, Plus, SignOut, CaretDown } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/app-context';
 import { useState } from 'react';
@@ -40,7 +40,7 @@ export function TopNav() {
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="flex items-center justify-center w-7 h-7 rounded bg-foreground text-background">
-            <BrainCircuit className="w-4 h-4" />
+            <Brain className="w-4 h-4" weight="bold" />
           </div>
           <span className="font-semibold text-sm">Tacit</span>
         </Link>
@@ -74,7 +74,7 @@ export function TopNav() {
         <div className="flex items-center gap-3">
           <Link href="/prepare">
             <Button size="sm" className="h-8 gap-1.5">
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" weight="bold" />
               New Campaign
             </Button>
           </Link>
@@ -88,10 +88,10 @@ export function TopNav() {
               <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-xs font-medium">
                 {initials}
               </div>
-              <ChevronDown className={cn(
+              <CaretDown className={cn(
                 "w-3.5 h-3.5 text-muted-foreground transition-transform",
                 showUserMenu && "rotate-180"
-              )} />
+              )} weight="bold" />
             </button>
 
             {showUserMenu && (
@@ -117,7 +117,7 @@ export function TopNav() {
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary rounded-sm transition-colors"
                     >
-                      <LogOut className="w-4 h-4" />
+                      <SignOut className="w-4 h-4" weight="bold" />
                       Sign out
                     </button>
                   </div>

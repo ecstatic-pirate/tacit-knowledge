@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { Check, X, Info, AlertTriangle } from 'lucide-react';
+import { Check, X, Info, Warning } from 'phosphor-react';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -53,10 +53,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               toast.type === 'warning' && "bg-amber-50 text-amber-600 border-amber-100",
               toast.type === 'info' && "bg-blue-50 text-blue-600 border-blue-100"
             )}>
-               {toast.type === 'success' && <Check className="h-4 w-4" />}
-               {toast.type === 'error' && <X className="h-4 w-4" />}
-               {toast.type === 'warning' && <AlertTriangle className="h-4 w-4" />}
-               {toast.type === 'info' && <Info className="h-4 w-4" />}
+               {toast.type === 'success' && <Check className="h-4 w-4" weight="bold" />}
+               {toast.type === 'error' && <X className="h-4 w-4" weight="bold" />}
+               {toast.type === 'warning' && <Warning className="h-4 w-4" weight="bold" />}
+               {toast.type === 'info' && <Info className="h-4 w-4" weight="bold" />}
             </div>
             
             <p className="text-sm font-medium">
@@ -67,7 +67,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               onClick={() => removeToast(toast.id)}
               className="absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" weight="bold" />
             </button>
           </div>
         ))}

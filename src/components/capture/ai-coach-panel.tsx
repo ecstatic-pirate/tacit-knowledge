@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Bot, ClipboardList, Layers, Target, Lightbulb, RefreshCw, Loader2, MessageSquare } from 'lucide-react';
+import { Robot, ListChecks, Stack, Target, Lightbulb, ArrowClockwise, CircleNotch, ChatTeardrop } from 'phosphor-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,7 +105,7 @@ export function AICoachPanel({
       <CardHeader className="py-3 border-b flex-row items-center justify-between space-y-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10 text-primary">
-            <Bot className="w-4 h-4" />
+            <Robot className="w-4 h-4" weight="bold" />
           </div>
           <div className="flex flex-col">
             <h3 className="text-sm font-semibold">AI Coach</h3>
@@ -119,7 +119,7 @@ export function AICoachPanel({
           onClick={fetchGuidance}
           disabled={isLoading}
         >
-          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
+          <ArrowClockwise className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} weight="bold" />
         </Button>
       </CardHeader>
 
@@ -132,7 +132,7 @@ export function AICoachPanel({
 
         {isLoading && !guidance && (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <CircleNotch className="w-5 h-5 animate-spin text-primary" weight="bold" />
           </div>
         )}
 
@@ -141,7 +141,7 @@ export function AICoachPanel({
             {/* Contextual Tip */}
             <div className="bg-primary/5 border border-primary/10 rounded-lg p-3">
               <div className="flex items-start gap-2">
-                <Lightbulb className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <Lightbulb className="w-4 h-4 text-primary mt-0.5 shrink-0" weight="fill" />
                 <p className="text-sm text-foreground/80 leading-relaxed">
                   {guidance.contextualTip}
                 </p>
@@ -151,7 +151,7 @@ export function AICoachPanel({
             {/* Suggested Questions */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                <MessageSquare className="w-3 h-3" />
+                <ChatTeardrop className="w-3 h-3" weight="bold" />
                 Suggested Questions
               </div>
               <div className="space-y-2">
@@ -170,7 +170,7 @@ export function AICoachPanel({
             {guidance.skillsToProbe.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  <Target className="w-3 h-3" />
+                  <Target className="w-3 h-3" weight="bold" />
                   Skills to Explore
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -187,7 +187,7 @@ export function AICoachPanel({
             {guidance.detectedTopics.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  <Layers className="w-3 h-3" />
+                  <Stack className="w-3 h-3" weight="bold" />
                   Detected Topics
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -204,7 +204,7 @@ export function AICoachPanel({
             {guidance.capturedInsights.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  <ClipboardList className="w-3 h-3" />
+                  <ListChecks className="w-3 h-3" weight="bold" />
                   Key Insights
                 </div>
                 <ul className="space-y-1.5">

@@ -4,10 +4,10 @@ import { Campaign, Task } from '@/types';
 import {
   Users,
   Clock,
-  CheckCircle2,
-  ChevronRight,
+  CheckCircle,
+  CaretRight,
   Plus
-} from 'lucide-react';
+} from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -49,7 +49,7 @@ export function DashboardTab({
           <div className="border rounded-lg bg-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-secondary">
-                <Users className="w-4 h-4 text-muted-foreground" />
+                <Users className="w-4 h-4 text-muted-foreground" weight="bold" />
               </div>
               <div>
                 <p className="text-2xl font-semibold">{metrics.activeCampaigns}</p>
@@ -60,7 +60,7 @@ export function DashboardTab({
           <div className="border rounded-lg bg-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-secondary">
-                <Clock className="w-4 h-4 text-muted-foreground" />
+                <Clock className="w-4 h-4 text-muted-foreground" weight="bold" />
               </div>
               <div>
                 <p className="text-2xl font-semibold">{metrics.upcomingSessions}</p>
@@ -71,7 +71,7 @@ export function DashboardTab({
           <div className="border rounded-lg bg-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-secondary">
-                <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+                <CheckCircle className="w-4 h-4 text-muted-foreground" weight="bold" />
               </div>
               <div>
                 <p className="text-2xl font-semibold">{metrics.totalSkillsCaptured}</p>
@@ -91,7 +91,7 @@ export function DashboardTab({
 
           {campaigns.length === 0 ? (
             <EmptyState
-              icon={Users}
+              icon={Users as unknown as React.ComponentType<{ className?: string }>}
               title="No campaigns yet"
               description="Create your first campaign to start capturing expert knowledge."
               action={
@@ -145,7 +145,7 @@ export function DashboardTab({
                     {campaign.status === 'on-track' ? 'On Track' :
                      campaign.status === 'keep-track' ? 'Attention' : 'At Risk'}
                   </StatusBadge>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  <CaretRight className="w-4 h-4 text-muted-foreground" weight="bold" />
                 </div>
               </div>
             ))}
@@ -174,7 +174,7 @@ export function DashboardTab({
                       : "border-border hover:border-foreground"
                   )}
                 >
-                  {task.completed && <CheckCircle2 className="w-3 h-3 text-background" />}
+                  {task.completed && <CheckCircle className="w-3 h-3 text-background" weight="fill" />}
                 </button>
                 <span className={cn(
                   "text-sm flex-1",

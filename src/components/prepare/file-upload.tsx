@@ -3,17 +3,17 @@
 import { useEffect, useRef, useCallback } from 'react'
 import {
   FileText,
-  UploadCloud,
-  CheckCircle2,
-  BarChart3,
-  ClipboardList,
+  CloudArrowUp,
+  CheckCircle,
+  ChartBar,
+  ListChecks,
   Target,
-  File as FileIcon,
+  File,
   X,
-  Sparkles,
-  Loader2,
-  AlertCircle,
-} from 'lucide-react'
+  Sparkle,
+  CircleNotch,
+  WarningCircle,
+} from 'phosphor-react'
 import { cn } from '@/lib/utils'
 import { useDocuments, type UploadedDocument } from '@/lib/hooks/use-documents'
 import { Button } from '@/components/ui/button'
@@ -25,19 +25,19 @@ interface FileUploadProps {
   onSkillsExtracted?: (skills: string[]) => void
 }
 
-const fileConfig: Record<string, { icon: typeof FileIcon; gradient: string; bgClass: string }> = {
+const fileConfig: Record<string, { icon: any; gradient: string; bgClass: string }> = {
   pdf: {
-    icon: BarChart3,
+    icon: ChartBar,
     gradient: 'from-red-500 to-rose-500',
     bgClass: 'bg-gradient-to-br from-red-500 to-rose-500',
   },
   doc: {
-    icon: ClipboardList,
+    icon: ListChecks,
     gradient: 'from-blue-500 to-cyan-500',
     bgClass: 'bg-gradient-to-br from-blue-500 to-cyan-500',
   },
   docx: {
-    icon: ClipboardList,
+    icon: ListChecks,
     gradient: 'from-blue-500 to-cyan-500',
     bgClass: 'bg-gradient-to-br from-blue-500 to-cyan-500',
   },
@@ -62,7 +62,7 @@ const fileConfig: Record<string, { icon: typeof FileIcon; gradient: string; bgCl
     bgClass: 'bg-gradient-to-br from-green-500 to-emerald-500',
   },
   other: {
-    icon: FileIcon,
+    icon: File,
     gradient: 'from-neutral-400 to-neutral-500',
     bgClass: 'bg-gradient-to-br from-neutral-400 to-neutral-500',
   },
@@ -188,7 +188,7 @@ export function FileUpload({
     <div className="bg-white rounded-2xl p-8 mb-8 border border-neutral-200/80 shadow-sm hover:shadow-md transition-shadow duration-300">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-violet-500 shadow-lg shadow-primary/20">
-          <FileText className="w-5 h-5 text-white" />
+          <FileText className="w-5 h-5 text-white" weight="bold" />
         </div>
         <div>
           <h3 className="text-lg font-bold text-neutral-900">Add Explicit Knowledge</h3>
@@ -200,7 +200,7 @@ export function FileUpload({
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-          <AlertCircle className="w-4 h-4" />
+          <WarningCircle className="w-4 h-4" weight="bold" />
           {error}
         </div>
       )}
@@ -248,13 +248,14 @@ export function FileUpload({
           )}
         >
           {isUploading ? (
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
+            <CircleNotch className="w-8 h-8 text-white animate-spin" weight="bold" />
           ) : (
-            <UploadCloud
+            <CloudArrowUp
               className={cn(
                 'w-8 h-8 transition-all duration-300',
                 'text-neutral-400 group-hover:text-primary'
               )}
+              weight="bold"
             />
           )}
         </div>
@@ -293,7 +294,7 @@ export function FileUpload({
       {/* Loading state */}
       {isLoading && (
         <div className="mt-6 flex items-center justify-center gap-2 text-neutral-500">
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
           <span className="text-sm">Loading documents...</span>
         </div>
       )}
@@ -303,7 +304,7 @@ export function FileUpload({
         <div className="mt-6 pt-6 border-t border-neutral-100">
           <div className="font-bold mb-4 text-neutral-900 flex items-center gap-2">
             <div className="p-1 rounded-md bg-emerald-100">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <CheckCircle className="w-4 h-4 text-emerald-600" weight="bold" />
             </div>
             <span>Uploaded Files</span>
             <span className="text-xs font-medium px-2 py-0.5 bg-neutral-100 rounded-full text-neutral-500">
@@ -340,7 +341,7 @@ export function FileUpload({
                     <span className="text-xs text-neutral-400 flex items-center gap-1.5 mt-0.5">
                       {doc.aiProcessed ? (
                         <>
-                          <Sparkles className="w-3 h-3 text-amber-500" />
+                          <Sparkle className="w-3 h-3 text-amber-500" weight="bold" />
                           <span className="text-amber-600">
                             {doc.extractedSkills.length} skills extracted
                           </span>
@@ -363,7 +364,7 @@ export function FileUpload({
                       }}
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <Sparkles className="w-3 h-3 mr-1" />
+                      <Sparkle className="w-3 h-3 mr-1" weight="bold" />
                       Analyze
                     </Button>
                   )}
@@ -374,7 +375,7 @@ export function FileUpload({
                     }}
                     className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-4 h-4" weight="bold" />
                   </button>
                 </div>
               )

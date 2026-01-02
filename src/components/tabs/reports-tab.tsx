@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { FileText, BarChart3, Network, ClipboardList } from 'lucide-react';
+import { FileText, ChartBar, ShareNetwork, ListChecks } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
-import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -26,14 +25,14 @@ interface ReportItem {
   type: string;
   date: string;
   status: string;
-  icon: LucideIcon;
+  icon: React.ComponentType<{ className?: string }>;
   expertName?: string;
 }
 
-const typeIconMap: Record<string, LucideIcon> = {
-  summary: ClipboardList,
-  skills: BarChart3,
-  graph: Network,
+const typeIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  summary: ListChecks,
+  skills: ChartBar,
+  graph: ShareNetwork,
   transcript: FileText,
   export: FileText,
 };

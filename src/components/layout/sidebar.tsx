@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { BrainCircuit, Plus, LogOut, BarChart3, Calendar, Lightbulb, FileText, Menu, X } from 'lucide-react';
+import { Brain, Plus, SignOut, ChartBar, Calendar, Lightbulb, FileText, List, X } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/app-context';
 import { useState } from 'react';
 
 const navItems = [
-  { label: 'Campaigns', href: '/dashboard', icon: BarChart3 },
+  { label: 'Campaigns', href: '/dashboard', icon: ChartBar },
   { label: 'Sessions', href: '/planner', icon: Calendar },
   { label: 'Knowledge', href: '/graph', icon: Lightbulb },
   { label: 'Reports', href: '/reports', icon: FileText },
@@ -49,7 +49,7 @@ export function Sidebar() {
           onClick={() => setIsOpen(!isOpen)}
           aria-label={isOpen ? 'Close menu' : 'Open menu'}
         >
-          {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {isOpen ? <X className="w-5 h-5" weight="bold" /> : <List className="w-5 h-5" weight="bold" />}
         </Button>
       </div>
 
@@ -75,7 +75,7 @@ export function Sidebar() {
         <div className="p-6 border-b border-border">
           <Link href="/dashboard" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
             <div className="flex items-center justify-center w-8 h-8 rounded bg-primary text-primary-foreground">
-              <BrainCircuit className="w-5 h-5" />
+              <Brain className="w-5 h-5" weight="bold" />
             </div>
             <div>
               <span className="font-bold text-lg block">Tacit</span>
@@ -88,7 +88,7 @@ export function Sidebar() {
         <div className="px-4 py-4 border-b border-border">
           <Link href="/prepare" onClick={() => setIsOpen(false)}>
             <Button className="w-full" size="sm">
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-4 h-4 mr-2" weight="bold" />
               New Campaign
             </Button>
           </Link>
@@ -111,7 +111,7 @@ export function Sidebar() {
                       : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                   )}
                 >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <Icon className="w-5 h-5 flex-shrink-0" weight="bold" />
                   {item.label}
                 </Button>
               </Link>
@@ -140,7 +140,7 @@ export function Sidebar() {
             className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
             onClick={handleSignOut}
           >
-            <LogOut className="w-4 h-4" />
+            <SignOut className="w-4 h-4" weight="bold" />
             Sign out
           </Button>
         </div>

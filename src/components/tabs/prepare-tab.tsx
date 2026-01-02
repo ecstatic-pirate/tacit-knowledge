@@ -8,7 +8,7 @@ import {
   AISuggestions,
 } from '@/components/prepare';
 import { useApp, Campaign } from '@/context/app-context';
-import { CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { CheckCircle, ArrowRight, ArrowLeft } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
@@ -86,7 +86,7 @@ export function PrepareTab({
           )}
         >
           {currentCampaign ? (
-            <CheckCircle2 className="w-4 h-4" />
+            <CheckCircle className="w-4 h-4" weight="fill" />
           ) : (
             <span className="w-5 h-5 rounded-full bg-background/20 flex items-center justify-center text-xs">
               1
@@ -94,7 +94,7 @@ export function PrepareTab({
           )}
           Expert Details
         </div>
-        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        <ArrowRight className="w-4 h-4 text-muted-foreground" weight="bold" />
         <div
           className={cn(
             'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm',
@@ -117,7 +117,7 @@ export function PrepareTab({
           {/* Campaign Summary */}
           <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <CheckCircle className="w-5 h-5 text-emerald-600" weight="fill" />
               <div>
                 <p className="font-medium text-emerald-900">
                   Campaign created: {currentCampaign.name}
@@ -129,7 +129,7 @@ export function PrepareTab({
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={handleStartNew}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
+              <ArrowLeft className="w-4 h-4 mr-1" weight="bold" />
               Start Over
             </Button>
           </div>

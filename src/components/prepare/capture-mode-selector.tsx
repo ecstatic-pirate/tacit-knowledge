@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Mic, User, Bot, Users, LucideIcon } from 'lucide-react';
+import { Microphone, User, Robot, Users } from 'phosphor-react';
+import type { Icon as PhosphorIcon } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 
 type CaptureMode = 'human' | 'ai' | 'hybrid';
@@ -10,7 +11,7 @@ interface CaptureModeOption {
   id: CaptureMode;
   label: string;
   description: string;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
 }
 
 const options: CaptureModeOption[] = [
@@ -24,7 +25,7 @@ const options: CaptureModeOption[] = [
     id: 'ai',
     label: 'AI-Guided',
     description: 'Your team leads with AI guidance & support',
-    icon: Bot,
+    icon: Robot,
   },
   {
     id: 'hybrid',
@@ -53,7 +54,7 @@ export function CaptureModeSelector({
   return (
     <div className="bg-white rounded-xl p-8 border border-border shadow-sm">
       <div className="flex items-center gap-2 mb-6">
-        <Mic className="w-5 h-5 text-primary" />
+        <Microphone className="w-5 h-5 text-primary" weight="bold" />
         <h3 className="text-lg font-bold text-neutral-900">
           Capture Mode
         </h3>
@@ -87,7 +88,7 @@ export function CaptureModeSelector({
               />
               <div>
                 <div className={cn("font-bold flex items-center gap-2", isSelected ? "text-primary" : "text-neutral-900")}>
-                  <Icon className="w-4 h-4" /> {option.label}
+                  <Icon className="w-4 h-4" weight="bold" /> {option.label}
                 </div>
                 <div className="text-sm text-neutral-500 mt-1">
                   {option.description}

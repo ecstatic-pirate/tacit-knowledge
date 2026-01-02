@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/toast';
 import { CaptureTab } from '@/components/tabs';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
-import { Check, Layers, ArrowRight } from 'lucide-react';
+import { Check, Columns, ArrowRight } from 'phosphor-react';
 
 export default function CaptureSessionPage() {
   const params = useParams();
@@ -35,7 +35,7 @@ export default function CaptureSessionPage() {
       content: (
         <div className="text-center space-y-6 py-4">
           <div className="w-20 h-20 bg-emerald-100/50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="w-10 h-10 text-emerald-600" />
+            <Check className="w-10 h-10 text-emerald-600" weight="bold" />
           </div>
 
           <div>
@@ -56,7 +56,7 @@ export default function CaptureSessionPage() {
 
           <div className="bg-primary/5 p-5 rounded-xl border border-primary/10 text-left">
             <div className="font-semibold mb-3 text-primary flex items-center gap-2">
-              <Layers className="w-4 h-4" />
+              <Columns className="w-4 h-4" weight="bold" />
               AI Processing Started
             </div>
             <ul className="space-y-2">
@@ -79,7 +79,7 @@ export default function CaptureSessionPage() {
               className="flex-1"
             >
               View Dashboard
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-2" weight="bold" />
             </Button>
             <Button
               variant="secondary"

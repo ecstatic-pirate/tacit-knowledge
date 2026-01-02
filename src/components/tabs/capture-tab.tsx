@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  Pause, Square, Play, Loader2, AlertCircle,
-  Video, VideoOff, Mic, MicOff, Lightbulb,
-  MessageSquare, Sparkles, ChevronRight, Plus
-} from 'lucide-react';
+  Pause, Square, Play, CircleNotch, WarningCircle,
+  VideoCamera, VideoCameraSlash, Microphone, MicrophoneSlash, Lightbulb,
+  ChatTeardrop, Sparkle, CaretRight, Plus
+} from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { useSession, useMediaCapture, TranscriptLine } from '@/lib/hooks';
 import { createClient } from '@/lib/supabase/client';
@@ -266,7 +266,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" weight="bold" />
       </div>
     );
   }
@@ -275,7 +275,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center max-w-md">
-          <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-3" />
+          <WarningCircle className="w-8 h-8 text-red-500 mx-auto mb-3" weight="bold" />
           <p className="text-sm text-red-500 mb-4">{error}</p>
           <Button variant="outline" onClick={() => window.location.reload()}>
             Try Again
@@ -289,7 +289,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center max-w-md">
-          <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+          <WarningCircle className="w-8 h-8 text-muted-foreground mx-auto mb-3" weight="bold" />
           <p className="text-muted-foreground mb-4">
             No session selected. Please select a session from the planner.
           </p>
@@ -345,7 +345,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
       {/* Media Error Banner */}
       {mediaError && (
         <div className="bg-red-50 border-b border-red-100 px-4 py-2 text-sm text-red-700 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4" />
+          <WarningCircle className="w-4 h-4" weight="bold" />
           {mediaError}
         </div>
       )}
@@ -364,7 +364,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
                 </div>
                 <p className="text-white/80 mb-6">Ready to start session with {session.campaign?.expertName}</p>
                 <Button size="lg" onClick={handleStartCall}>
-                  <Video className="w-4 h-4 mr-2" />
+                  <VideoCamera className="w-4 h-4 mr-2" />
                   Start Call
                 </Button>
               </div>
@@ -396,7 +396,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <VideoOff className="w-6 h-6 text-zinc-400" />
+                      <VideoCameraSlash className="w-6 h-6 text-zinc-400" weight="bold" />
                     </div>
                   )}
                   <div className="absolute bottom-1 left-1 text-xs text-white/80 bg-black/50 px-1.5 py-0.5 rounded">
@@ -413,7 +413,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
                       isAudioOn ? "bg-zinc-700 text-white" : "bg-red-500 text-white"
                     )}
                   >
-                    {isAudioOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                    {isAudioOn ? <Microphone className="w-5 h-5" weight="bold" /> : <MicrophoneSlash className="w-5 h-5" weight="bold" />}
                   </button>
                   <button
                     onClick={toggleVideo}
@@ -422,7 +422,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
                       isVideoOn ? "bg-zinc-700 text-white" : "bg-red-500 text-white"
                     )}
                   >
-                    {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                    {isVideoOn ? <VideoCamera className="w-5 h-5" weight="bold" /> : <VideoCameraSlash className="w-5 h-5" weight="bold" />}
                   </button>
                 </div>
               </>
@@ -443,7 +443,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <MessageSquare className="w-4 h-4 inline mr-1.5" />
+              <ChatTeardrop className="w-4 h-4 inline mr-1.5" weight="bold" />
               Transcript
             </button>
             <button
@@ -455,7 +455,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Sparkles className="w-4 h-4 inline mr-1.5" />
+              <Sparkle className="w-4 h-4 inline mr-1.5" weight="bold" />
               AI Coach
             </button>
             <button
@@ -571,7 +571,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
                         className="w-full text-left p-3 rounded-lg border hover:bg-secondary/50 transition-colors group"
                       >
                         <p className="text-sm">{q}</p>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <CaretRight className="w-4 h-4 text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity" weight="bold" />
                       </button>
                     ))}
                   </div>

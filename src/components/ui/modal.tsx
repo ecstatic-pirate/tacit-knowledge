@@ -1,7 +1,7 @@
 'use client';
 
 import { HTMLAttributes, forwardRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
 import { components } from '@/lib/design-system';
@@ -61,7 +61,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
                   className="h-6 w-6 rounded-md p-0"
                   onClick={onClose}
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" weight="bold" />
                   <span className="sr-only">Close</span>
                 </Button>
              </div>

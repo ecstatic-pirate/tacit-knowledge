@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/toast';
 import { DashboardTab } from '@/components/tabs';
 import { Modal } from '@/components/ui/modal';
 import { Campaign } from '@/types';
-import { CheckCircle2, BarChart3, CalendarClock, Rocket, Star, Check, Loader2 } from 'lucide-react';
+import { CheckCircle, ChartBar, CalendarCheck, Rocket, Star, Check, CircleNotch } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 
@@ -59,7 +59,7 @@ export default function DashboardPage() {
                   Sessions Completed
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <CheckCircle className="w-4 h-4 text-emerald-500" weight="fill" />
                   {campaign.completedSessions} of {campaign.totalSessions}
                 </div>
               </div>
@@ -68,14 +68,14 @@ export default function DashboardPage() {
                   Skills Captured
                 </div>
                 <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-primary" />
+                  <ChartBar className="w-4 h-4 text-primary" weight="bold" />
                   {campaign.skillsCaptured} distinct skills
                 </div>
               </div>
             </div>
 
             <div className="bg-secondary/50 p-4 rounded-lg border border-border flex items-start gap-3">
-              <CalendarClock className="w-5 h-5 text-primary mt-0.5" />
+              <CalendarCheck className="w-5 h-5 text-primary mt-0.5" weight="bold" />
               <div>
                 <div className="font-semibold mb-1">Next Session</div>
                 <div className="text-sm text-muted-foreground">
@@ -105,7 +105,7 @@ export default function DashboardPage() {
       title: 'AI Suggestions',
       content: (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" weight="bold" />
         </div>
       ),
     });
@@ -183,7 +183,7 @@ export default function DashboardPage() {
         <div className="space-y-4">
           {finalSuggestions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" weight="fill" />
               <p>No suggestions at this time</p>
               <p className="text-xs mt-1">All campaigns are on track!</p>
             </div>
@@ -208,7 +208,7 @@ export default function DashboardPage() {
                       : 'text-stone-900'
                   }`}
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle className="w-4 h-4" weight="fill" />
                   {suggestion.expertName}
                 </div>
                 <p

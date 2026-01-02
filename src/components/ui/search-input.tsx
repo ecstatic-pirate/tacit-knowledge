@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { MagnifyingGlass } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { inputs } from '@/lib/design-system';
 
@@ -21,7 +21,7 @@ export function SearchInput({
 }: SearchInputProps) {
   return (
     <div className={cn('relative', className)}>
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" weight="bold" />
       <input
         type="text"
         placeholder={placeholder}

@@ -1,4 +1,4 @@
-import { Map, Compass, Tag } from 'lucide-react';
+import { MapPin, Compass, Tag } from 'phosphor-react';
 
 interface SkillCategory {
   name: string;
@@ -14,7 +14,7 @@ export function SkillsMap({ personName, categories }: SkillsMapProps) {
   return (
     <div className="mb-12">
       <div className="flex items-center gap-2 mb-6">
-        <Map className="w-5 h-5 text-primary" />
+        <MapPin className="w-5 h-5 text-primary" weight="bold" />
         <h3 className="text-lg font-bold text-neutral-900">
           Skills Map - {personName}
         </h3>
@@ -28,7 +28,7 @@ export function SkillsMap({ personName, categories }: SkillsMapProps) {
               className="p-5 rounded-xl bg-neutral-50 border-l-4 border-primary transition-shadow hover:shadow-sm"
             >
               <div className="flex items-center gap-2 font-bold mb-4 text-primary text-lg">
-                <Compass className="w-5 h-5" />
+                <Compass className="w-5 h-5" weight="bold" />
                 {category.name}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -37,7 +37,7 @@ export function SkillsMap({ personName, categories }: SkillsMapProps) {
                     key={skill}
                     className="flex items-center gap-1.5 inline-flex px-3 py-1.5 bg-white rounded-md text-sm font-medium text-neutral-700 border border-neutral-200 shadow-sm"
                   >
-                    <Tag className="w-3 h-3 text-neutral-400" />
+                    <Tag className="w-3 h-3 text-neutral-400" weight="bold" />
                     {skill}
                   </span>
                 ))}

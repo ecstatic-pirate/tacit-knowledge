@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { SessionScheduler } from '@/components/planner';
 import { useApp, Campaign } from '@/context/app-context';
 import { cn } from '@/lib/utils';
-import { ChevronDown, Calendar, Plus } from 'lucide-react';
+import { CaretDown, Calendar, Plus } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
@@ -78,11 +78,12 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
                 {selectedCampaign?.name || 'Select campaign'}
               </div>
             </div>
-            <ChevronDown
+            <CaretDown
               className={cn(
                 'w-4 h-4 text-muted-foreground transition-transform',
                 isDropdownOpen && 'rotate-180'
               )}
+              weight="bold"
             />
           </button>
 

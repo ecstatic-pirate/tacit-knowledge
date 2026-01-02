@@ -4,7 +4,8 @@ import { Campaign } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui';
-import { CheckCircle2, AlertCircle, AlertOctagon, LucideIcon, ArrowRight, Settings2 } from 'lucide-react';
+import { CheckCircle, WarningCircle, Warning, ArrowRight, Gear } from 'phosphor-react';
+import type { Icon as PhosphorIcon } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 
 interface CampaignCardProps {
@@ -14,25 +15,25 @@ interface CampaignCardProps {
 }
 
 const statusConfig: Record<string, {
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   textClass: string;
   label: string;
   progressVariant: 'success' | 'warning' | 'danger';
 }> = {
   'on-track': {
-    icon: CheckCircle2,
+    icon: CheckCircle,
     textClass: 'text-emerald-800 bg-emerald-100/50',
     label: 'On Track',
     progressVariant: 'success',
   },
   'keep-track': {
-    icon: AlertCircle,
+    icon: WarningCircle,
     textClass: 'text-amber-800 bg-amber-100/50',
     label: 'Needs Attention',
     progressVariant: 'warning',
   },
   danger: {
-    icon: AlertOctagon,
+    icon: Warning,
     textClass: 'text-rose-800 bg-rose-100/50',
     label: 'At Risk',
     progressVariant: 'danger',
@@ -57,7 +58,7 @@ export function CampaignCard({ campaign, onViewDetails, onEdit }: CampaignCardPr
             </p>
           </div>
           <div className={cn("flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full", config.textClass)}>
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className="w-3.5 h-3.5" weight="bold" />
             {config.label}
           </div>
         </div>
@@ -89,7 +90,7 @@ export function CampaignCard({ campaign, onViewDetails, onEdit }: CampaignCardPr
           onClick={() => onViewDetails(campaign)}
         >
           View Details
-          <ArrowRight className="ml-2 w-3 h-3" />
+          <ArrowRight className="ml-2 w-3 h-3" weight="bold" />
         </Button>
         <Button
           variant="ghost"
@@ -97,7 +98,7 @@ export function CampaignCard({ campaign, onViewDetails, onEdit }: CampaignCardPr
           className="h-8 w-8 text-muted-foreground"
           onClick={() => onEdit(campaign)}
         >
-          <Settings2 className="w-4 h-4" />
+          <Gear className="w-4 h-4" weight="bold" />
         </Button>
       </CardFooter>
     </Card>

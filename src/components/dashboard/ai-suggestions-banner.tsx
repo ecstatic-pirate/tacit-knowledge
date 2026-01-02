@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ArrowRight, Zap, ChevronRight, Loader2 } from 'lucide-react';
+import { Sparkle, ArrowRight, Lightning, CaretRight, CircleNotch } from 'phosphor-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -138,7 +138,7 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Sparkles className="h-4 w-4" />
+              <Sparkle className="h-4 w-4" weight="bold" />
             </div>
             <div className="space-y-1">
               <CardTitle className="text-base">AI Suggested Actions</CardTitle>
@@ -158,7 +158,7 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
       <CardContent className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
         {isLoading ? (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" weight="bold" />
           </div>
         ) : (
           <div className="grid gap-2">
@@ -173,7 +173,7 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
                   suggestion.priority === 'medium' && "text-amber-600 bg-amber-50",
                   suggestion.priority === 'low' && "text-emerald-600 bg-emerald-50"
                 )}>
-                  <Zap className="h-3 w-3" />
+                  <Lightning className="h-3 w-3" weight="bold" />
                 </div>
                 <div className="flex-1 text-sm">
                   {suggestion.text.split(suggestion.highlight).map((part, i, arr) => (
@@ -187,7 +187,7 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
                     </span>
                   ))}
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                <CaretRight className="h-4 w-4 text-muted-foreground/50" weight="bold" />
               </div>
             ))}
           </div>
@@ -196,7 +196,7 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
         {suggestions.length > 0 && (
           <Button onClick={onReviewAll} className="w-full md:w-auto mt-2 md:mt-0">
             Review All
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <ArrowRight className="ml-2 h-4 w-4" weight="bold" />
           </Button>
         )}
       </CardContent>

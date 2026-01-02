@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { CircleNotch } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { components } from '@/lib/design-system';
 
@@ -9,7 +9,7 @@ interface LoadingStateProps {
 export function LoadingState({ className }: LoadingStateProps) {
   return (
     <div className={cn(components.loadingContainer, className)}>
-      <Loader2 className={components.loadingSpinner} />
+      <CircleNotch className={components.loadingSpinner} weight="bold" />
     </div>
   );
 }

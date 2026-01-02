@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Loader2, Calendar, Play, Mic } from 'lucide-react';
+import { CircleNotch, Calendar, Play, Microphone } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { containers } from '@/lib/design-system';
 
@@ -88,7 +88,7 @@ export default function CapturePage() {
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" weight="bold" />
       </div>
     );
   }
@@ -105,7 +105,7 @@ export default function CapturePage() {
 
       {sessions.length === 0 ? (
         <div className="text-center py-12 border rounded-lg bg-card">
-          <Mic className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" />
+          <Microphone className="w-10 h-10 text-muted-foreground/50 mx-auto mb-3" weight="bold" />
           <p className="text-muted-foreground mb-4">No sessions available</p>
           <p className="text-sm text-muted-foreground mb-4">
             Schedule a session in the Sessions page to start capturing.

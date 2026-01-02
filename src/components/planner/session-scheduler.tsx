@@ -4,16 +4,16 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Calendar,
   Clock,
-  Video,
+  VideoCamera,
   Plus,
-  Trash2,
-  RefreshCw,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Link2,
+  Trash,
+  ArrowClockwise,
+  CheckCircle,
+  WarningCircle,
+  CircleNotch,
+  LinkSimple,
   Play,
-} from 'lucide-react'
+} from 'phosphor-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -228,7 +228,7 @@ export function SessionScheduler({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg">
-              <Calendar className="w-5 h-5 text-white" />
+              <Calendar className="w-5 h-5 text-white" weight="bold" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-neutral-900">Session Scheduler</h3>
@@ -241,7 +241,7 @@ export function SessionScheduler({
           {/* Calendar connection status */}
           {isConnected ? (
             <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle className="w-4 h-4" weight="bold" />
               <span>Outlook connected</span>
             </div>
           ) : (
@@ -252,9 +252,9 @@ export function SessionScheduler({
               disabled={isConnecting}
             >
               {isConnecting ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" />
               ) : (
-                <Link2 className="w-4 h-4 mr-2" />
+                <LinkSimple className="w-4 h-4 mr-2" weight="bold" />
               )}
               Connect Outlook
             </Button>
@@ -265,7 +265,7 @@ export function SessionScheduler({
       {/* Error display */}
       {(error || calendarError) && (
         <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-          <AlertCircle className="w-4 h-4" />
+          <WarningCircle className="w-4 h-4" weight="bold" />
           {error || calendarError}
         </div>
       )}
@@ -273,7 +273,7 @@ export function SessionScheduler({
       {/* New session form */}
       <div className="p-6 border-b border-neutral-100 bg-neutral-50/50">
         <h4 className="font-semibold text-neutral-800 mb-4 flex items-center gap-2">
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" weight="bold" />
           Schedule Session {nextSessionNumber}
         </h4>
 
@@ -342,7 +342,7 @@ export function SessionScheduler({
                 }
                 className="rounded border-neutral-300"
               />
-              <Video className="w-4 h-4" />
+              <VideoCamera className="w-4 h-4" weight="bold" />
               Create Teams meeting
             </label>
           )}
@@ -350,12 +350,12 @@ export function SessionScheduler({
           <Button onClick={handleCreateSession} disabled={isCreating}>
             {isCreating ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" />
                 Creating...
               </>
             ) : (
               <>
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-4 h-4 mr-2" weight="bold" />
                 Schedule Session
               </>
             )}
@@ -373,13 +373,13 @@ export function SessionScheduler({
             onClick={fetchSessions}
             className="text-neutral-500 hover:text-neutral-700 p-1"
           >
-            <RefreshCw className="w-4 h-4" />
+            <ArrowClockwise className="w-4 h-4" weight="bold" />
           </button>
         </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8 text-neutral-500">
-            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+            <CircleNotch className="w-5 h-5 animate-spin mr-2" weight="bold" />
             Loading sessions...
           </div>
         ) : sessions.length === 0 ? (
@@ -413,18 +413,18 @@ export function SessionScheduler({
                     </div>
                     <div className="text-sm text-neutral-500 flex items-center gap-3 mt-0.5">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
+                        <Calendar className="w-3.5 h-3.5" weight="bold" />
                         {date}
                       </span>
                       {time && (
                         <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
+                          <Clock className="w-3.5 h-3.5" weight="bold" />
                           {time}
                         </span>
                       )}
                       {session.calendarEventId && (
                         <span className="flex items-center gap-1 text-blue-600">
-                          <Video className="w-3.5 h-3.5" />
+                          <VideoCamera className="w-3.5 h-3.5" weight="bold" />
                           Teams
                         </span>
                       )}
@@ -472,7 +472,7 @@ export function SessionScheduler({
                       onClick={() => router.push(`/capture/${session.id}`)}
                       className="gap-1"
                     >
-                      <Play className="w-3.5 h-3.5" />
+                      <Play className="w-3.5 h-3.5" weight="bold" />
                       {session.status === 'in_progress' ? 'Continue' : session.status === 'paused' ? 'Resume' : 'Start'}
                     </Button>
                   )}
@@ -482,7 +482,7 @@ export function SessionScheduler({
                       onClick={() => handleDeleteSession(session)}
                       className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash className="w-4 h-4" weight="bold" />
                     </button>
                   )}
                 </div>

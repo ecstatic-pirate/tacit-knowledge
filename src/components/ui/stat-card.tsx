@@ -1,5 +1,5 @@
 import { HTMLAttributes, forwardRef } from 'react';
-import { LucideIcon } from 'lucide-react';
+import type { Icon as PhosphorIcon } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -10,7 +10,7 @@ interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
   label: string;
   value: string | number;
   subtitle?: string;
-  icon?: LucideIcon;
+  icon?: PhosphorIcon;
 }
 
 const variantConfig: Record<StatCardVariant, {
@@ -42,7 +42,7 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
               {label}
             </span>
             {Icon && (
-              <Icon className={cn("h-4 w-4", config.iconColor)} />
+              <Icon className={cn("h-4 w-4", config.iconColor)} weight="bold" />
             )}
           </div>
           <div className="flex flex-col gap-1">

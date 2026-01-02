@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, Clock, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, ArrowClockwise } from 'phosphor-react';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +18,7 @@ export function Timeline({ totalSessions, cadence, duration, weeks }: TimelinePr
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-           <Calendar className="w-5 h-5 text-primary" />
+           <Calendar className="w-5 h-5 text-primary" weight="bold" />
            Interview Schedule
         </CardTitle>
       </CardHeader>
@@ -28,27 +28,27 @@ export function Timeline({ totalSessions, cadence, duration, weeks }: TimelinePr
         <div className="flex flex-wrap gap-4 mb-8">
           <div className="flex items-center gap-3 bg-secondary/50 px-4 py-3 rounded-lg border">
             <div className="p-2 bg-background rounded border shadow-sm">
-              <Calendar className="w-4 h-4 text-primary" />
+              <Calendar className="w-4 h-4 text-primary" weight="bold" />
             </div>
             <div>
               <span className="block font-bold text-lg leading-none mb-0.5">{totalSessions}</span>
               <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Total Sessions</span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 bg-secondary/50 px-4 py-3 rounded-lg border">
             <div className="p-2 bg-background rounded border shadow-sm">
-              <RefreshCw className="w-4 h-4 text-primary" />
+              <ArrowClockwise className="w-4 h-4 text-primary" weight="bold" />
             </div>
             <div>
               <span className="block font-bold text-lg leading-none mb-0.5">{cadence}</span>
               <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wide">Cadence</span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 bg-secondary/50 px-4 py-3 rounded-lg border">
             <div className="p-2 bg-background rounded border shadow-sm">
-              <Clock className="w-4 h-4 text-primary" />
+              <Clock className="w-4 h-4 text-primary" weight="bold" />
             </div>
             <div>
               <span className="block font-bold text-lg leading-none mb-0.5">{duration}</span>

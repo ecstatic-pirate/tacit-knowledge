@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCalendar } from '@/lib/hooks/use-calendar'
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { CircleNotch, CheckCircle, XCircle } from 'phosphor-react'
 
 function CalendarCallbackContent() {
   const router = useRouter()
@@ -49,7 +49,7 @@ function CalendarCallbackContent() {
       <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-lg text-center">
         {status === 'loading' && (
           <>
-            <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
+            <CircleNotch className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" weight="bold" />
             <h2 className="text-xl font-bold text-gray-900 mb-2">
               Connecting your calendar...
             </h2>
@@ -62,7 +62,7 @@ function CalendarCallbackContent() {
         {status === 'success' && (
           <>
             <div className="w-12 h-12 rounded-full bg-green-100 mx-auto mb-4 flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <CheckCircle className="w-6 h-6 text-green-600" weight="fill" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">
               Calendar connected!
@@ -99,7 +99,7 @@ function CalendarCallbackFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-lg text-center">
-        <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
+        <CircleNotch className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" weight="bold" />
         <h2 className="text-xl font-bold text-gray-900 mb-2">
           Loading...
         </h2>

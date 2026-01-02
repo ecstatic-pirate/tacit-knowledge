@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { BrainCircuit, Loader2 } from 'lucide-react'
+import { Brain, CircleNotch } from 'phosphor-react'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -64,7 +64,7 @@ export default function SignupPage() {
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-sm text-center">
           <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
-            <BrainCircuit className="w-5 h-5" />
+            <Brain className="w-5 h-5" weight="bold" />
           </div>
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-6 rounded-lg mb-4">
             <h2 className="text-lg font-semibold mb-2">Check your email</h2>
@@ -85,7 +85,7 @@ export default function SignupPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
-            <BrainCircuit className="w-5 h-5" />
+            <Brain className="w-5 h-5" weight="bold" />
           </div>
           <h1 className="text-xl font-semibold">Create your account</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -168,7 +168,7 @@ export default function SignupPage() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" />
                 Creating account...
               </>
             ) : (

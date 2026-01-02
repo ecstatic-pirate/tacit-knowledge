@@ -3,17 +3,17 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  Sparkles,
+  Sparkle,
   Target,
   Check,
   Calendar,
-  CheckCircle2,
-  TrendingUp,
+  CheckCircle,
+  TrendUp,
   Clock,
-  Loader2,
-  RefreshCw,
-  AlertCircle,
-} from 'lucide-react';
+  CircleNotch,
+  ArrowClockwise,
+  WarningCircle,
+} from 'phosphor-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -182,7 +182,7 @@ export function AISuggestions({
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-              <Sparkles className="h-4 w-4" />
+              <Sparkle className="h-4 w-4" weight="bold" />
             </div>
             <div className="space-y-1">
               <CardTitle className="text-base">AI Analysis</CardTitle>
@@ -206,7 +206,7 @@ export function AISuggestions({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-            <Sparkles className="h-4 w-4" />
+            <Sparkle className="h-4 w-4" weight="bold" />
           </div>
           <div className="space-y-1">
             <CardTitle className="text-base">AI Analysis</CardTitle>
@@ -223,14 +223,14 @@ export function AISuggestions({
             disabled={isLoading}
             className="p-1.5 rounded-md hover:bg-secondary transition-colors"
           >
-            <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
+            <ArrowClockwise className={cn('h-4 w-4', isLoading && 'animate-spin')} weight="bold" />
           </button>
           {plan && (
             <Badge
               variant="outline"
               className="gap-1 bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
             >
-              <TrendingUp className="h-3 w-3" />
+              <TrendUp className="h-3 w-3" weight="bold" />
               {plan.overallConfidence}% Match Confidence
             </Badge>
           )}
@@ -239,7 +239,7 @@ export function AISuggestions({
 
       {error && (
         <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-          <AlertCircle className="w-4 h-4" />
+          <WarningCircle className="w-4 h-4" weight="bold" />
           {error}
         </div>
       )}
@@ -249,14 +249,14 @@ export function AISuggestions({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <Target className="h-3.5 w-3.5" />
+              <Target className="h-3.5 w-3.5" weight="bold" />
               Detected Skills ({skills.length})
             </div>
           </div>
 
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <CircleNotch className="w-5 h-5 animate-spin text-primary" weight="bold" />
             </div>
           ) : skills.length === 0 ? (
             <div className="text-center text-neutral-400 py-8 text-sm">
@@ -271,7 +271,7 @@ export function AISuggestions({
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-4 w-4 items-center justify-center rounded border bg-secondary text-transparent">
-                      <Check className="h-3 w-3 text-muted-foreground" />
+                      <Check className="h-3 w-3 text-muted-foreground" weight="bold" />
                     </div>
                     <span className="text-sm font-medium">{skill.name}</span>
                   </div>
@@ -288,7 +288,7 @@ export function AISuggestions({
         <div className="space-y-4 lg:border-l lg:pl-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <Calendar className="h-3.5 w-3.5" />
+              <Calendar className="h-3.5 w-3.5" weight="bold" />
               Proposed Timeline
             </div>
             {plan && (
@@ -300,7 +300,7 @@ export function AISuggestions({
 
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <CircleNotch className="w-5 h-5 animate-spin text-primary" weight="bold" />
             </div>
           ) : !plan ? (
             <div className="text-center text-neutral-400 py-8 text-sm">
@@ -312,7 +312,7 @@ export function AISuggestions({
               <div className="rounded-lg border bg-secondary/20 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" weight="bold" />
                     <span className="text-xs font-medium">Weekly Sessions</span>
                   </div>
                   <span className="text-xs text-muted-foreground">
@@ -369,7 +369,7 @@ export function AISuggestions({
           Edit Plan
         </Button>
         <Button onClick={onAccept} size="sm" disabled={skills.length === 0}>
-          <CheckCircle2 className="mr-2 h-4 w-4" />
+          <CheckCircle className="mr-2 h-4 w-4" weight="bold" />
           Accept Proposal
         </Button>
       </CardFooter>

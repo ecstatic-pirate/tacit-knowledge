@@ -1,6 +1,6 @@
 'use client';
 
-import { User, MessageSquare, Map, Check, Circle, FileText, ExternalLink } from 'lucide-react';
+import { User, ChatTeardrop, MapPin, Check, Circle, FileText, ArrowSquareOut } from 'phosphor-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,7 @@ export function HumanGuidancePanel({
     <Card className="h-full flex flex-col">
       <CardHeader className="py-4 border-b flex-row items-center gap-3 space-y-0">
         <div className="flex items-center justify-center w-8 h-8 rounded-md bg-secondary text-secondary-foreground">
-          <User className="w-4 h-4" />
+          <User className="w-4 h-4" weight="bold" />
         </div>
         <div className="flex flex-col">
           <h3 className="text-sm font-semibold">Interviewer Guide</h3>
@@ -34,7 +34,7 @@ export function HumanGuidancePanel({
         {/* Suggested Questions */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            <MessageSquare className="w-3 h-3" />
+            <ChatTeardrop className="w-3 h-3" weight="bold" />
             Recommended Questions
           </div>
           <div className="space-y-2">
@@ -55,18 +55,18 @@ export function HumanGuidancePanel({
         {/* Skills Map */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            <Map className="w-3 h-3" />
+            <MapPin className="w-3 h-3" weight="bold" />
             Skill Coverage
           </div>
           <div className="flex flex-wrap gap-1.5">
             {capturedSkills.map((skill) => (
               <Badge key={skill} variant="success" className="gap-1">
-                <Check className="w-2.5 h-2.5" /> {skill}
+                <Check className="w-2.5 h-2.5" weight="bold" /> {skill}
               </Badge>
             ))}
             {missingSkills.map((skill) => (
               <Badge key={skill} variant="secondary" className="gap-1 text-muted-foreground">
-                <Circle className="w-2.5 h-2.5" /> {skill}
+                <Circle className="w-2.5 h-2.5" weight="fill" /> {skill}
               </Badge>
             ))}
           </div>
@@ -77,17 +77,17 @@ export function HumanGuidancePanel({
         {/* Reference Materials */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            <FileText className="w-3 h-3" />
+            <FileText className="w-3 h-3" weight="bold" />
             References
           </div>
           <div className="space-y-1">
             {referenceFiles.map((file) => (
               <div key={file} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-secondary/50 cursor-pointer group transition-colors -mx-2">
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <FileText className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" weight="bold" />
                   <span className="text-xs text-muted-foreground group-hover:text-foreground font-medium truncate">{file}</span>
                 </div>
-                <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" />
+                <ArrowSquareOut className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all" weight="bold" />
               </div>
             ))}
           </div>

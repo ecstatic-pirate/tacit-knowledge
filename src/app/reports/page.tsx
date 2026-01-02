@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/toast';
 import { ReportsTab } from '@/components/tabs';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
-import { CalendarClock, BarChart3, Loader2, FileText, ClipboardList, Network } from 'lucide-react';
+import { CalendarCheck, ChartBar, CircleNotch, FileText, ListChecks, ShareNetwork } from 'phosphor-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ReportsPage() {
@@ -34,7 +34,7 @@ export default function ReportsPage() {
       title: title,
       content: (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" weight="bold" />
         </div>
       ),
     });
@@ -76,7 +76,7 @@ export default function ReportsPage() {
         })
       : 'Date unknown';
 
-    const TypeIcon = reportData?.type === 'summary' ? ClipboardList : reportData?.type === 'skills' ? BarChart3 : reportData?.type === 'graph' ? Network : FileText;
+    const TypeIcon = reportData?.type === 'summary' ? ListChecks : reportData?.type === 'skills' ? ChartBar : reportData?.type === 'graph' ? ShareNetwork : FileText;
 
     setModalState({
       isOpen: true,
@@ -85,7 +85,7 @@ export default function ReportsPage() {
         <div className="space-y-6">
           <div className="flex items-center gap-3 text-muted-foreground text-sm pb-4 border-b">
             <div className="flex items-center gap-1">
-              <CalendarClock className="w-4 h-4" />
+              <CalendarCheck className="w-4 h-4" weight="bold" />
               <span>{formattedDate}</span>
             </div>
             <div className="w-1 h-1 rounded-full bg-border" />
@@ -110,7 +110,7 @@ export default function ReportsPage() {
             </div>
           ) : (
             <div className="bg-secondary/20 p-6 rounded-lg border border-dashed text-center py-12">
-              <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <ChartBar className="w-12 h-12 text-muted-foreground mx-auto mb-4" weight="bold" />
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
                 No preview available for this report.
               </p>

@@ -3,7 +3,7 @@
 import { Campaign } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui';
-import { CheckCircle2, AlertCircle, AlertOctagon, MoreHorizontal, ArrowRight } from 'lucide-react';
+import { CheckCircle, WarningCircle, Warning, ArrowRight } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -18,17 +18,17 @@ const statusConfig: Record<string, {
   variant: 'success' | 'warning' | 'destructive' | 'default';
 }> = {
   'on-track': {
-    icon: CheckCircle2,
+    icon: CheckCircle,
     label: 'On Track',
     variant: 'success',
   },
   'keep-track': {
-    icon: AlertCircle,
+    icon: WarningCircle,
     label: 'Needs Attention',
     variant: 'warning',
   },
   danger: {
-    icon: AlertOctagon,
+    icon: Warning,
     label: 'At Risk',
     variant: 'destructive',
   },
@@ -80,7 +80,7 @@ export function CampaignRow({ campaign, onViewDetails }: CampaignRowProps) {
       </div>
 
       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground group-hover:text-foreground">
-        <ArrowRight className="w-4 h-4" />
+        <ArrowRight className="w-4 h-4" weight="bold" />
       </Button>
     </div>
   );

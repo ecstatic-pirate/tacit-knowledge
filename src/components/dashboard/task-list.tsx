@@ -1,7 +1,7 @@
 'use client';
 
 import { Task } from '@/types';
-import { Check, Clock, Plus } from 'lucide-react';
+import { Check, Clock, Plus } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -28,7 +28,7 @@ export function TaskList({ tasks, onTaskToggle }: TaskListProps) {
           My Priorities
         </CardTitle>
         <Button variant="ghost" size="icon" className="h-6 w-6">
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" weight="bold" />
         </Button>
       </CardHeader>
       <CardContent className="space-y-1">
@@ -44,14 +44,14 @@ export function TaskList({ tasks, onTaskToggle }: TaskListProps) {
             <div
               className={cn(
                 "mt-0.5 h-4 w-4 rounded border flex items-center justify-center transition-colors shrink-0",
-                task.completed 
-                  ? "bg-primary border-primary text-primary-foreground" 
+                task.completed
+                  ? "bg-primary border-primary text-primary-foreground"
                   : "border-input text-transparent hover:border-primary"
               )}
             >
-              <Check className="h-3 w-3" />
+              <Check className="h-3 w-3" weight="bold" />
             </div>
-            
+
             <div className="flex-1 space-y-1">
                <p className={cn(
                   "text-sm font-medium leading-none transition-colors",
@@ -61,7 +61,7 @@ export function TaskList({ tasks, onTaskToggle }: TaskListProps) {
               </p>
               <div className="flex items-center gap-2">
                 <Badge variant={(priorityConfig[task.priority] ?? defaultPriorityConfig).variant as any} className="h-4 px-1 text-[10px] gap-1 font-normal bg-opacity-10 border-opacity-20 bg-transparent border">
-                  {task.priority === 'urgent' && <Clock className="w-2.5 h-2.5" />}
+                  {task.priority === 'urgent' && <Clock className="w-2.5 h-2.5" weight="bold" />}
                   {(priorityConfig[task.priority] ?? defaultPriorityConfig).label}
                 </Badge>
               </div>

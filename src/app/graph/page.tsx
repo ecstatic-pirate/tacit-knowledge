@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useApp } from '@/context/app-context';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -258,7 +258,7 @@ export default function GraphPage() {
                       onClick={() => setSelectedItem(isSelected ? null : item)}
                     >
                       <div className="flex items-start gap-3">
-                        <Lightbulb className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <Lightbulb className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" weight="bold" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <p className="font-medium text-foreground">{item.title}</p>
