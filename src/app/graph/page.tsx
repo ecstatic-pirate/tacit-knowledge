@@ -11,8 +11,8 @@ import { LoadingState } from '@/components/ui/loading-state';
 import { SearchInput } from '@/components/ui/search-input';
 import { SectionDivider } from '@/components/ui/section-divider';
 import { containers, spacing, components } from '@/lib/design-system';
-import { GraphLayoutVisualizer } from '@/components/visualizations/graph-layout-visualizer';
-import type { GraphNode, GraphEdge } from '@/components/visualizations/graph-layout-visualizer';
+import { KnowledgeGraphExplorer } from '@/components/visualizations/knowledge-graph-explorer';
+import type { GraphNode, GraphEdge } from '@/components/visualizations/knowledge-graph-explorer';
 
 interface KnowledgeItem {
   id: string;
@@ -276,11 +276,9 @@ export default function GraphPage() {
           // Visualization View
           <div className="space-y-8">
             {graphNodes.length > 0 && (
-              <GraphLayoutVisualizer
+              <KnowledgeGraphExplorer
                 nodes={graphNodes}
                 edges={graphEdges}
-                title="Knowledge Graph"
-                defaultLayout="hierarchical"
               />
             )}
           </div>
