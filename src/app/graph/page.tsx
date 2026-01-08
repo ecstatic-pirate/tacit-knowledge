@@ -6,7 +6,7 @@ import { User, FolderSimple, UsersFour, Lightbulb, Warning, MagnifyingGlass } fr
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingState } from '@/components/ui/loading-state';
+import { KnowledgeHubSkeleton } from '@/components/ui/skeleton';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { containers, spacing } from '@/lib/design-system';
 import {
@@ -80,8 +80,8 @@ export default function KnowledgeHubPage() {
   if (isLoading) {
     return (
       <div className={containers.pageContainer}>
-        <div className={containers.pageInner}>
-          <LoadingState />
+        <div className={containers.wideContainer}>
+          <KnowledgeHubSkeleton />
         </div>
       </div>
     );

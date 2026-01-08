@@ -10,6 +10,8 @@ import { Campaign } from '@/types';
 import { CheckCircle, CircleNotch } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
+import { DashboardSkeleton } from '@/components/ui/skeleton';
+import { containers } from '@/lib/design-system';
 
 interface AISuggestion {
   id: string;
@@ -20,7 +22,7 @@ interface AISuggestion {
 }
 
 export default function DashboardPage() {
-  const { campaigns, tasks, toggleTask } = useApp();
+  const { campaigns, tasks, toggleTask, isLoading } = useApp();
   const { showToast } = useToast();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -196,6 +198,16 @@ export default function DashboardPage() {
       ),
     });
   }, [supabase, showToast]);
+
+  if (isLoading) {
+    return (
+      <div className={containers.pageContainer}>
+        <div className={containers.wideContainer}>
+          <DashboardSkeleton />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

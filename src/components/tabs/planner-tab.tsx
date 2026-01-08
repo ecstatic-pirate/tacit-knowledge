@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { SessionCardSkeleton } from '@/components/ui/skeleton';
 import { containers } from '@/lib/design-system';
 import { createClient } from '@/lib/supabase/client';
 
@@ -261,8 +262,10 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
 
               <div className="p-6">
                 {isLoading ? (
-                  <div className="text-center py-8 text-neutral-500">
-                    Loading sessions...
+                  <div className="space-y-4">
+                    <SessionCardSkeleton />
+                    <SessionCardSkeleton />
+                    <SessionCardSkeleton />
                   </div>
                 ) : (
                   <SessionList
