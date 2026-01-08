@@ -229,8 +229,8 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
               <div className="p-6 border-b border-neutral-100">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg">
-                      <Calendar className="w-5 h-5 text-white" weight="bold" />
+                    <div className="p-2 rounded-xl bg-primary">
+                      <Calendar className="w-5 h-5 text-primary-foreground" weight="bold" />
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-neutral-900">Upcoming Sessions</h3>
@@ -280,7 +280,7 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
               <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-neutral-100">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg">
+                    <div className="p-2 rounded-xl bg-emerald-700">
                       <Calendar className="w-5 h-5 text-white" weight="bold" />
                     </div>
                     <div>

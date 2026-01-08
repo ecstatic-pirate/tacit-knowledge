@@ -722,8 +722,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </h2>
           <div className="border rounded-lg bg-card p-5">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                <Book className="w-6 h-6 text-white" weight="bold" />
+              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+                <Book className="w-6 h-6 text-primary-foreground" weight="bold" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium mb-1">Share Interview Preparation Guide</h3>

@@ -240,7 +240,7 @@ export function SessionList({
               className="w-full p-4 flex items-center gap-4 text-left"
             >
               {/* Session number badge */}
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold flex-shrink-0">
                 {session.sessionNumber}
               </div>
 

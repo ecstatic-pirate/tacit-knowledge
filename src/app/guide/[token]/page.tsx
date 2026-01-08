@@ -203,7 +203,7 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
         {/* Expert Overview */}
         <section className="mb-12">
           <div className="flex items-start gap-6 mb-6">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center text-white flex-shrink-0">
+            <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0">
               <User className="w-10 h-10" weight="bold" />
             </div>
             <div>
@@ -290,7 +290,7 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
                       onClick={() => toggleSection(`session-${session.id}`)}
                       className="w-full p-4 flex items-center gap-4 text-left"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold flex-shrink-0">
                         {session.sessionNumber}
                       </div>
                       <div className="flex-1 min-w-0">
