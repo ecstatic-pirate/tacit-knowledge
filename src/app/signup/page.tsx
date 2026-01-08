@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Brain, CircleNotch } from 'phosphor-react'
+import { Sparkle, CircleNotch } from 'phosphor-react'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -63,8 +63,8 @@ export default function SignupPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="w-full max-w-sm text-center">
-          <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
-            <Brain className="w-5 h-5" weight="bold" />
+          <div className="flex items-center justify-center w-10 h-10 rounded bg-primary text-primary-foreground mx-auto mb-4">
+            <Sparkle className="w-5 h-5" weight="fill" />
           </div>
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-6 rounded-lg mb-4">
             <h2 className="text-lg font-semibold mb-2">Check your email</h2>
@@ -84,10 +84,10 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
-            <Brain className="w-5 h-5" weight="bold" />
+          <div className="flex items-center justify-center w-10 h-10 rounded bg-primary text-primary-foreground mx-auto mb-4">
+            <Sparkle className="w-5 h-5" weight="fill" />
           </div>
-          <h1 className="text-xl font-semibold">Create your account</h1>
+          <h1 className="text-2xl font-serif font-bold">Create your account</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Get started with Tacit in minutes.
           </p>

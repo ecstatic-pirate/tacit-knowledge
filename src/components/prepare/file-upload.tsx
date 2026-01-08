@@ -1,71 +1,54 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import {
   FileText,
   CloudArrowUp,
   CheckCircle,
-  ChartBar,
-  ListChecks,
-  Target,
   File,
   X,
   Sparkle,
   CircleNotch,
   WarningCircle,
+  FolderOpen,
+  ClipboardText,
+  Image as ImageIcon,
 } from 'phosphor-react'
 import { cn } from '@/lib/utils'
 import { useDocuments, type UploadedDocument } from '@/lib/hooks/use-documents'
+import { usePublicDocuments, type PublicDocument } from '@/lib/hooks/use-public-documents'
 import { Button } from '@/components/ui/button'
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'csv', 'png', 'jpg', 'jpeg', 'gif']
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+]
+
+// Unified document type for display
+type DisplayDocument = UploadedDocument | PublicDocument
+
 interface FileUploadProps {
+  // Authenticated mode props
   campaignId?: string
   orgId?: string
-  onDocumentsChange?: (documents: UploadedDocument[]) => void
+  // Public mode props (token-based)
+  token?: string
+  // Callbacks
+  onDocumentsChange?: (documents: DisplayDocument[]) => void
   onSkillsExtracted?: (skills: string[]) => void
-}
-
-const fileConfig: Record<string, { icon: any; gradient: string; bgClass: string }> = {
-  pdf: {
-    icon: ChartBar,
-    gradient: 'from-red-500 to-rose-500',
-    bgClass: 'bg-gradient-to-br from-red-500 to-rose-500',
-  },
-  doc: {
-    icon: ListChecks,
-    gradient: 'from-blue-500 to-cyan-500',
-    bgClass: 'bg-gradient-to-br from-blue-500 to-cyan-500',
-  },
-  docx: {
-    icon: ListChecks,
-    gradient: 'from-blue-500 to-cyan-500',
-    bgClass: 'bg-gradient-to-br from-blue-500 to-cyan-500',
-  },
-  ppt: {
-    icon: Target,
-    gradient: 'from-orange-500 to-amber-500',
-    bgClass: 'bg-gradient-to-br from-orange-500 to-amber-500',
-  },
-  pptx: {
-    icon: Target,
-    gradient: 'from-orange-500 to-amber-500',
-    bgClass: 'bg-gradient-to-br from-orange-500 to-amber-500',
-  },
-  txt: {
-    icon: FileText,
-    gradient: 'from-neutral-500 to-neutral-600',
-    bgClass: 'bg-gradient-to-br from-neutral-500 to-neutral-600',
-  },
-  csv: {
-    icon: FileText,
-    gradient: 'from-green-500 to-emerald-500',
-    bgClass: 'bg-gradient-to-br from-green-500 to-emerald-500',
-  },
-  other: {
-    icon: File,
-    gradient: 'from-neutral-400 to-neutral-500',
-    bgClass: 'bg-gradient-to-br from-neutral-400 to-neutral-500',
-  },
+  // UI options
+  compact?: boolean
+  showAnalyzeButton?: boolean
 }
 
 function formatFileSize(bytes: number): string {
@@ -79,14 +62,34 @@ function formatFileSize(bytes: number): string {
 export function FileUpload({
   campaignId,
   orgId,
+  token,
   onDocumentsChange,
   onSkillsExtracted,
+  compact = false,
+  showAnalyzeButton = true,
 }: FileUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [pasteMessage, setPasteMessage] = useState<string | null>(null)
 
-  // Use mock mode if no campaignId/orgId provided
-  const isEnabled = Boolean(campaignId && orgId)
+  // Determine which mode we're in
+  const isPublicMode = Boolean(token)
+  const isAuthenticatedMode = Boolean(campaignId && orgId)
+  const isEnabled = isPublicMode || isAuthenticatedMode
 
+  // Use the appropriate hook based on mode
+  const authenticatedHook = useDocuments({
+    campaignId: campaignId || '',
+    orgId: orgId || '',
+  })
+
+  const publicHook = usePublicDocuments({
+    token: token || '',
+  })
+
+  // Select the active hook's values
+  const activeHook = isPublicMode ? publicHook : authenticatedHook
   const {
     documents,
     isLoading,
@@ -96,52 +99,62 @@ export function FileUpload({
     fetchDocuments,
     uploadFiles,
     deleteDocument,
-    processDocument,
-  } = useDocuments({
-    campaignId: campaignId || '',
-    orgId: orgId || '',
-  })
+  } = activeHook
 
-  // Fetch documents on mount
+  // Only authenticated mode has processDocument
+  const processDocument = isPublicMode ? undefined : authenticatedHook.processDocument
+
   useEffect(() => {
     if (isEnabled) {
       fetchDocuments()
     }
   }, [isEnabled, fetchDocuments])
 
-  // Notify parent of document changes
   useEffect(() => {
     if (onDocumentsChange) {
       onDocumentsChange(documents)
     }
   }, [documents, onDocumentsChange])
 
+  // Validate a file before upload
+  const validateFile = useCallback((file: File): string | null => {
+    if (file.size > MAX_FILE_SIZE) {
+      return `File "${file.name}" exceeds 10MB limit`
+    }
+    const extension = file.name.split('.').pop()?.toLowerCase() || ''
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
+      return `File type ".${extension}" not supported`
+    }
+    return null
+  }, [])
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
-    e.currentTarget.classList.add('drag-over')
+    e.currentTarget.classList.add('ring-2', 'ring-primary')
   }, [])
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.currentTarget.classList.remove('drag-over')
+    e.currentTarget.classList.remove('ring-2', 'ring-primary')
   }, [])
 
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault()
-      e.currentTarget.classList.remove('drag-over')
+      e.currentTarget.classList.remove('ring-2', 'ring-primary')
 
       if (!isEnabled) return
 
       const files = Array.from(e.dataTransfer.files)
-      const validFiles = files.filter((f) =>
-        ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'text/plain', 'text/csv'].includes(f.type)
-      )
+      const validFiles = files.filter((f) => {
+        const error = validateFile(f)
+        return !error && (ALLOWED_MIME_TYPES.includes(f.type) || f.type === '')
+      })
 
       if (validFiles.length > 0) {
         await uploadFiles(validFiles)
       }
     },
-    [isEnabled, uploadFiles]
+    [isEnabled, uploadFiles, validateFile]
   )
 
   const handleFileSelect = useCallback(
@@ -149,19 +162,100 @@ export function FileUpload({
       if (!isEnabled || !e.target.files) return
 
       const files = Array.from(e.target.files)
-      await uploadFiles(files)
+      const validFiles = files.filter((f) => !validateFile(f))
 
-      // Reset input
+      if (validFiles.length > 0) {
+        await uploadFiles(validFiles)
+      }
+
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     },
-    [isEnabled, uploadFiles]
+    [isEnabled, uploadFiles, validateFile]
   )
+
+  // Handle folder upload
+  const handleFolderSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!isEnabled || !e.target.files) return
+
+      const files = Array.from(e.target.files)
+      const validFiles = files.filter((f) => !validateFile(f))
+
+      if (validFiles.length > 0) {
+        // For public mode with paths, use uploadFilesWithPaths if available
+        if (isPublicMode && 'uploadFilesWithPaths' in publicHook) {
+          const filesWithPaths = validFiles.map((f) => ({
+            file: f,
+            relativePath: (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name,
+          }))
+          await publicHook.uploadFilesWithPaths(filesWithPaths)
+        } else {
+          await uploadFiles(validFiles)
+        }
+      }
+
+      if (folderInputRef.current) {
+        folderInputRef.current.value = ''
+      }
+    },
+    [isEnabled, isPublicMode, publicHook, uploadFiles, validateFile]
+  )
+
+  // Handle paste from clipboard
+  const handlePaste = useCallback(
+    async (e: ClipboardEvent) => {
+      if (!isEnabled) return
+
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      const files: File[] = []
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item.kind === 'file') {
+          const file = item.getAsFile()
+          if (file && !validateFile(file)) {
+            files.push(file)
+          }
+        }
+      }
+
+      if (files.length > 0) {
+        e.preventDefault()
+        setPasteMessage(`Uploading ${files.length} file(s) from clipboard...`)
+        await uploadFiles(files)
+        setPasteMessage(null)
+      }
+    },
+    [isEnabled, uploadFiles, validateFile]
+  )
+
+  // Set up paste listener
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !isEnabled) return
+
+    const handlePasteEvent = (e: Event) => handlePaste(e as ClipboardEvent)
+
+    // Listen on document for paste events when container is focused
+    document.addEventListener('paste', handlePasteEvent)
+
+    return () => {
+      document.removeEventListener('paste', handlePasteEvent)
+    }
+  }, [handlePaste, isEnabled])
 
   const handleClick = useCallback(() => {
     if (isEnabled) {
       fileInputRef.current?.click()
+    }
+  }, [isEnabled])
+
+  const handleFolderClick = useCallback(() => {
+    if (isEnabled) {
+      folderInputRef.current?.click()
     }
   }, [isEnabled])
 
@@ -174,6 +268,7 @@ export function FileUpload({
 
   const handleProcess = useCallback(
     async (docId: string) => {
+      if (!processDocument) return
       const skills = await processDocument(docId)
       if (skills && onSkillsExtracted) {
         onSkillsExtracted(skills)
@@ -182,179 +277,177 @@ export function FileUpload({
     [processDocument, onSkillsExtracted]
   )
 
-  const isDragOver = false // Managed via CSS class
-
   return (
-    <div className="bg-white rounded-2xl p-8 mb-8 border border-neutral-200/80 shadow-sm hover:shadow-md transition-shadow duration-300">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-violet-500 shadow-lg shadow-primary/20">
-          <FileText className="w-5 h-5 text-white" weight="bold" />
-        </div>
-        <div>
-          <h3 className="text-lg font-bold text-neutral-900">Add Explicit Knowledge</h3>
-          <p className="text-xs text-neutral-500">
-            Upload documentation, presentations, and materials
-          </p>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-          <WarningCircle className="w-4 h-4" weight="bold" />
-          {error}
+    <div ref={containerRef} className={cn("border rounded-lg bg-card", compact && "border-0 bg-transparent")}>
+      {!compact && (
+        <div className="p-4 border-b flex items-center gap-3">
+          <div className="p-2 rounded-md bg-secondary">
+            <FileText className="w-4 h-4 text-muted-foreground" weight="bold" />
+          </div>
+          <div>
+            <h3 className="font-medium">Upload Documents</h3>
+            <p className="text-xs text-muted-foreground">
+              Add documentation, presentations, and materials
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Upload zone */}
-      <div
-        className={cn(
-          'relative rounded-2xl p-10 text-center transition-all duration-300 border-2 border-dashed overflow-hidden group',
-          isEnabled
-            ? 'cursor-pointer border-neutral-200 bg-gradient-to-br from-neutral-50 to-slate-50 hover:border-primary/50 hover:from-primary/5 hover:to-violet-50'
-            : 'cursor-not-allowed border-neutral-100 bg-neutral-50 opacity-60',
-          '[&.drag-over]:border-primary [&.drag-over]:bg-primary/5 [&.drag-over]:scale-[0.99]'
+      <div className={cn("p-4", compact && "p-0")}>
+        {error && (
+          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 text-destructive text-sm">
+            <WarningCircle className="w-4 h-4" weight="bold" />
+            {error}
+          </div>
         )}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={handleClick}
-      >
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.csv"
-          className="hidden"
-          onChange={handleFileSelect}
-          disabled={!isEnabled}
-        />
 
-        {/* Background decoration */}
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: 'radial-gradient(#4f46e5 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
-          }}
-        />
+        {pasteMessage && (
+          <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2 text-primary text-sm">
+            <ClipboardText className="w-4 h-4" weight="bold" />
+            {pasteMessage}
+          </div>
+        )}
 
+        {/* Upload zone */}
         <div
           className={cn(
-            'relative mx-auto w-16 h-16 rounded-2xl shadow-lg flex items-center justify-center mb-5 transition-all duration-300',
-            isUploading
-              ? 'bg-gradient-to-br from-primary to-violet-500 animate-pulse'
-              : 'bg-white group-hover:scale-105'
+            'rounded-lg p-6 text-center transition-all border-2 border-dashed',
+            isEnabled
+              ? 'cursor-pointer border-border hover:border-primary/50 hover:bg-secondary/30'
+              : 'cursor-not-allowed border-border/50 bg-secondary/20 opacity-60'
           )}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={handleClick}
         >
-          {isUploading ? (
-            <CircleNotch className="w-8 h-8 text-white animate-spin" weight="bold" />
-          ) : (
-            <CloudArrowUp
-              className={cn(
-                'w-8 h-8 transition-all duration-300',
-                'text-neutral-400 group-hover:text-primary'
-              )}
-              weight="bold"
-            />
+          {/* Hidden file inputs */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.gif"
+            className="hidden"
+            onChange={handleFileSelect}
+            disabled={!isEnabled}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            // @ts-expect-error webkitdirectory is not in the types but is widely supported
+            webkitdirectory=""
+            multiple
+            className="hidden"
+            onChange={handleFolderSelect}
+            disabled={!isEnabled}
+          />
+
+          <div className={cn(
+            'mx-auto w-12 h-12 rounded-lg flex items-center justify-center mb-3',
+            isUploading ? 'bg-primary' : 'bg-secondary'
+          )}>
+            {isUploading ? (
+              <CircleNotch className="w-6 h-6 text-primary-foreground animate-spin" weight="bold" />
+            ) : (
+              <CloudArrowUp className="w-6 h-6 text-muted-foreground" weight="bold" />
+            )}
+          </div>
+
+          <p className="font-medium text-sm mb-1">
+            {!isEnabled
+              ? 'Complete previous steps first'
+              : isUploading
+              ? 'Uploading files...'
+              : 'Drop files here or click to upload'}
+          </p>
+          <p className="text-xs text-muted-foreground mb-3">
+            PDF, DOCX, TXT, PPT, Images supported (max 10MB)
+          </p>
+
+          {/* Action buttons */}
+          {isEnabled && !isUploading && (
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleFolderClick()
+                }}
+                className="text-xs"
+                title="Select a folder, then click 'Open' to upload all files inside"
+              >
+                <FolderOpen className="w-3.5 h-3.5 mr-1.5" weight="bold" />
+                Select Folder
+              </Button>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <ClipboardText className="w-3 h-3" weight="bold" />
+                or paste (Ctrl+V)
+              </span>
+            </div>
           )}
         </div>
-        <div className="relative font-bold mb-2 text-neutral-900 text-lg">
-          {!isEnabled
-            ? 'Create a campaign first to upload files'
-            : isUploading
-            ? 'Uploading files...'
-            : 'Drop files here or click to upload'}
-        </div>
-        <div className="relative text-sm text-neutral-500 flex items-center justify-center gap-2">
-          <span className="px-2 py-0.5 bg-neutral-100 rounded text-xs font-medium">PDF</span>
-          <span className="px-2 py-0.5 bg-neutral-100 rounded text-xs font-medium">DOCX</span>
-          <span className="px-2 py-0.5 bg-neutral-100 rounded text-xs font-medium">TXT</span>
-          <span className="px-2 py-0.5 bg-neutral-100 rounded text-xs font-medium">PPT</span>
-        </div>
-      </div>
 
-      {/* Upload progress */}
-      {Object.keys(uploadProgress).length > 0 && (
-        <div className="mt-4 space-y-2">
-          {Object.entries(uploadProgress).map(([id, progress]) => (
-            <div key={id} className="flex items-center gap-3">
-              <div className="flex-1 h-2 bg-neutral-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-violet-500 transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
+        {/* Upload progress */}
+        {Object.keys(uploadProgress).length > 0 && (
+          <div className="mt-4 space-y-2">
+            {Object.entries(uploadProgress).map(([id, progress]) => (
+              <div key={id} className="flex items-center gap-3">
+                <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground">{progress}%</span>
               </div>
-              <span className="text-xs text-neutral-500">{progress}%</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className="mt-6 flex items-center justify-center gap-2 text-neutral-500">
-          <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
-          <span className="text-sm">Loading documents...</span>
-        </div>
-      )}
-
-      {/* Uploaded files */}
-      {documents.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-neutral-100">
-          <div className="font-bold mb-4 text-neutral-900 flex items-center gap-2">
-            <div className="p-1 rounded-md bg-emerald-100">
-              <CheckCircle className="w-4 h-4 text-emerald-600" weight="bold" />
-            </div>
-            <span>Uploaded Files</span>
-            <span className="text-xs font-medium px-2 py-0.5 bg-neutral-100 rounded-full text-neutral-500">
-              {documents.length} files
-            </span>
+            ))}
           </div>
-          <div className="space-y-2">
-            {documents.map((doc, index) => {
-              const config = fileConfig[doc.fileType] || fileConfig.other
-              const Icon = config.icon
+        )}
 
-              return (
+        {/* Loading state */}
+        {isLoading && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-muted-foreground">
+            <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
+            <span className="text-sm">Loading documents...</span>
+          </div>
+        )}
+
+        {/* Uploaded files */}
+        {documents.length > 0 && (
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle className="w-4 h-4 text-emerald-600" weight="bold" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Uploaded ({documents.length})
+              </span>
+            </div>
+            <div className="space-y-2">
+              {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className={cn(
-                    'flex items-center gap-4 p-4 rounded-xl bg-neutral-50 border border-neutral-100',
-                    'group hover:bg-white hover:border-neutral-200 hover:shadow-sm transition-all duration-200',
-                    'animate-fade-in'
-                  )}
-                  style={{ animationDelay: `${index * 0.05}s` }}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 group"
                 >
-                  <div
-                    className={cn(
-                      'p-2.5 rounded-xl shadow-md transition-transform duration-200 group-hover:scale-105',
-                      config.bgClass
-                    )}
-                  >
-                    <Icon className="w-5 h-5 text-white" />
+                  <div className="p-2 rounded-md bg-secondary">
+                    <File className="w-4 h-4 text-muted-foreground" weight="bold" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium text-neutral-800 truncate group-hover:text-neutral-900 transition-colors">
-                      {doc.filename}
-                    </span>
-                    <span className="text-xs text-neutral-400 flex items-center gap-1.5 mt-0.5">
+                    <p className="text-sm font-medium truncate">{doc.filename}</p>
+                    <p className="text-xs text-muted-foreground">
                       {doc.aiProcessed ? (
-                        <>
-                          <Sparkle className="w-3 h-3 text-amber-500" weight="bold" />
-                          <span className="text-amber-600">
-                            {doc.extractedSkills.length} skills extracted
-                          </span>
-                        </>
+                        <span className="text-emerald-600">
+                          {doc.extractedSkills.length} skills extracted
+                        </span>
                       ) : (
-                        <span>Ready for AI analysis</span>
+                        'Ready for analysis'
                       )}
-                    </span>
+                    </p>
                   </div>
-                  <span className="text-xs font-medium text-neutral-400 bg-neutral-100 px-2 py-1 rounded">
+                  <span className="text-xs text-muted-foreground">
                     {formatFileSize(doc.fileSize)}
                   </span>
-                  {!doc.aiProcessed && (
+                  {showAnalyzeButton && processDocument && !doc.aiProcessed && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -362,7 +455,7 @@ export function FileUpload({
                         e.stopPropagation()
                         handleProcess(doc.id)
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100"
                     >
                       <Sparkle className="w-3 h-3 mr-1" weight="bold" />
                       Analyze
@@ -373,16 +466,16 @@ export function FileUpload({
                       e.stopPropagation()
                       handleDelete(doc.id)
                     }}
-                    className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
                   >
                     <X className="w-4 h-4" weight="bold" />
                   </button>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

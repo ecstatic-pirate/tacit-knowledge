@@ -3,18 +3,21 @@ import { cn } from "@/lib/utils"
 
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
-    label?: string
-  }
+  label?: React.ReactNode
+  error?: string
+  hint?: string
+}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, label, id, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+  ({ className, type, label, error, hint, id, ...props }, ref) => {
+    const inputId = id || (typeof label === 'string' ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+
     return (
-      <div className={cn("space-y-2 mb-4", className && className.includes("mb-") ? "" : "mb-4")}>
-         {label && (
+      <div className="space-y-1.5">
+        {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            className="block text-sm font-medium text-foreground"
           >
             {label}
           </label>
@@ -23,12 +26,22 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           type={type}
           className={cn(
-            "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors",
+            "placeholder:text-muted-foreground",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            error && "border-destructive focus-visible:ring-destructive",
             className
           )}
           ref={ref}
           {...props}
         />
+        {error && (
+          <p className="text-xs text-destructive">{error}</p>
+        )}
+        {hint && !error && (
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        )}
       </div>
     )
   }
@@ -37,18 +50,21 @@ Input.displayName = "Input"
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-    label?: string
-  }
+  label?: React.ReactNode
+  error?: string
+  hint?: string
+}
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, label, id, ...props }, ref) => {
-     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+  ({ className, label, error, hint, id, ...props }, ref) => {
+    const inputId = id || (typeof label === 'string' ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+
     return (
-      <div className={cn("space-y-2 mb-4", className && className.includes("mb-") ? "" : "mb-4")}>
+      <div className="space-y-1.5">
         {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            className="block text-sm font-medium text-foreground"
           >
             {label}
           </label>
@@ -56,12 +72,23 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           id={inputId}
           className={cn(
-            "flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+            "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm",
+            "placeholder:text-muted-foreground",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            "resize-none",
+            error && "border-destructive focus-visible:ring-destructive",
             className
           )}
           ref={ref}
           {...props}
         />
+        {error && (
+          <p className="text-xs text-destructive">{error}</p>
+        )}
+        {hint && !error && (
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        )}
       </div>
     )
   }

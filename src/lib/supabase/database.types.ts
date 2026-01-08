@@ -56,9 +56,63 @@ export type Database = {
           },
         ]
       }
+      campaign_access_tokens: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          draft_data: Json | null
+          email: string
+          expires_at: string
+          id: string
+          name: string | null
+          role: string | null
+          submitted_at: string | null
+          token: string
+          token_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          draft_data?: Json | null
+          email: string
+          expires_at: string
+          id?: string
+          name?: string | null
+          role?: string | null
+          submitted_at?: string | null
+          token: string
+          token_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          draft_data?: Json | null
+          email?: string
+          expires_at?: string
+          id?: string
+          name?: string | null
+          role?: string | null
+          submitted_at?: string | null
+          token?: string
+          token_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_access_tokens_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           capture_mode: string | null
+          collaborators: Json | null
           completed_at: string | null
           completed_sessions: number | null
           created_at: string | null
@@ -70,10 +124,14 @@ export type Database = {
           expert_role: string
           goal: string | null
           id: string
+          interviewer_guide_token: string | null
           org_id: string
           progress: number | null
+          project_id: string | null
+          self_assessment: Json | null
           started_at: string | null
           status: string | null
+          team_id: string | null
           total_sessions: number | null
           updated_at: string | null
           updated_by: string | null
@@ -81,6 +139,7 @@ export type Database = {
         }
         Insert: {
           capture_mode?: string | null
+          collaborators?: Json | null
           completed_at?: string | null
           completed_sessions?: number | null
           created_at?: string | null
@@ -92,10 +151,14 @@ export type Database = {
           expert_role: string
           goal?: string | null
           id?: string
+          interviewer_guide_token?: string | null
           org_id: string
           progress?: number | null
+          project_id?: string | null
+          self_assessment?: Json | null
           started_at?: string | null
           status?: string | null
+          team_id?: string | null
           total_sessions?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -103,6 +166,7 @@ export type Database = {
         }
         Update: {
           capture_mode?: string | null
+          collaborators?: Json | null
           completed_at?: string | null
           completed_sessions?: number | null
           created_at?: string | null
@@ -114,10 +178,14 @@ export type Database = {
           expert_role?: string
           goal?: string | null
           id?: string
+          interviewer_guide_token?: string | null
           org_id?: string
           progress?: number | null
+          project_id?: string | null
+          self_assessment?: Json | null
           started_at?: string | null
           status?: string | null
+          team_id?: string | null
           total_sessions?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -136,6 +204,20 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -198,14 +280,82 @@ export type Database = {
           },
         ]
       }
+      collaborator_responses: {
+        Row: {
+          additional_notes: string | null
+          campaign_id: string
+          collaborator_email: string
+          collaborator_name: string
+          collaborator_role: string
+          created_at: string | null
+          id: string
+          specific_questions: string[] | null
+          submitted_at: string | null
+          token_id: string
+          updated_at: string | null
+          what_they_ask_about: string[] | null
+          what_will_be_hard: string | null
+          wish_was_documented: string | null
+        }
+        Insert: {
+          additional_notes?: string | null
+          campaign_id: string
+          collaborator_email: string
+          collaborator_name: string
+          collaborator_role: string
+          created_at?: string | null
+          id?: string
+          specific_questions?: string[] | null
+          submitted_at?: string | null
+          token_id: string
+          updated_at?: string | null
+          what_they_ask_about?: string[] | null
+          what_will_be_hard?: string | null
+          wish_was_documented?: string | null
+        }
+        Update: {
+          additional_notes?: string | null
+          campaign_id?: string
+          collaborator_email?: string
+          collaborator_name?: string
+          collaborator_role?: string
+          created_at?: string | null
+          id?: string
+          specific_questions?: string[] | null
+          submitted_at?: string | null
+          token_id?: string
+          updated_at?: string | null
+          what_they_ask_about?: string[] | null
+          what_will_be_hard?: string | null
+          wish_was_documented?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaborator_responses_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaborator_responses_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_access_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
+          ai_analysis: Json | null
           ai_processed: boolean | null
           ai_processed_at: string | null
           campaign_id: string | null
           created_at: string | null
           deleted_at: string | null
           extracted_skills: Json | null
+          extracted_text: string | null
           file_size: number | null
           file_type: string | null
           filename: string
@@ -214,12 +364,14 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          ai_analysis?: Json | null
           ai_processed?: boolean | null
           ai_processed_at?: string | null
           campaign_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           extracted_skills?: Json | null
+          extracted_text?: string | null
           file_size?: number | null
           file_type?: string | null
           filename: string
@@ -228,12 +380,14 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          ai_analysis?: Json | null
           ai_processed?: boolean | null
           ai_processed_at?: string | null
           campaign_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           extracted_skills?: Json | null
+          extracted_text?: string | null
           file_size?: number | null
           file_type?: string | null
           filename?: string
@@ -254,6 +408,50 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_reminders: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          reminder_type: string
+          resend_message_id: string | null
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          token_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          reminder_type: string
+          resend_message_id?: string | null
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string
+          token_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          reminder_type?: string
+          resend_message_id?: string | null
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          token_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_reminders_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_access_tokens"
             referencedColumns: ["id"]
           },
         ]
@@ -339,6 +537,7 @@ export type Database = {
       graph_nodes: {
         Row: {
           campaign_id: string
+          coverage_status: string | null
           created_at: string | null
           created_by: string | null
           deleted_at: string | null
@@ -348,13 +547,16 @@ export type Database = {
           metadata: Json | null
           position_x: number | null
           position_y: number | null
+          project_id: string | null
           session_id: string | null
           skill_id: string | null
+          team_id: string | null
           type: string
           updated_at: string | null
         }
         Insert: {
           campaign_id: string
+          coverage_status?: string | null
           created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
@@ -364,13 +566,16 @@ export type Database = {
           metadata?: Json | null
           position_x?: number | null
           position_y?: number | null
+          project_id?: string | null
           session_id?: string | null
           skill_id?: string | null
+          team_id?: string | null
           type: string
           updated_at?: string | null
         }
         Update: {
           campaign_id?: string
+          coverage_status?: string | null
           created_at?: string | null
           created_by?: string | null
           deleted_at?: string | null
@@ -380,8 +585,10 @@ export type Database = {
           metadata?: Json | null
           position_x?: number | null
           position_y?: number | null
+          project_id?: string | null
           session_id?: string | null
           skill_id?: string | null
+          team_id?: string | null
           type?: string
           updated_at?: string | null
         }
@@ -401,6 +608,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "graph_nodes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "graph_nodes_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
@@ -412,6 +626,57 @@ export type Database = {
             columns: ["skill_id"]
             isOneToOne: false
             referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graph_nodes_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_plans: {
+        Row: {
+          campaign_id: string
+          context_summary: string | null
+          created_at: string | null
+          gaps_identified: Json | null
+          generation_model: string | null
+          id: string
+          questions: Json | null
+          topics_covered: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          context_summary?: string | null
+          created_at?: string | null
+          gaps_identified?: Json | null
+          generation_model?: string | null
+          id?: string
+          questions?: Json | null
+          topics_covered?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          context_summary?: string | null
+          created_at?: string | null
+          gaps_identified?: Json | null
+          generation_model?: string | null
+          id?: string
+          questions?: Json | null
+          topics_covered?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_plans_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -442,6 +707,47 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          description: string | null
+          id: string
+          name: string
+          org_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          org_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports: {
         Row: {
@@ -512,6 +818,7 @@ export type Database = {
       }
       sessions: {
         Row: {
+          ai_suggested_topics: Json | null
           calendar_event_id: string | null
           calendar_provider: string | null
           campaign_id: string
@@ -523,16 +830,19 @@ export type Database = {
           id: string
           notes: string | null
           recording_url: string | null
+          room_url: string | null
           scheduled_at: string | null
           session_number: number
           started_at: string | null
           status: string | null
+          title: string | null
           topics: string[] | null
           transcript_url: string | null
           updated_at: string | null
           updated_by: string | null
         }
         Insert: {
+          ai_suggested_topics?: Json | null
           calendar_event_id?: string | null
           calendar_provider?: string | null
           campaign_id: string
@@ -544,16 +854,19 @@ export type Database = {
           id?: string
           notes?: string | null
           recording_url?: string | null
+          room_url?: string | null
           scheduled_at?: string | null
           session_number: number
           started_at?: string | null
           status?: string | null
+          title?: string | null
           topics?: string[] | null
           transcript_url?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
+          ai_suggested_topics?: Json | null
           calendar_event_id?: string | null
           calendar_provider?: string | null
           campaign_id?: string
@@ -565,10 +878,12 @@ export type Database = {
           id?: string
           notes?: string | null
           recording_url?: string | null
+          room_url?: string | null
           scheduled_at?: string | null
           session_number?: number
           started_at?: string | null
           status?: string | null
+          title?: string | null
           topics?: string[] | null
           transcript_url?: string | null
           updated_at?: string | null
@@ -735,6 +1050,47 @@ export type Database = {
           },
         ]
       }
+      teams: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          deleted_at: string | null
+          description: string | null
+          id: string
+          name: string
+          org_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          org_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transcript_lines: {
         Row: {
           confidence: number | null
@@ -826,8 +1182,35 @@ export type Database = {
     }
     Functions: {
       can_access_campaign: { Args: { campaign_uuid: string }; Returns: boolean }
+      create_campaign_tokens: {
+        Args: {
+          p_campaign_id: string
+          p_collaborators?: Json
+          p_expert_email: string
+          p_expert_name: string
+        }
+        Returns: {
+          campaign_id: string
+          created_at: string | null
+          draft_data: Json | null
+          email: string
+          expires_at: string
+          id: string
+          name: string | null
+          role: string | null
+          submitted_at: string | null
+          token: string
+          token_type: string
+          updated_at: string | null
+        }[]
+      }
+      generate_secure_token: { Args: Record<PropertyKey, never>; Returns: string }
       get_user_org_id: { Args: Record<PropertyKey, never>; Returns: string }
       get_user_role: { Args: Record<PropertyKey, never>; Returns: string }
+      schedule_token_reminders: {
+        Args: { p_token_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -838,52 +1221,166 @@ export type Database = {
   }
 }
 
-// Helper types for easier use
-export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
-export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
-export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
+type DefaultSchema = Database[Extract<keyof Database, "public">]
 
-// Convenience type aliases
-export type Organization = Tables<'organizations'>
-export type User = Tables<'users'>
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof Database },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+// Convenience type aliases for common tables
 export type Campaign = Tables<'campaigns'>
+export type User = Tables<'users'>
+export type Organization = Tables<'organizations'>
+export type Team = Tables<'teams'>
+export type Project = Tables<'projects'>
 export type Session = Tables<'sessions'>
-export type Skill = Tables<'skills'>
 export type Task = Tables<'tasks'>
-export type Report = Tables<'reports'>
-export type Document = Tables<'documents'>
+export type Skill = Tables<'skills'>
 export type GraphNode = Tables<'graph_nodes'>
 export type GraphEdge = Tables<'graph_edges'>
-export type CalendarConnection = Tables<'calendar_connections'>
-export type TranscriptLine = Tables<'transcript_lines'>
+export type Document = Tables<'documents'>
+export type Report = Tables<'reports'>
 export type CapturedInsight = Tables<'captured_insights'>
+export type InterviewPlan = Tables<'interview_plans'>
+export type TranscriptLine = Tables<'transcript_lines'>
+export type CalendarConnection = Tables<'calendar_connections'>
+export type CampaignAccessToken = Tables<'campaign_access_tokens'>
+export type CollaboratorResponse = Tables<'collaborator_responses'>
+export type EmailReminder = Tables<'email_reminders'>
 
-// Insert types
-export type OrganizationInsert = TablesInsert<'organizations'>
-export type UserInsert = TablesInsert<'users'>
-export type CampaignInsert = TablesInsert<'campaigns'>
-export type SessionInsert = TablesInsert<'sessions'>
-export type SkillInsert = TablesInsert<'skills'>
-export type TaskInsert = TablesInsert<'tasks'>
-export type ReportInsert = TablesInsert<'reports'>
-export type DocumentInsert = TablesInsert<'documents'>
-export type GraphNodeInsert = TablesInsert<'graph_nodes'>
-export type GraphEdgeInsert = TablesInsert<'graph_edges'>
-export type CalendarConnectionInsert = TablesInsert<'calendar_connections'>
-export type TranscriptLineInsert = TablesInsert<'transcript_lines'>
-export type CapturedInsightInsert = TablesInsert<'captured_insights'>
+// SelfAssessment type for the JSONB field
+export type SelfAssessment = {
+  skills?: string[]
+  strengths?: string[]
+  knowledgeAreas?: string[]
+  // Keys used by AI interview plan generation
+  what_you_know?: string
+  questions_people_ask?: string[]
+  what_will_break?: string
+  topics_to_cover?: string[]
+  [key: string]: unknown
+}
 
-// Update types
-export type OrganizationUpdate = TablesUpdate<'organizations'>
-export type UserUpdate = TablesUpdate<'users'>
-export type CampaignUpdate = TablesUpdate<'campaigns'>
-export type SessionUpdate = TablesUpdate<'sessions'>
-export type SkillUpdate = TablesUpdate<'skills'>
-export type TaskUpdate = TablesUpdate<'tasks'>
-export type ReportUpdate = TablesUpdate<'reports'>
-export type DocumentUpdate = TablesUpdate<'documents'>
-export type GraphNodeUpdate = TablesUpdate<'graph_nodes'>
-export type GraphEdgeUpdate = TablesUpdate<'graph_edges'>
-export type CalendarConnectionUpdate = TablesUpdate<'calendar_connections'>
-export type TranscriptLineUpdate = TablesUpdate<'transcript_lines'>
-export type CapturedInsightUpdate = TablesUpdate<'captured_insights'>
+// DocumentAnalysis type for AI-processed document analysis
+export type DocumentAnalysis = {
+  summary?: string
+  topics?: string[]
+  gaps?: string[]
+  [key: string]: unknown
+}
+
+// InterviewQuestion type for AI-generated interview questions
+export type InterviewQuestion = {
+  question: string
+  priority: 'high' | 'medium' | 'low'
+  category?: string
+  relatedGap?: string
+}
+
+// CollaboratorSurveyData type for collaborator feedback
+export type CollaboratorSurveyData = {
+  what_they_ask_about?: string[]
+  what_will_be_hard?: string
+  wish_was_documented?: string
+  specific_questions?: string[]
+  additional_notes?: string
+}

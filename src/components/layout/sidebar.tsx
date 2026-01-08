@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Brain, Plus, SignOut, ChartBar, Calendar, Lightbulb, FileText, List, X } from 'phosphor-react';
+import { Sparkle, Plus, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/app-context';
 import { useState } from 'react';
@@ -11,8 +11,9 @@ import { useState } from 'react';
 const navItems = [
   { label: 'Campaigns', href: '/dashboard', icon: ChartBar },
   { label: 'Sessions', href: '/planner', icon: Calendar },
-  { label: 'Knowledge', href: '/graph', icon: Lightbulb },
-  { label: 'Reports', href: '/reports', icon: FileText },
+  { label: 'Knowledge Hub', href: '/graph', icon: Lightbulb },
+  { label: 'Reports', href: '/reports', icon: FileText, disabled: true },
+  { label: 'Notifications', href: '/notifications', icon: Bell, disabled: true },
 ];
 
 export function Sidebar() {
@@ -20,8 +21,14 @@ export function Sidebar() {
   const { appUser, signOut } = useApp();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Don't show sidebar on auth pages
-  if (pathname === '/login' || pathname === '/signup') {
+  // Don't show sidebar on auth pages or public form pages
+  if (
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname.startsWith('/feedback/') ||
+    pathname.startsWith('/assess/') ||
+    pathname.startsWith('/guide/')
+  ) {
     return null;
   }
 
@@ -34,9 +41,9 @@ export function Sidebar() {
     ? appUser.fullName.split(' ').map(n => n[0]).join('').toUpperCase()
     : appUser?.email?.substring(0, 2).toUpperCase() || 'U';
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     setIsOpen(false);
-    signOut();
+    await signOut();
   };
 
   return (
@@ -65,7 +72,7 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex flex-col transition-transform duration-300 z-40 lg:static lg:translate-x-0',
+          'fixed left-0 top-0 h-screen w-64 bg-background border-r border-border flex flex-col transition-transform duration-300 z-40 lg:static lg:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         role="navigation"
@@ -75,18 +82,15 @@ export function Sidebar() {
         <div className="p-6 border-b border-border">
           <Link href="/dashboard" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
             <div className="flex items-center justify-center w-8 h-8 rounded bg-primary text-primary-foreground">
-              <Brain className="w-5 h-5" weight="bold" />
+              <Sparkle className="w-5 h-5" weight="fill" />
             </div>
-            <div>
-              <span className="font-bold text-lg block">Tacit</span>
-              <span className="text-xs text-muted-foreground">Knowledge Capture</span>
-            </div>
+            <span className="font-serif font-bold text-2xl">Tacit</span>
           </Link>
         </div>
 
         {/* New Campaign Button */}
         <div className="px-4 py-4 border-b border-border">
-          <Link href="/prepare" onClick={() => setIsOpen(false)}>
+          <Link href="/new" onClick={() => setIsOpen(false)}>
             <Button className="w-full" size="sm">
               <Plus className="w-4 h-4 mr-2" weight="bold" />
               New Campaign
@@ -99,6 +103,21 @@ export function Sidebar() {
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href === '/dashboard' && pathname === '/');
             const Icon = item.icon;
+
+            if (item.disabled) {
+              return (
+                <Button
+                  key={item.href}
+                  variant="ghost"
+                  disabled
+                  className="w-full justify-start gap-3 px-4 py-2.5 h-auto font-normal text-muted-foreground/50 cursor-not-allowed"
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" weight="bold" />
+                  {item.label}
+                  <span className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">Soon</span>
+                </Button>
+              );
+            }
 
             return (
               <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)}>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
@@ -11,7 +11,16 @@ import type {
   Organization,
   Skill as DBSkill,
   Session as DBSession,
+  SelfAssessment,
+  Json,
 } from '@/lib/supabase/database.types'
+
+// Collaborator type for campaign creation
+export interface Collaborator {
+  name: string
+  email: string
+  role: 'successor' | 'teammate' | 'partner' | 'manager' | 'report'
+}
 
 // App-level types that map database types to UI-friendly format
 export interface Campaign {
@@ -29,6 +38,9 @@ export interface Campaign {
   captureMode?: string
   expertEmail?: string
   createdAt?: string
+  selfAssessment?: SelfAssessment
+  collaborators?: Collaborator[]
+  skills?: string // Raw skills text from form
 }
 
 export interface Task {
@@ -107,6 +119,7 @@ function mapDBCampaignToApp(dbCampaign: DBCampaign, skillsCount: number): Campai
     captureMode: dbCampaign.capture_mode ?? undefined,
     expertEmail: dbCampaign.expert_email ?? undefined,
     createdAt: dbCampaign.created_at ?? undefined,
+    selfAssessment: dbCampaign.self_assessment as SelfAssessment | undefined,
   }
 }
 
@@ -122,6 +135,49 @@ function mapDBTaskToApp(dbTask: DBTask): Task {
   }
 }
 
+// Classify fatal auth errors that should immediately logout (no retry)
+function isFatalAuthError(error: { message?: string; code?: string; status?: number } | null): boolean {
+  if (!error) return false
+
+  const fatalPatterns = [
+    'JWT expired',
+    'invalid claim',
+    'invalid JWT',
+    'refresh_token_not_found',
+    'PGRST301', // PostgREST JWT error
+  ]
+
+  const errorStr = `${error.message || ''} ${error.code || ''}`
+  const statusCode = error.status || (error.code ? parseInt(error.code, 10) : 0)
+
+  // 401/403 are fatal - session is definitely invalid
+  if (statusCode === 401 || statusCode === 403) {
+    return true
+  }
+
+  return fatalPatterns.some(pattern => errorStr.includes(pattern))
+}
+
+// Check if error might be auth-related but could be transient (network issue)
+function isAuthError(error: { message?: string; code?: string; status?: number } | null): boolean {
+  if (!error) return false
+
+  const authErrorPatterns = [
+    'JWT',
+    'token',
+    'session',
+    'auth',
+    'expired',
+    'invalid',
+    'PGRST301',
+    '401',
+    '403',
+  ]
+
+  const errorStr = `${error.message || ''} ${error.code || ''} ${error.status || ''}`.toLowerCase()
+  return authErrorPatterns.some(pattern => errorStr.includes(pattern.toLowerCase()))
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
@@ -133,17 +189,131 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const supabase = useMemo(() => createClient(), [])
 
+  // Auth resilience state
+  const authRetryCountRef = useRef(0)
+  const isAuthCheckingRef = useRef(false)
+  const initializedRef = useRef(false)
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null)
+
+  // Handle auth errors by clearing state and redirecting to login
+  const handleAuthError = useCallback(async (source: string = 'unknown') => {
+    console.log(`[AppProvider] Handling auth error from ${source}, clearing session`)
+
+    // Prevent duplicate logout calls
+    if (!user && !appUser) {
+      console.log('[AppProvider] Already logged out, skipping')
+      return
+    }
+
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {
+      console.error('[AppProvider] Error during signOut:', e)
+    }
+
+    // Broadcast logout to other tabs
+    if (broadcastChannelRef.current) {
+      try {
+        broadcastChannelRef.current.postMessage({ type: 'LOGOUT', source })
+      } catch (e) {
+        console.error('[AppProvider] Error broadcasting logout:', e)
+      }
+    }
+
+    setUser(null)
+    setAppUser(null)
+    setOrganization(null)
+    setCampaigns([])
+    setTasks([])
+    setIsLoading(false)
+    authRetryCountRef.current = 0
+    initializedRef.current = false
+
+    router.push('/login')
+  }, [supabase, router, user, appUser])
+
+  // Validate session with retry logic and exponential backoff
+  const validateSessionWithRetry = useCallback(async (): Promise<{ user: User | null; shouldLogout: boolean }> => {
+    const maxRetries = 3
+    const baseDelay = 1000 // Start with 1 second
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const { data: { user: validatedUser }, error } = await supabase.auth.getUser()
+
+        if (!error && validatedUser) {
+          // Success - reset retry count
+          authRetryCountRef.current = 0
+          return { user: validatedUser, shouldLogout: false }
+        }
+
+        // Check if this is a fatal auth error (no point retrying)
+        if (error && isFatalAuthError(error)) {
+          console.log('[AppProvider] Fatal auth error, no retry:', error.message)
+          return { user: null, shouldLogout: true }
+        }
+
+        // For other errors, retry with backoff
+        if (attempt < maxRetries - 1) {
+          const delay = baseDelay * Math.pow(2, attempt)
+          console.log(`[AppProvider] Auth check failed (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms:`, error?.message)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        } else {
+          // Max retries reached for this cycle
+          console.log('[AppProvider] Max retries reached for this validation cycle')
+          authRetryCountRef.current++
+
+          // Only logout after multiple consecutive validation cycles fail
+          if (authRetryCountRef.current >= 3) {
+            console.log('[AppProvider] Too many consecutive auth failures, logging out')
+            return { user: null, shouldLogout: true }
+          }
+
+          return { user: null, shouldLogout: false }
+        }
+      } catch (err) {
+        console.error(`[AppProvider] Exception in auth validation (attempt ${attempt + 1}):`, err)
+        if (attempt === maxRetries - 1) {
+          authRetryCountRef.current++
+          if (authRetryCountRef.current >= 3) {
+            return { user: null, shouldLogout: true }
+          }
+          return { user: null, shouldLogout: false }
+        }
+        await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(2, attempt)))
+      }
+    }
+
+    return { user: null, shouldLogout: false }
+  }, [supabase])
+
   // Fetch user profile and organization
-  const fetchUserData = useCallback(async (authUser: User) => {
+  const fetchUserData = useCallback(async (authUser: User): Promise<boolean> => {
+    console.log('[AppProvider] fetchUserData called for user:', authUser.id, authUser.email)
+
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('id', authUser.id)
       .single()
 
-    if (userError || !userData) {
+    console.log('[AppProvider] fetchUserData result:', { userData: userData ? 'found' : 'null', error: userError?.message })
+
+    if (userError) {
       console.error('Error fetching user:', userError)
-      return
+      if (isFatalAuthError(userError)) {
+        await handleAuthError('fetchUserData:fatal')
+        return false
+      } else if (isAuthError(userError)) {
+        await handleAuthError('fetchUserData:auth')
+        return false
+      }
+      return false
+    }
+
+    if (!userData) {
+      console.error('No user data found')
+      return false
     }
 
     setAppUser({
@@ -164,14 +334,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (orgError) {
       console.error('Error fetching organization:', orgError)
-      return
+      if (isFatalAuthError(orgError)) {
+        await handleAuthError('fetchUserData:org:fatal')
+        return false
+      } else if (isAuthError(orgError)) {
+        await handleAuthError('fetchUserData:org:auth')
+        return false
+      }
+      return false
     }
 
     setOrganization(orgData)
-  }, [supabase])
+    return true
+  }, [supabase, handleAuthError])
 
   // Fetch campaigns with skills count
-  const fetchCampaigns = useCallback(async () => {
+  const fetchCampaigns = useCallback(async (): Promise<boolean> => {
+    console.log('[AppProvider] fetchCampaigns called')
+
     const { data: campaignsData, error: campaignsError } = await supabase
       .from('campaigns')
       .select('*')
@@ -179,9 +359,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .is('completed_at', null)
       .order('created_at', { ascending: false })
 
+    console.log('[AppProvider] fetchCampaigns result:', { count: campaignsData?.length, error: campaignsError?.message })
+
     if (campaignsError) {
       console.error('Error fetching campaigns:', campaignsError)
-      return
+      if (isFatalAuthError(campaignsError)) {
+        await handleAuthError('fetchCampaigns:fatal')
+        return false
+      } else if (isAuthError(campaignsError)) {
+        await handleAuthError('fetchCampaigns:auth')
+        return false
+      }
+      return false
     }
 
     // Fetch skills count for each campaign
@@ -198,10 +387,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     )
 
     setCampaigns(campaignsWithSkills)
-  }, [supabase])
+    return true
+  }, [supabase, handleAuthError])
 
   // Fetch tasks
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (): Promise<boolean> => {
     const { data: tasksData, error: tasksError } = await supabase
       .from('tasks')
       .select('*')
@@ -211,11 +401,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (tasksError) {
       console.error('Error fetching tasks:', tasksError)
-      return
+      if (isFatalAuthError(tasksError)) {
+        await handleAuthError('fetchTasks:fatal')
+        return false
+      } else if (isAuthError(tasksError)) {
+        await handleAuthError('fetchTasks:auth')
+        return false
+      }
+      return false
     }
 
     setTasks((tasksData || []).map(mapDBTaskToApp))
-  }, [supabase])
+    return true
+  }, [supabase, handleAuthError])
 
   // Refresh all data
   const refreshData = useCallback(async () => {
@@ -225,16 +423,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Initialize auth and data
   useEffect(() => {
     let isMounted = true
-    let initialized = false
 
     const initializeUser = async (authUser: User) => {
-      if (!isMounted || initialized) return
-      initialized = true
+      if (!isMounted) return
 
+      // Skip if already initializing or initialized in this mount cycle
+      if (initializedRef.current) {
+        console.log('[AppProvider] Already initialized, skipping')
+        return
+      }
+
+      // Mark as initializing (will be set to false on cleanup)
+      initializedRef.current = true
+      console.log('[AppProvider] Initializing user...', authUser.id)
       setUser(authUser)
-      await fetchUserData(authUser)
-      await refreshData()
-      setIsLoading(false)
+
+      try {
+        const userDataSuccess = await fetchUserData(authUser)
+        if (!isMounted) return
+
+        if (userDataSuccess) {
+          await refreshData()
+          console.log('[AppProvider] User initialized successfully')
+        } else {
+          console.log('[AppProvider] Failed to fetch user data')
+        }
+      } catch (err) {
+        console.error('[AppProvider] Exception during initialization:', err)
+      }
+
+      if (isMounted) {
+        setIsLoading(false)
+      }
     }
 
     const clearUser = () => {
@@ -252,68 +472,235 @@ export function AppProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         if (!isMounted) return
 
+        console.log('[AppProvider] Auth state change:', event, 'session:', session ? 'exists' : 'null', 'user:', session?.user?.email)
+
         if (event === 'SIGNED_IN' && session?.user) {
           await initializeUser(session.user)
         } else if (event === 'SIGNED_OUT') {
-          initialized = false
+          initializedRef.current = false
+          authRetryCountRef.current = 0
           clearUser()
         } else if (event === 'INITIAL_SESSION') {
           if (session?.user) {
             await initializeUser(session.user)
           } else {
+            // No session - just stop loading, don't treat as error
             setIsLoading(false)
           }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Just update the user object, don't refetch everything
+          // Token was refreshed successfully - reset retry count
+          setUser(session.user)
+          authRetryCountRef.current = 0
+          console.log('[AppProvider] Token refreshed successfully')
+        } else if (event === 'USER_UPDATED' && session?.user) {
+          // User was updated, refresh user data
           setUser(session.user)
         }
       }
     )
 
-    // Fallback: check current session after INITIAL_SESSION
-    // This handles cases where INITIAL_SESSION doesn't fire
-    // Increased delay to ensure session context is fully established for RLS policies
-    const timeoutId = setTimeout(async () => {
-      if (!isMounted || initialized) return
+    // Immediately check current session (handles React Strict Mode double-mount)
+    // This ensures we always check the session, even if onAuthStateChange doesn't re-fire
+    const checkSession = async () => {
+      // Small delay to let onAuthStateChange fire first if it will
+      await new Promise(resolve => setTimeout(resolve, 100))
 
-      console.log('[AppProvider] Checking session after timeout')
+      if (!isMounted) return
+      if (initializedRef.current) {
+        console.log('[AppProvider] Already initialized, skipping session check')
+        return
+      }
+
+      console.log('[AppProvider] Checking current session...')
 
       try {
-        // Use getSession() to properly wait for session to be established
-        const { data: { session }, error } = await supabase.auth.getSession()
+        const { data: { session } } = await supabase.auth.getSession()
 
-        if (error) {
-          console.error('[AppProvider] Error getting session:', error)
-          setIsLoading(false)
-          return
-        }
+        if (!isMounted) return
 
         if (session?.user) {
-          console.log('[AppProvider] Session found via fallback, initializing user')
+          console.log('[AppProvider] Session found, initializing user:', session.user.email)
           await initializeUser(session.user)
         } else {
           console.log('[AppProvider] No session found, setting loading to false')
           setIsLoading(false)
         }
       } catch (err) {
-        console.error('[AppProvider] Exception in session fallback:', err)
-        setIsLoading(false)
+        console.error('[AppProvider] Exception checking session:', err)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
-    }, 500)  // Increased from 100ms to 500ms to ensure RLS context is ready
+    }
+
+    checkSession()
 
     return () => {
       isMounted = false
-      clearTimeout(timeoutId)
       subscription.unsubscribe()
+      // Reset initialized ref on unmount so HMR/Strict Mode can re-initialize
+      initializedRef.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Periodic session validation with retry logic
+  useEffect(() => {
+    if (!user) return
+    let isMounted = true
+
+    const validateSession = async () => {
+      // Prevent concurrent validation checks or after unmount
+      if (isAuthCheckingRef.current || !isMounted) {
+        console.log('[AppProvider] Auth check already in progress or unmounted, skipping')
+        return
+      }
+
+      isAuthCheckingRef.current = true
+
+      try {
+        const { user: validatedUser, shouldLogout } = await validateSessionWithRetry()
+
+        if (!isMounted) return
+
+        if (shouldLogout) {
+          console.log('[AppProvider] Session validation failed after retries, redirecting to login')
+          await handleAuthError('periodic:validation')
+        } else if (!validatedUser) {
+          console.log('[AppProvider] Transient validation failure, will retry later')
+        } else {
+          console.log('[AppProvider] Session validated successfully')
+        }
+      } catch (err) {
+        console.error('[AppProvider] Session validation error:', err)
+      } finally {
+        isAuthCheckingRef.current = false
+      }
+    }
+
+    // Validate every 5 minutes
+    const intervalId = setInterval(validateSession, 5 * 60 * 1000)
+
+    // Also validate on window focus (user returns to tab)
+    const handleFocus = () => {
+      validateSession()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      isMounted = false
+      clearInterval(intervalId)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [user, validateSessionWithRetry, handleAuthError])
+
+  // Cross-tab logout synchronization via BroadcastChannel
+  useEffect(() => {
+    // BroadcastChannel is not available in all environments (e.g., SSR, older browsers)
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) {
+      console.log('[AppProvider] BroadcastChannel not available, cross-tab sync disabled')
+      return
+    }
+
+    // Clean up existing channel if effect re-runs
+    if (broadcastChannelRef.current) {
+      broadcastChannelRef.current.close()
+      broadcastChannelRef.current = null
+    }
+
+    let isBroadcastLoggingOut = false
+
+    try {
+      const channel = new BroadcastChannel('tacit_auth')
+      broadcastChannelRef.current = channel
+
+      channel.onmessage = async (event) => {
+        console.log('[AppProvider] Received broadcast message:', event.data)
+
+        if (event.data.type === 'LOGOUT') {
+          // Prevent concurrent broadcast-triggered logouts
+          if (isBroadcastLoggingOut) {
+            console.log('[AppProvider] Broadcast logout already in progress, skipping')
+            return
+          }
+          isBroadcastLoggingOut = true
+
+          console.log('[AppProvider] Logout broadcast received from another tab, logging out')
+
+          try {
+            // Clear local state without broadcasting again (prevent loop)
+            setUser(null)
+            setAppUser(null)
+            setOrganization(null)
+            setCampaigns([])
+            setTasks([])
+            authRetryCountRef.current = 0
+            initializedRef.current = false
+
+            // Sign out from Supabase
+            await supabase.auth.signOut()
+            router.push('/login')
+          } catch (e) {
+            console.error('[AppProvider] Error during broadcast logout:', e)
+          } finally {
+            isBroadcastLoggingOut = false
+          }
+        }
+      }
+
+      console.log('[AppProvider] BroadcastChannel initialized for cross-tab sync')
+
+      return () => {
+        channel.close()
+        broadcastChannelRef.current = null
+      }
+    } catch (err) {
+      console.error('[AppProvider] Error setting up BroadcastChannel:', err)
+    }
+  }, [supabase, router])
+
   // Sign out
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }, [supabase, router])
+    console.log('[AppProvider] Manual signOut called')
+
+    // Prevent duplicate logout
+    if (!user && !appUser) {
+      console.log('[AppProvider] Already logged out')
+      router.push('/login')
+      return
+    }
+
+    try {
+      // Broadcast logout to other tabs before signing out
+      if (broadcastChannelRef.current) {
+        try {
+          broadcastChannelRef.current.postMessage({ type: 'LOGOUT', source: 'manual' })
+        } catch (e) {
+          console.error('[AppProvider] Error broadcasting logout:', e)
+        }
+      }
+
+      await supabase.auth.signOut()
+
+      // Clear state immediately (onAuthStateChange will also fire, but this is faster)
+      setUser(null)
+      setAppUser(null)
+      setOrganization(null)
+      setCampaigns([])
+      setTasks([])
+      authRetryCountRef.current = 0
+      initializedRef.current = false
+
+      router.push('/login')
+      router.refresh()
+    } catch (error) {
+      console.error('Sign out error:', error)
+      // Even if signOut fails, clear local state
+      setUser(null)
+      setAppUser(null)
+      router.push('/login')
+    }
+  }, [supabase, router, user, appUser])
 
   // Toggle task completion
   const toggleTask = useCallback(async (taskId: string) => {
@@ -397,6 +784,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completed_sessions: campaign.completedSessions,
         capture_mode: campaign.captureMode,
         expert_email: campaign.expertEmail,
+        self_assessment: campaign.selfAssessment as unknown as Json,
+        collaborators: campaign.collaborators as unknown as Json,
         created_by: user?.id,
       })
       .select()
@@ -405,6 +794,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (error) {
       console.error('Error adding campaign:', error)
       throw error
+    }
+
+    // Parse and insert skills into the skills table
+    if (campaign.skills) {
+      const skillNames = campaign.skills
+        .split('\n')
+        .map(s => s.trim())
+        .filter(s => s.length > 0)
+
+      if (skillNames.length > 0) {
+        const skillsToInsert = skillNames.map(name => ({
+          campaign_id: data.id,
+          name,
+          captured: false,
+          created_by: user?.id,
+        }))
+
+        const { error: skillsError } = await supabase
+          .from('skills')
+          .insert(skillsToInsert)
+
+        if (skillsError) {
+          console.error('Error inserting skills:', skillsError)
+          // Don't throw - campaign was created successfully
+        }
+      }
     }
 
     const newCampaign: Campaign = {

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Brain, CircleNotch } from 'phosphor-react'
+import { Sparkle, CircleNotch } from 'phosphor-react'
 
 const DEMO_CREDENTIALS = {
   email: 'demo@tacit.local',
@@ -44,16 +44,62 @@ function LoginForm() {
     router.refresh()
   }
 
-  const fillDemoCredentials = () => {
-    setEmail(DEMO_CREDENTIALS.email)
-    setPassword(DEMO_CREDENTIALS.password)
+  const handleDemoLogin = async () => {
+    setLoading(true)
     setError(null)
-  }
 
-  const isDevelopment = process.env.NODE_ENV === 'development'
+    const supabase = createClient()
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: DEMO_CREDENTIALS.email,
+      password: DEMO_CREDENTIALS.password,
+    })
+
+    if (signInError) {
+      setError(signInError.message)
+      setLoading(false)
+      return
+    }
+
+    router.push(redirectTo)
+    router.refresh()
+  }
 
   return (
     <form className="space-y-4" onSubmit={handleLogin}>
+      {/* Demo Access Banner */}
+      <div className="bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-lg p-4 mb-2">
+        <p className="text-sm font-medium text-violet-900 mb-2">
+          Want to explore? Try the demo account
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full border-violet-300 text-violet-700 hover:bg-violet-100"
+          onClick={handleDemoLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" />
+              Signing in...
+            </>
+          ) : (
+            'Sign in as Demo User'
+          )}
+        </Button>
+      </div>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">Or sign in with email</span>
+        </div>
+      </div>
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
           {error}
@@ -105,17 +151,6 @@ function LoginForm() {
         )}
       </Button>
 
-      {isDevelopment && (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={fillDemoCredentials}
-        >
-          Fill Demo Credentials
-        </Button>
-      )}
-
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
         <Link href="/signup" className="font-medium text-foreground hover:underline">
@@ -143,10 +178,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center w-10 h-10 rounded bg-foreground text-background mx-auto mb-4">
-            <Brain className="w-5 h-5" weight="bold" />
+          <div className="flex items-center justify-center w-10 h-10 rounded bg-primary text-primary-foreground mx-auto mb-4">
+            <Sparkle className="w-5 h-5" weight="fill" />
           </div>
-          <h1 className="text-xl font-semibold">Sign in to Tacit</h1>
+          <h1 className="text-2xl font-serif font-bold">Sign in to Tacit</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Capture expert knowledge before it walks out the door.
           </p>

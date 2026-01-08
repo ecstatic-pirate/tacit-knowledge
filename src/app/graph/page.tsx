@@ -1,185 +1,80 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { useApp } from '@/context/app-context';
-import { Lightbulb, Rows } from 'phosphor-react';
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { User, FolderSimple, UsersFour, Lightbulb, Warning, MagnifyingGlass } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingState } from '@/components/ui/loading-state';
-import { SearchInput } from '@/components/ui/search-input';
-import { SectionDivider } from '@/components/ui/section-divider';
-import { containers, spacing, components } from '@/lib/design-system';
-import { KnowledgeGraphExplorer } from '@/components/visualizations/knowledge-graph-explorer';
-import type { GraphNode, GraphEdge } from '@/components/visualizations/knowledge-graph-explorer';
+import { ViewToggle } from '@/components/ui/view-toggle';
+import { containers, spacing } from '@/lib/design-system';
+import {
+  useKnowledgeHubData,
+  PersonCard,
+  ProjectCard,
+  TeamCard,
+  type KnowledgeViewType,
+  type KnowledgeExpert,
+  type KnowledgeProject,
+  type KnowledgeTeam,
+} from '@/components/knowledge-hub';
 
-interface KnowledgeItem {
-  id: string;
-  title: string;
-  insight: string;
-  type: string;
-  expertName: string;
-  campaignId: string;
-}
-
-interface Connection {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  relationship: string;
-}
-
-export default function GraphPage() {
-  const { isLoading: authLoading, appUser } = useApp();
-  const [items, setItems] = useState<KnowledgeItem[]>([]);
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<KnowledgeItem | null>(null);
+export default function KnowledgeHubPage() {
+  const router = useRouter();
+  const { stats, experts, projects, teams, gaps, isLoading, error } = useKnowledgeHubData();
+  const [viewType, setViewType] = useState<KnowledgeViewType>('person');
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'visualization' | 'list'>('visualization');
-  const supabase = useMemo(() => createClient(), []);
 
-  // Log auth state for debugging
-  useEffect(() => {
-    console.log('[Graph] Auth state changed:', { authLoading, appUser: appUser?.id });
-  }, [authLoading, appUser]);
+  const viewOptions = [
+    { value: 'person' as const, label: 'People', icon: <User className="w-4 h-4" weight="bold" /> },
+    { value: 'project' as const, label: 'Projects', icon: <FolderSimple className="w-4 h-4" weight="bold" /> },
+    { value: 'team' as const, label: 'Teams', icon: <UsersFour className="w-4 h-4" weight="bold" /> },
+  ];
 
-  const fetchData = useCallback(async () => {
-    // Wait for auth to be ready before fetching
-    if (authLoading) {
-      console.log('[Graph] Auth still loading, skipping fetch');
-      return;
-    }
-
-    console.log('[Graph] Starting data fetch');
-    setIsLoading(true);
-
-    try {
-      console.log('[Graph] Fetching graph nodes and edges');
-      const [nodesResult, edgesResult] = await Promise.all([
-        supabase
-          .from('graph_nodes')
-          .select(`
-            id,
-            label,
-            type,
-            description,
-            campaign_id,
-            campaigns (expert_name)
-          `)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('graph_edges')
-          .select('id, source_node_id, target_node_id, relationship')
-          .is('deleted_at', null),
-      ]);
-
-      if (nodesResult.error) {
-        console.error('[Graph] Error fetching nodes:', nodesResult.error);
-        setItems([]);
-      } else if (nodesResult.data) {
-        console.log('[Graph] Fetched nodes:', nodesResult.data.length);
-        setItems(nodesResult.data.map(n => ({
-          id: n.id,
-          title: n.label,
-          insight: n.description || '',
-          type: n.type,
-          expertName: (n.campaigns as { expert_name: string } | null)?.expert_name || 'Unknown',
-          campaignId: n.campaign_id,
-        })));
-      } else {
-        console.log('[Graph] No nodes data returned');
-        setItems([]);
-      }
-
-      if (edgesResult.error) {
-        console.error('[Graph] Error fetching edges:', edgesResult.error);
-        setConnections([]);
-      } else if (edgesResult.data) {
-        console.log('[Graph] Fetched edges:', edgesResult.data.length);
-        setConnections(edgesResult.data.map(e => ({
-          id: e.id,
-          sourceId: e.source_node_id,
-          targetId: e.target_node_id,
-          relationship: e.relationship,
-        })));
-      } else {
-        console.log('[Graph] No edges data returned');
-        setConnections([]);
-      }
-      console.log('[Graph] Data fetch completed successfully');
-    } catch (error) {
-      console.error('[Graph] Exception during fetch:', error);
-      setItems([]);
-      setConnections([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [supabase, authLoading]);
-
-  useEffect(() => {
-    if (!authLoading) {
-      console.log('[Graph] Auth ready, fetching data');
-      fetchData();
-    }
-  }, [fetchData, authLoading]);
-
-  // Safety timeout: if still loading after 5 seconds, show empty state
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('[Graph] Data fetch timeout after 5s, showing empty state');
-        setIsLoading(false);
-        setItems([]);
-        setConnections([]);
-      }
-    }, 5000);
-
-    return () => clearTimeout(timeout);
-  }, [isLoading]);
-
-  // Group by expert
-  const itemsByExpert = useMemo(() => {
-    const grouped: Record<string, KnowledgeItem[]> = {};
-    items.forEach(item => {
-      if (!grouped[item.expertName]) {
-        grouped[item.expertName] = [];
-      }
-      grouped[item.expertName].push(item);
-    });
-    return grouped;
-  }, [items]);
-
-  // Filter by search
-  const filteredByExpert = useMemo(() => {
-    if (!searchQuery.trim()) return itemsByExpert;
-
+  // Filter data based on search query
+  const filteredExperts = useMemo(() => {
+    if (!searchQuery.trim()) return experts;
     const query = searchQuery.toLowerCase();
-    const filtered: Record<string, KnowledgeItem[]> = {};
+    return experts.filter(
+      (e) =>
+        e.name.toLowerCase().includes(query) ||
+        e.role.toLowerCase().includes(query) ||
+        e.teamName?.toLowerCase().includes(query)
+    );
+  }, [experts, searchQuery]);
 
-    Object.entries(itemsByExpert).forEach(([expert, expertItems]) => {
-      const matching = expertItems.filter(item =>
-        item.title.toLowerCase().includes(query) ||
-        item.insight.toLowerCase().includes(query)
-      );
-      if (matching.length > 0) {
-        filtered[expert] = matching;
-      }
-    });
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return projects;
+    const query = searchQuery.toLowerCase();
+    return projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query)
+    );
+  }, [projects, searchQuery]);
 
-    return filtered;
-  }, [itemsByExpert, searchQuery]);
+  const filteredTeams = useMemo(() => {
+    if (!searchQuery.trim()) return teams;
+    const query = searchQuery.toLowerCase();
+    return teams.filter(
+      (t) =>
+        t.name.toLowerCase().includes(query) ||
+        t.description?.toLowerCase().includes(query)
+    );
+  }, [teams, searchQuery]);
 
-  const getRelatedItems = (itemId: string) => {
-    return connections
-      .filter(c => c.sourceId === itemId || c.targetId === itemId)
-      .map(conn => {
-        const relatedId = conn.sourceId === itemId ? conn.targetId : conn.sourceId;
-        return items.find(i => i.id === relatedId);
-      })
-      .filter(Boolean) as KnowledgeItem[];
+  // Handlers - navigate to full page views
+  const handleExpertClick = (expert: KnowledgeExpert) => {
+    router.push(`/graph/person/${expert.id}`);
+  };
+
+  const handleProjectClick = (project: KnowledgeProject) => {
+    router.push(`/graph/project/${project.id}`);
+  };
+
+  const handleTeamClick = (team: KnowledgeTeam) => {
+    router.push(`/graph/team/${team.id}`);
   };
 
   if (isLoading) {
@@ -192,170 +87,196 @@ export default function GraphPage() {
     );
   }
 
-  const totalItems = Object.values(filteredByExpert).flat().length;
-  const expertCount = Object.keys(itemsByExpert).length;
+  if (error) {
+    return (
+      <div className={containers.pageContainer}>
+        <div className={containers.pageInner}>
+          <EmptyState
+            icon={Warning}
+            title="Error loading knowledge"
+            description={error}
+          />
+        </div>
+      </div>
+    );
+  }
 
-  // Convert to graph nodes and edges for visualization
-  const graphNodes: GraphNode[] = items.map(item => ({
-    id: item.id,
-    label: item.title,
-    type: (item.type as GraphNode['type']) || 'concept',
-    description: item.insight,
-  }));
-
-  const graphEdges: GraphEdge[] = connections.map(conn => ({
-    id: conn.id,
-    sourceId: conn.sourceId,
-    targetId: conn.targetId,
-    relationship: (conn.relationship as GraphEdge['relationship']) || 'related_to',
-  }));
+  const hasContent = stats.totalInsights > 0;
 
   return (
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
+        {/* Header */}
         <div className="flex items-start justify-between gap-4 mb-8">
           <PageHeader
-            title="Captured Knowledge"
+            title="Knowledge Hub"
             subtitle={
-              items.length === 0
-                ? 'Your knowledge base will appear here as you capture expert insights'
-                : `${items.length} insight${items.length !== 1 ? 's' : ''} from ${expertCount} expert${expertCount !== 1 ? 's' : ''}`
+              hasContent
+                ? `Explore ${stats.totalInsights} insights from ${stats.totalExperts} experts across ${stats.totalProjects} projects`
+                : 'Your organization\'s captured knowledge will appear here'
             }
           />
-          {items.length > 0 && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('visualization')}
-                className={cn(
-                  'px-4 py-2 rounded-lg font-medium text-sm transition-colors',
-                  viewMode === 'visualization'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Visualize
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={cn(
-                  'px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2',
-                  viewMode === 'list'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <Rows className="w-4 h-4" weight="bold" />
-                List
-              </button>
-            </div>
+          {hasContent && (
+            <ViewToggle
+              options={viewOptions}
+              value={viewType}
+              onChange={setViewType}
+            />
           )}
         </div>
 
-        {/* Search - only show in list view */}
-        {items.length > 0 && viewMode === 'list' && (
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search insights..."
-            className="mb-8"
-          />
-        )}
-
-        {/* Empty State */}
-        {totalItems === 0 ? (
+        {!hasContent ? (
           <EmptyState
             icon={Lightbulb}
-            title={searchQuery ? 'No matching insights' : 'No knowledge captured yet'}
-            description={
-              searchQuery
-                ? 'Try adjusting your search query to find insights'
-                : 'Complete capture sessions with your experts to build your knowledge base. Knowledge will appear here once sessions are processed.'
-            }
+            title="No knowledge captured yet"
+            description="Complete capture sessions with your experts to build your knowledge base. Knowledge will appear here once sessions are processed."
           />
-        ) : viewMode === 'visualization' ? (
-          // Visualization View
-          <div className="space-y-8">
-            {graphNodes.length > 0 && (
-              <KnowledgeGraphExplorer
-                nodes={graphNodes}
-                edges={graphEdges}
-              />
-            )}
-          </div>
         ) : (
-          // List View
-          <div className={spacing.sectionGap}>
-          {Object.entries(filteredByExpert).map(([expertName, expertItems]) => (
-            <div key={expertName} className="pt-6 first:pt-0">
-              {/* Expert Header */}
-              <SectionDivider>
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center font-semibold text-sm text-primary">
-                  {expertName.split(' ').map(n => n[0]).join('')}
+          <>
+            {/* Stats Row */}
+            <div className={cn('grid grid-cols-4 gap-4', spacing.marginBottomSection)}>
+              <div className="border rounded-lg bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-primary/10">
+                    <User className="w-4 h-4 text-primary" weight="bold" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold font-serif">{stats.totalExperts}</p>
+                    <p className="text-xs text-muted-foreground">Experts</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h2 className="text-lg font-semibold text-foreground">{expertName}</h2>
-                  <p className="text-sm text-muted-foreground">{expertItems.length} captured insight{expertItems.length !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="border rounded-lg bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-secondary">
+                    <FolderSimple className="w-4 h-4 text-muted-foreground" weight="bold" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold font-serif">{stats.totalProjects}</p>
+                    <p className="text-xs text-muted-foreground">Projects</p>
+                  </div>
                 </div>
-              </SectionDivider>
-
-              {/* Insights */}
-              <div className="grid gap-3">
-                {expertItems.map(item => {
-                  const isSelected = selectedItem?.id === item.id;
-                  const relatedItems = getRelatedItems(item.id);
-
-                  return (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        "p-4 border rounded-lg cursor-pointer transition-all duration-200",
-                        isSelected
-                          ? "bg-primary/5 border-primary/40 ring-1 ring-primary/20"
-                          : "bg-card border-border hover:border-foreground/20"
-                      )}
-                      onClick={() => setSelectedItem(isSelected ? null : item)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Lightbulb className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" weight="bold" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <p className="font-medium text-foreground">{item.title}</p>
-                            <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground capitalize">
-                              {item.type}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground line-clamp-2">{item.insight}</p>
-
-                          {/* Related items when selected */}
-                          {isSelected && relatedItems.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-border/50">
-                              <p className="text-xs text-muted-foreground uppercase font-semibold mb-3 tracking-wide">Connected Insights</p>
-                              <div className="space-y-2">
-                                {relatedItems.map(related => (
-                                  <button
-                                    key={related.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedItem(related);
-                                    }}
-                                    className="block w-full text-left p-3 rounded-md bg-secondary/30 hover:bg-secondary/60 text-sm transition-colors"
-                                  >
-                                    <span className="font-medium text-foreground">{related.title}</span>
-                                    <div className="text-xs text-muted-foreground mt-1">{related.insight.substring(0, 70)}</div>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              </div>
+              <div className="border rounded-lg bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-secondary">
+                    <UsersFour className="w-4 h-4 text-muted-foreground" weight="bold" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold font-serif">{stats.totalTeams}</p>
+                    <p className="text-xs text-muted-foreground">Teams</p>
+                  </div>
+                </div>
+              </div>
+              <div className="border rounded-lg bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-amber-50">
+                    <Lightbulb className="w-4 h-4 text-amber-600" weight="bold" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold font-serif">{stats.totalInsights}</p>
+                    <p className="text-xs text-muted-foreground">Insights</p>
+                  </div>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
+
+            {/* Knowledge Gaps Alert */}
+            {gaps.length > 0 && gaps.some((g) => g.severity === 'high') && (
+              <div className={cn('border border-amber-200 bg-amber-50/50 rounded-lg p-4', spacing.marginBottomSection)}>
+                <div className="flex items-start gap-3">
+                  <Warning className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" weight="fill" />
+                  <div>
+                    <h3 className="font-semibold text-amber-800 mb-1">Knowledge Gaps Detected</h3>
+                    <p className="text-sm text-amber-700">
+                      {gaps.filter((g) => g.severity === 'high').length} critical areas need documentation.{' '}
+                      {gaps.filter((g) => g.severity === 'high').slice(0, 2).map((g) => g.area).join(', ')}
+                      {gaps.filter((g) => g.severity === 'high').length > 2 && ' and more'}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Search */}
+            <div className={cn('relative', spacing.marginBottomSection)}>
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" weight="bold" />
+              <input
+                type="text"
+                placeholder={`Search ${viewType === 'person' ? 'experts' : viewType === 'project' ? 'projects' : 'teams'}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              />
+            </div>
+
+            {/* Content Grid */}
+            {viewType === 'person' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredExperts.length === 0 ? (
+                  <div className="col-span-full">
+                    <EmptyState
+                      icon={User}
+                      title="No experts found"
+                      description={searchQuery ? 'Try adjusting your search query' : 'No experts have been documented yet'}
+                    />
+                  </div>
+                ) : (
+                  filteredExperts.map((expert) => (
+                    <PersonCard
+                      key={expert.id}
+                      expert={expert}
+                      onClick={() => handleExpertClick(expert)}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+
+            {viewType === 'project' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredProjects.length === 0 ? (
+                  <div className="col-span-full">
+                    <EmptyState
+                      icon={FolderSimple}
+                      title="No projects found"
+                      description={searchQuery ? 'Try adjusting your search query' : 'No projects have been documented yet'}
+                    />
+                  </div>
+                ) : (
+                  filteredProjects.map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onClick={() => handleProjectClick(project)}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+
+            {viewType === 'team' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredTeams.length === 0 ? (
+                  <div className="col-span-full">
+                    <EmptyState
+                      icon={UsersFour}
+                      title="No teams found"
+                      description={searchQuery ? 'Try adjusting your search query' : 'No teams have been documented yet'}
+                    />
+                  </div>
+                ) : (
+                  filteredTeams.map((team) => (
+                    <TeamCard
+                      key={team.id}
+                      team={team}
+                      onClick={() => handleTeamClick(team)}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -72,7 +72,7 @@ export function TopNav() {
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          <Link href="/prepare">
+          <Link href="/new">
             <Button size="sm" className="h-8 gap-1.5">
               <Plus className="w-3.5 h-3.5" weight="bold" />
               New Campaign

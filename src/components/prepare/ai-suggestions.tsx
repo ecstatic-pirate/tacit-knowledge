@@ -4,20 +4,21 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Sparkle,
-  Target,
-  Check,
   Calendar,
   CheckCircle,
-  TrendUp,
-  Clock,
   CircleNotch,
   ArrowClockwise,
   WarningCircle,
+  Question,
+  Lightning,
+  Brain,
+  Target,
+  CaretRight,
+  Lightbulb,
 } from 'phosphor-react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import type { InterviewQuestion } from '@/lib/supabase/database.types';
 
 interface AISuggestionsProps {
   campaignId?: string;
@@ -26,10 +27,11 @@ interface AISuggestionsProps {
   onEdit: () => void;
 }
 
-interface SuggestedSkill {
-  name: string;
-  confidence: number;
-  category?: string;
+interface InterviewPlanResult {
+  questions: InterviewQuestion[];
+  gaps: string[];
+  topics: string[];
+  contextSummary: string;
 }
 
 interface SessionPlan {
@@ -46,6 +48,12 @@ interface CampaignPlan {
   overallConfidence: number;
 }
 
+const priorityStyles = {
+  high: 'bg-rose-50 text-rose-700 border-rose-200',
+  medium: 'bg-amber-50 text-amber-700 border-amber-200',
+  low: 'bg-secondary text-muted-foreground border-border',
+};
+
 export function AISuggestions({
   campaignId,
   extractedSkills = [],
@@ -53,99 +61,47 @@ export function AISuggestions({
   onEdit,
 }: AISuggestionsProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [skills, setSkills] = useState<SuggestedSkill[]>([]);
+  const [interviewPlan, setInterviewPlan] = useState<InterviewPlanResult | null>(null);
   const [plan, setPlan] = useState<CampaignPlan | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
+  const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
-  // Fetch AI suggestions
-  const fetchSuggestions = useCallback(async () => {
+  const generateInterviewPlan = useCallback(async () => {
     if (!campaignId) return;
 
-    setIsLoading(true);
+    setIsGeneratingPlan(true);
     setError(null);
 
     try {
-      // Get campaign details
-      const { data: campaign, error: campaignError } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('id', campaignId)
-        .single();
-
-      if (campaignError) throw campaignError;
-
-      // Get existing skills for this campaign
-      const { data: existingSkills } = await supabase
-        .from('skills')
-        .select('name, confidence, category')
-        .eq('campaign_id', campaignId);
-
-      // Get documents for context
-      const { data: documents } = await supabase
-        .from('documents')
-        .select('filename, extracted_skills')
-        .eq('campaign_id', campaignId)
-        .eq('ai_processed', true);
-
-      // Combine all skills
-      const allSkills: SuggestedSkill[] = [];
-
-      // Add existing skills from database
-      if (existingSkills) {
-        existingSkills.forEach((s) => {
-          allSkills.push({
-            name: s.name,
-            confidence: (s.confidence ?? 0.8) * 100,
-            category: s.category ?? undefined,
-          });
-        });
-      }
-
-      // Add extracted skills from props (from document processing)
-      extractedSkills.forEach((skillName) => {
-        if (!allSkills.find((s) => s.name.toLowerCase() === skillName.toLowerCase())) {
-          allSkills.push({
-            name: skillName,
-            confidence: 85,
-          });
-        }
+      const response = await fetch('/api/ai/generate-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId }),
       });
 
-      // Add skills extracted from documents
-      if (documents) {
-        documents.forEach((doc) => {
-          const docSkills = doc.extracted_skills as string[] | null;
-          if (docSkills) {
-            docSkills.forEach((skillName: string) => {
-              if (!allSkills.find((s) => s.name.toLowerCase() === skillName.toLowerCase())) {
-                allSkills.push({
-                  name: skillName,
-                  confidence: 80,
-                });
-              }
-            });
-          }
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate plan');
       }
 
-      // Sort by confidence
-      allSkills.sort((a, b) => b.confidence - a.confidence);
-      setSkills(allSkills.slice(0, 10)); // Top 10 skills
+      const data = await response.json();
+      setInterviewPlan(data.plan);
 
-      // Generate a simple plan based on skills count
-      const totalSkills = allSkills.length;
-      const sessionsNeeded = Math.max(8, Math.min(16, Math.ceil(totalSkills / 2) + 4));
+      const questions = data.plan.questions as InterviewQuestion[];
+      const highPriorityQuestions = questions.filter((q) => q.priority === 'high');
+      const sessionsNeeded = Math.max(8, Math.min(16, Math.ceil(questions.length / 3) + 4));
 
       const sessionPlan: SessionPlan[] = [];
       for (let i = 0; i < Math.min(7, sessionsNeeded); i++) {
-        const skillsForSession = allSkills.slice(i * 2, i * 2 + 2);
+        const questionsForSession = highPriorityQuestions.slice(i, i + 2);
         sessionPlan.push({
           sessionNumber: i + 1,
-          topic: skillsForSession[0]?.name.split(' ')[0] || `Session ${i + 1}`,
-          skills: skillsForSession.map((s) => s.name),
+          topic: questionsForSession[0]?.category || `Session ${i + 1}`,
+          skills: questionsForSession.map((q) => q.question.slice(0, 50) + '...'),
         });
       }
 
@@ -154,225 +110,340 @@ export function AISuggestions({
         cadence: 'Weekly',
         duration: `${Math.ceil(sessionsNeeded / 1.5)} weeks`,
         sessions: sessionPlan,
-        overallConfidence: allSkills.length > 0
-          ? Math.round(allSkills.reduce((sum, s) => sum + s.confidence, 0) / allSkills.length)
-          : 75,
+        overallConfidence: 85,
       });
+    } catch (err) {
+      console.error('Error generating plan:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate plan');
+    } finally {
+      setIsGeneratingPlan(false);
+    }
+  }, [campaignId]);
+
+  const fetchSuggestions = useCallback(async () => {
+    if (!campaignId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const existingPlanResponse = await fetch(`/api/ai/generate-plan?campaignId=${campaignId}`);
+
+      if (existingPlanResponse.ok) {
+        const existingData = await existingPlanResponse.json();
+        if (existingData.plan) {
+          setInterviewPlan(existingData.plan);
+
+          const questions = existingData.plan.questions as InterviewQuestion[];
+          const sessionsNeeded = Math.max(8, Math.min(16, Math.ceil(questions.length / 3) + 4));
+
+          const sessionPlan: SessionPlan[] = [];
+          for (let i = 0; i < Math.min(7, sessionsNeeded); i++) {
+            const questionsForSession = questions.slice(i * 2, i * 2 + 2);
+            sessionPlan.push({
+              sessionNumber: i + 1,
+              topic: questionsForSession[0]?.category || `Session ${i + 1}`,
+              skills: questionsForSession.map((q) => q.question.slice(0, 50) + '...'),
+            });
+          }
+
+          setPlan({
+            totalSessions: sessionsNeeded,
+            cadence: 'Weekly',
+            duration: `${Math.ceil(sessionsNeeded / 1.5)} weeks`,
+            sessions: sessionPlan,
+            overallConfidence: 85,
+          });
+        }
+      }
 
       setHasFetched(true);
     } catch (err) {
       console.error('Error fetching suggestions:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch suggestions');
     } finally {
       setIsLoading(false);
     }
-  }, [campaignId, extractedSkills, supabase]);
+  }, [campaignId]);
 
-  // Auto-fetch when campaign or skills change
   useEffect(() => {
     if (campaignId && (extractedSkills.length > 0 || !hasFetched)) {
       fetchSuggestions();
     }
   }, [campaignId, extractedSkills.length, hasFetched, fetchSuggestions]);
 
-  // Show placeholder when no campaign
+  // Placeholder state
   if (!campaignId) {
     return (
-      <Card className="mb-8 opacity-60">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-              <Sparkle className="h-4 w-4" weight="bold" />
-            </div>
-            <div className="space-y-1">
-              <CardTitle className="text-base">AI Analysis</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Create a campaign to generate suggestions
-              </p>
-            </div>
+      <div className="border rounded-lg bg-card opacity-60">
+        <div className="p-4 border-b flex items-center gap-3">
+          <div className="p-2 rounded-md bg-secondary">
+            <Brain className="w-4 h-4 text-muted-foreground" weight="bold" />
           </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="text-center text-neutral-400 py-8">
-            Upload documents after creating a campaign to get AI-powered skill suggestions
+          <div>
+            <h3 className="font-medium">AI Interview Plan</h3>
+            <p className="text-xs text-muted-foreground">Complete previous steps first</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="p-8 text-center">
+          <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mx-auto mb-3">
+            <Sparkle className="w-6 h-6 text-muted-foreground" weight="bold" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Fill in campaign details and self-assessment to generate an AI-powered interview plan
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="mb-8">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
+    <div className="border rounded-lg bg-card">
+      {/* Header */}
+      <div className="p-4 border-b flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-            <Sparkle className="h-4 w-4" weight="bold" />
+          <div className={cn(
+            'p-2 rounded-md',
+            interviewPlan ? 'bg-primary' : 'bg-secondary'
+          )}>
+            <Brain className={cn(
+              'w-4 h-4',
+              interviewPlan ? 'text-primary-foreground' : 'text-muted-foreground'
+            )} weight="bold" />
           </div>
-          <div className="space-y-1">
-            <CardTitle className="text-base">AI Analysis</CardTitle>
+          <div>
+            <h3 className="font-medium">AI Interview Plan</h3>
             <p className="text-xs text-muted-foreground">
-              {skills.length > 0
-                ? 'Generated from uploaded documents'
-                : 'Upload documents to generate suggestions'}
+              {interviewPlan
+                ? `${interviewPlan.questions.length} questions across ${interviewPlan.topics.length} topics`
+                : 'Generate a comprehensive interview strategy'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchSuggestions}
-            disabled={isLoading}
-            className="p-1.5 rounded-md hover:bg-secondary transition-colors"
-          >
-            <ArrowClockwise className={cn('h-4 w-4', isLoading && 'animate-spin')} weight="bold" />
-          </button>
-          {plan && (
-            <Badge
-              variant="outline"
-              className="gap-1 bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-            >
-              <TrendUp className="h-3 w-3" weight="bold" />
-              {plan.overallConfidence}% Match Confidence
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
 
+        <button
+          onClick={fetchSuggestions}
+          disabled={isLoading}
+          className="p-2 rounded-lg hover:bg-secondary transition-colors"
+          title="Refresh"
+        >
+          <ArrowClockwise className={cn(
+            'w-4 h-4 text-muted-foreground',
+            isLoading && 'animate-spin'
+          )} weight="bold" />
+        </button>
+      </div>
+
+      {/* Error State */}
       {error && (
-        <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700 text-sm">
-          <WarningCircle className="w-4 h-4" weight="bold" />
-          {error}
+        <div className="mx-4 mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+          <WarningCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" weight="bold" />
+          <div>
+            <p className="text-sm font-medium text-destructive">Generation Failed</p>
+            <p className="text-xs text-destructive/80 mt-0.5">{error}</p>
+          </div>
         </div>
       )}
 
-      <CardContent className="p-6 grid gap-8 lg:grid-cols-2">
-        {/* Skills Column */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <Target className="h-3.5 w-3.5" weight="bold" />
-              Detected Skills ({skills.length})
+      {/* Content */}
+      <div className="p-4">
+        {isLoading || isGeneratingPlan ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center mb-3">
+              <CircleNotch className="w-6 h-6 text-primary-foreground animate-spin" weight="bold" />
             </div>
+            <p className="text-sm font-medium">
+              {isGeneratingPlan ? 'Generating plan...' : 'Loading...'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">This may take a moment</p>
           </div>
+        ) : !interviewPlan ? (
+          <div className="text-center py-8">
+            <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mx-auto mb-3">
+              <Lightbulb className="w-6 h-6 text-muted-foreground" weight="bold" />
+            </div>
+            <h4 className="font-medium mb-1">Ready to Generate Plan</h4>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-4">
+              Our AI will analyze your documents and self-assessment to create a tailored interview strategy
+            </p>
+            <Button onClick={generateInterviewPlan}>
+              <Sparkle className="w-4 h-4 mr-2" weight="bold" />
+              Generate Interview Plan
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Context Summary */}
+            {interviewPlan.contextSummary && (
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" weight="bold" />
+                  <p className="text-sm text-foreground/80">
+                    {interviewPlan.contextSummary}
+                  </p>
+                </div>
+              </div>
+            )}
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <CircleNotch className="w-5 h-5 animate-spin text-primary" weight="bold" />
+            {/* Topics */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-4 h-4 text-emerald-600" weight="bold" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Key Topics
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {interviewPlan.topics.slice(0, 8).map((topic, idx) => (
+                  <span
+                    key={idx}
+                    className="text-xs px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100"
+                  >
+                    {topic}
+                  </span>
+                ))}
+              </div>
             </div>
-          ) : skills.length === 0 ? (
-            <div className="text-center text-neutral-400 py-8 text-sm">
-              Upload and analyze documents to detect skills
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              {skills.map((skill) => (
-                <div
-                  key={skill.name}
-                  className="flex items-center justify-between rounded-md border bg-card px-3 py-2 transition-colors hover:bg-secondary/40"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-4 w-4 items-center justify-center rounded border bg-secondary text-transparent">
-                      <Check className="h-3 w-3 text-muted-foreground" weight="bold" />
-                    </div>
-                    <span className="text-sm font-medium">{skill.name}</span>
-                  </div>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    {Math.round(skill.confidence)}%
+
+            {/* Knowledge Gaps */}
+            {interviewPlan.gaps.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightning className="w-4 h-4 text-amber-600" weight="bold" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Knowledge Gaps
                   </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <ul className="space-y-1.5">
+                  {interviewPlan.gaps.slice(0, 4).map((gap, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0 mt-1.5" />
+                      <span>{gap}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-        {/* Campaign Plan Column */}
-        <div className="space-y-4 lg:border-l lg:pl-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <Calendar className="h-3.5 w-3.5" weight="bold" />
-              Proposed Timeline
+            {/* Questions List */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Question className="w-4 h-4 text-muted-foreground" weight="bold" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Interview Questions
+                  </span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {interviewPlan.questions.length} total
+                </span>
+              </div>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {interviewPlan.questions.slice(0, 8).map((question, idx) => {
+                  const isExpanded = expandedQuestion === idx;
+                  return (
+                    <div
+                      key={idx}
+                      className="rounded-lg border border-border bg-card overflow-hidden"
+                    >
+                      <button
+                        onClick={() => setExpandedQuestion(isExpanded ? null : idx)}
+                        className="w-full px-3 py-2 flex items-start gap-2 text-left"
+                      >
+                        <span className={cn(
+                          'text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 mt-0.5',
+                          priorityStyles[question.priority]
+                        )}>
+                          {question.priority.charAt(0).toUpperCase()}
+                        </span>
+                        <p className={cn(
+                          'text-sm flex-1',
+                          !isExpanded && 'line-clamp-2'
+                        )}>
+                          {question.question}
+                        </p>
+                        <CaretRight className={cn(
+                          'w-4 h-4 text-muted-foreground shrink-0 transition-transform',
+                          isExpanded && 'rotate-90'
+                        )} weight="bold" />
+                      </button>
+
+                      {isExpanded && (
+                        <div className="px-3 pb-2 pt-0 border-t border-border/40">
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                              {question.category}
+                            </span>
+                          </div>
+                          {question.relatedGap && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              <span className="font-medium">Gap:</span> {question.relatedGap}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {interviewPlan.questions.length > 8 && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  +{interviewPlan.questions.length - 8} more questions
+                </p>
+              )}
             </div>
+
+            {/* Timeline */}
             {plan && (
-              <span className="text-xs text-muted-foreground">
-                {plan.totalSessions} Sessions Total
-              </span>
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground" weight="bold" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Proposed Timeline
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="text-2xl font-bold">{plan.totalSessions}</p>
+                    <p className="text-xs text-muted-foreground">sessions</p>
+                  </div>
+                  <div className="h-8 w-px bg-border" />
+                  <div>
+                    <p className="text-2xl font-bold">{plan.duration}</p>
+                    <p className="text-xs text-muted-foreground">duration</p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
+        )}
+      </div>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <CircleNotch className="w-5 h-5 animate-spin text-primary" weight="bold" />
-            </div>
-          ) : !plan ? (
-            <div className="text-center text-neutral-400 py-8 text-sm">
-              Plan will be generated after skill detection
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Timeline Visualization */}
-              <div className="rounded-lg border bg-secondary/20 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" weight="bold" />
-                    <span className="text-xs font-medium">Weekly Sessions</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {plan.totalSessions} Sessions
-                  </span>
-                </div>
+      {/* Footer */}
+      {interviewPlan && (
+        <div className="px-4 py-3 border-t flex items-center justify-between">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generateInterviewPlan}
+            disabled={isGeneratingPlan}
+          >
+            <ArrowClockwise className={cn('w-4 h-4 mr-1', isGeneratingPlan && 'animate-spin')} weight="bold" />
+            Regenerate
+          </Button>
 
-                <div className="flex gap-1">
-                  {plan.sessions.map((session) => (
-                    <div key={session.sessionNumber} className="group flex-1 cursor-help">
-                      <div className="mb-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                        <div className="h-full w-full bg-muted-foreground/50 transition-colors group-hover:bg-primary" />
-                      </div>
-                      <div className="text-center text-[10px] font-medium text-muted-foreground group-hover:text-foreground">
-                        W{session.sessionNumber}
-                      </div>
-                    </div>
-                  ))}
-                  {plan.totalSessions > 7 && (
-                    <div className="group flex-1">
-                      <div className="mb-1.5 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                        <div className="h-full w-1/2 bg-muted-foreground/30" />
-                      </div>
-                      <div className="text-center text-[10px] font-medium text-muted-foreground">
-                        +{plan.totalSessions - 7}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Plan Details */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-lg border bg-card p-3">
-                  <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
-                    Cadence
-                  </div>
-                  <div className="text-sm font-medium">{plan.cadence}</div>
-                </div>
-                <div className="rounded-lg border bg-card p-3">
-                  <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
-                    Duration
-                  </div>
-                  <div className="text-sm font-medium">{plan.duration}</div>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={onEdit}>
+              Edit Plan
+            </Button>
+            <Button size="sm" onClick={onAccept}>
+              <CheckCircle className="w-4 h-4 mr-1" weight="bold" />
+              Accept
+            </Button>
+          </div>
         </div>
-      </CardContent>
-
-      <CardFooter className="flex justify-end gap-3 border-t bg-secondary/20 py-4">
-        <Button variant="secondary" onClick={onEdit} size="sm" disabled={skills.length === 0}>
-          Edit Plan
-        </Button>
-        <Button onClick={onAccept} size="sm" disabled={skills.length === 0}>
-          <CheckCircle className="mr-2 h-4 w-4" weight="bold" />
-          Accept Proposal
-        </Button>
-      </CardFooter>
-    </Card>
+      )}
+    </div>
   );
 }

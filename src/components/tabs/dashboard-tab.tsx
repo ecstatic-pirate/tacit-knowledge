@@ -45,7 +45,7 @@ export function DashboardTab({
         />
 
         {/* Stats Row */}
-        <div className={cn(containers.gridDefault, spacing.marginBottomSection)}>
+        <div className={cn('grid grid-cols-3 gap-4', spacing.marginBottomSection)}>
           <div className="border rounded-lg bg-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-secondary">
@@ -95,7 +95,7 @@ export function DashboardTab({
               title="No campaigns yet"
               description="Create your first campaign to start capturing expert knowledge."
               action={
-                <Button onClick={() => router.push('/prepare')} size="sm">
+                <Button onClick={() => router.push('/new')} size="sm">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Campaign
                 </Button>

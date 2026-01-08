@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/app-context';
 import { useToast } from '@/components/ui/toast';
 import { DashboardTab } from '@/components/tabs';
 import { Modal } from '@/components/ui/modal';
 import { Campaign } from '@/types';
-import { CheckCircle, ChartBar, CalendarCheck, Rocket, Star, Check, CircleNotch } from 'phosphor-react';
+import { CheckCircle, CircleNotch } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 
@@ -21,6 +22,7 @@ interface AISuggestion {
 export default function DashboardPage() {
   const { campaigns, tasks, toggleTask } = useApp();
   const { showToast } = useToast();
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   const [modalState, setModalState] = useState<{
@@ -33,61 +35,9 @@ export default function DashboardPage() {
 
   const handleViewCampaignDetails = useCallback(
     (campaign: Campaign) => {
-      setModalState({
-        isOpen: true,
-        title: 'Campaign Details',
-        content: (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">
-                  Name
-                </div>
-                <div className="font-medium">{campaign.name}</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">
-                  Role
-                </div>
-                <div className="font-medium">{campaign.role}</div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">
-                  Sessions Completed
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" weight="fill" />
-                  {campaign.completedSessions} of {campaign.totalSessions}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">
-                  Skills Captured
-                </div>
-                <div className="flex items-center gap-2">
-                  <ChartBar className="w-4 h-4 text-primary" weight="bold" />
-                  {campaign.skillsCaptured} distinct skills
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-secondary/50 p-4 rounded-lg border border-border flex items-start gap-3">
-              <CalendarCheck className="w-5 h-5 text-primary mt-0.5" weight="bold" />
-              <div>
-                <div className="font-semibold mb-1">Next Session</div>
-                <div className="text-sm text-muted-foreground">
-                  Scheduled for Friday, Dec 6 at 2:00 PM
-                </div>
-              </div>
-            </div>
-          </div>
-        ),
-      });
+      router.push(`/campaigns/${campaign.id}`);
     },
-    []
+    [router]
   );
 
   const handleEditCampaign = useCallback(

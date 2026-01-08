@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Robot, ListChecks, Stack, Target, Lightbulb, ArrowClockwise, CircleNotch, ChatTeardrop } from 'phosphor-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Robot, ListChecks, Stack, Target, Lightbulb, ArrowClockwise, CircleNotch, ChatTeardrop, Clock, Play, Pause } from 'phosphor-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+
+// Auto-refresh interval in milliseconds (2.5 minutes)
+const AUTO_REFRESH_INTERVAL = 150000;
 
 interface AICoachPanelProps {
   sessionId: string;
@@ -45,10 +47,11 @@ export function AICoachPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastFetchedNotes, setLastFetchedNotes] = useState<string>('');
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const supabase = useMemo(() => createClient(), []);
-
-  // Fetch AI guidance
+  // Fetch AI guidance from the Next.js API route
   const fetchGuidance = useCallback(async () => {
     if (!sessionId) return;
 
@@ -56,20 +59,30 @@ export function AICoachPanel({
     setError(null);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('session-guidance', {
-        body: {
+      const response = await fetch('/api/ai/session-guidance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           sessionId,
-          currentNotes,
-          recentTranscript,
-        },
+          recentTranscript: recentTranscript || currentNotes,
+        }),
       });
 
-      if (fnError) throw fnError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get guidance');
+      }
+
+      const data = await response.json();
 
       if (data.success) {
-        setGuidance(data.guidance);
+        setGuidance({
+          ...data.guidance,
+          capturedInsights: [], // Will be populated from insights API if needed
+        });
         setContext(data.context);
         setLastFetchedNotes(currentNotes || '');
+        setLastRefreshTime(new Date());
       } else {
         throw new Error(data.error || 'Failed to get guidance');
       }
@@ -79,9 +92,32 @@ export function AICoachPanel({
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, currentNotes, recentTranscript, supabase]);
+  }, [sessionId, currentNotes, recentTranscript]);
 
-  // Auto-fetch on mount and when notes change significantly
+  // Auto-refresh timer management
+  useEffect(() => {
+    if (!sessionId || !autoRefreshEnabled) {
+      if (autoRefreshTimerRef.current) {
+        clearInterval(autoRefreshTimerRef.current);
+        autoRefreshTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Start auto-refresh timer
+    autoRefreshTimerRef.current = setInterval(() => {
+      fetchGuidance();
+    }, AUTO_REFRESH_INTERVAL);
+
+    return () => {
+      if (autoRefreshTimerRef.current) {
+        clearInterval(autoRefreshTimerRef.current);
+        autoRefreshTimerRef.current = null;
+      }
+    };
+  }, [sessionId, autoRefreshEnabled, fetchGuidance]);
+
+  // Initial fetch and significant notes change detection
   useEffect(() => {
     if (!sessionId) return;
 
@@ -100,6 +136,21 @@ export function AICoachPanel({
     }
   }, [sessionId, guidance, isLoading, currentNotes, lastFetchedNotes, fetchGuidance]);
 
+  // Toggle auto-refresh
+  const toggleAutoRefresh = useCallback(() => {
+    setAutoRefreshEnabled((prev) => !prev);
+  }, []);
+
+  // Format last refresh time
+  const formatLastRefresh = useCallback(() => {
+    if (!lastRefreshTime) return null;
+    const now = new Date();
+    const diffSeconds = Math.floor((now.getTime() - lastRefreshTime.getTime()) / 1000);
+    if (diffSeconds < 60) return `${diffSeconds}s ago`;
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    return `${diffMinutes}m ago`;
+  }, [lastRefreshTime]);
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="py-3 border-b flex-row items-center justify-between space-y-0">
@@ -109,18 +160,47 @@ export function AICoachPanel({
           </div>
           <div className="flex flex-col">
             <h3 className="text-sm font-semibold">AI Coach</h3>
-            <p className="text-xs text-muted-foreground">Real-time Guidance</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">Real-time Guidance</p>
+              {lastRefreshTime && (
+                <span className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+                  <Clock className="w-2.5 h-2.5" weight="bold" />
+                  {formatLastRefresh()}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={fetchGuidance}
-          disabled={isLoading}
-        >
-          <ArrowClockwise className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} weight="bold" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {/* Auto-refresh toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "h-7 w-7",
+              autoRefreshEnabled ? "text-emerald-600" : "text-muted-foreground"
+            )}
+            onClick={toggleAutoRefresh}
+            title={autoRefreshEnabled ? "Auto-refresh ON (2.5 min)" : "Auto-refresh OFF"}
+          >
+            {autoRefreshEnabled ? (
+              <Play className="w-3.5 h-3.5" weight="fill" />
+            ) : (
+              <Pause className="w-3.5 h-3.5" weight="bold" />
+            )}
+          </Button>
+          {/* Manual refresh */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={fetchGuidance}
+            disabled={isLoading}
+            title="Refresh now"
+          >
+            <ArrowClockwise className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} weight="bold" />
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="p-4 space-y-4 flex-1 overflow-y-auto">

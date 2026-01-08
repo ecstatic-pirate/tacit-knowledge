@@ -26,8 +26,29 @@ export default function PreparePage() {
         completedSessions: 0,
         captureMode: data.captureMode,
         expertEmail: data.expertEmail || undefined,
+        collaborators: data.collaborators,
+        skills: data.skills || undefined,
       });
       showToast(`Campaign "${data.name}" created successfully!`);
+
+      // Send invitations to expert and collaborators
+      if (campaign.id && (data.expertEmail || data.collaborators.length > 0)) {
+        try {
+          const response = await fetch(`/api/campaigns/${campaign.id}/send-invitations`, {
+            method: 'POST',
+          });
+          const result = await response.json();
+
+          if (response.ok && result.emailsSent > 0) {
+            showToast(`Invitations sent to ${result.emailsSent} recipient(s)`, 'success');
+          } else if (result.emailsFailed > 0) {
+            showToast(`Some invitations failed to send`, 'error');
+          }
+        } catch {
+          console.error('Failed to send invitations');
+        }
+      }
+
       return campaign;
     },
     [addCampaign, showToast]
