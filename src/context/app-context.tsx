@@ -520,16 +520,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     )
 
     // Check session using getUser() which validates with server
-    // This is more reliable than getSession() which only reads from storage
+    // This is the source of truth - more reliable than getSession() or INITIAL_SESSION
     const checkSession = async () => {
       // Small delay to let onAuthStateChange fire first if it will
       await new Promise(resolve => setTimeout(resolve, 50))
 
       if (!isMounted) return
 
-      // Skip if already successfully initialized
+      // Skip if already successfully initialized with data
       if (initializedRef.current && appUser) {
-        console.log('[AppProvider] Already initialized, skipping session check')
+        console.log('[AppProvider] Already initialized with data, skipping session check')
+        setIsLoading(false)
         return
       }
 
@@ -548,14 +549,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             clearUser()
             return
           }
+          // For other errors, still try to continue if we have a user
         }
 
         if (validatedUser) {
           console.log('[AppProvider] Validated user found:', validatedUser.email)
           await initializeUser(validatedUser, 'checkSession')
         } else {
-          console.log('[AppProvider] No valid user found, setting loading to false')
-          setIsLoading(false)
+          console.log('[AppProvider] No valid user found, clearing state')
+          clearUser()
         }
       } catch (err) {
         console.error('[AppProvider] Exception checking session:', err)
@@ -565,6 +567,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Always run checkSession as the source of truth
     checkSession()
 
     return () => {
