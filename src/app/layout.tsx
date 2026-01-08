@@ -31,9 +31,9 @@ export default function RootLayout({
       <body className={`${inter.variable} ${libreBaskerville.variable} antialiased min-h-screen bg-background font-sans`}>
         <AppProvider>
           <ToastProvider>
-            <div className="min-h-screen">
+            <div className="min-h-screen overflow-x-hidden">
               <Sidebar />
-              <main className="flex-1 w-full lg:ml-64">
+              <main className="min-h-screen w-full lg:ml-64 overflow-x-hidden">
                 {children}
               </main>
             </div>
