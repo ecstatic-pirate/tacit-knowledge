@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { VideoCall } from './video-call'
 import { TranscriptPanel } from './transcript-panel'
-import { LiveKnowledgeGraph } from './live-knowledge-graph'
-import { AICoachPanel } from './ai-coach-panel'
+import { SessionGuidePanel } from './session-guide-panel'
+import { QuestionSuggestionsOverlay } from './question-suggestions-overlay'
 import { useRealtimeTranscription } from '@/lib/hooks/use-realtime-transcription'
-import { useDailyCall } from '@/lib/hooks/use-daily-call'
 import {
   CircleNotch,
   Warning,
@@ -14,6 +13,8 @@ import {
   ArrowRight,
   Check,
   Columns,
+  SidebarSimple,
+  ClosedCaptioning,
 } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -45,8 +46,11 @@ export function InterviewRoom({
   const [isCallJoined, setIsCallJoined] = useState(false)
   const [showEndModal, setShowEndModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showSidePanel, setShowSidePanel] = useState(true)
+  const [showTranscript, setShowTranscript] = useState(true)
   const lastProcessedTimeRef = useRef<number>(0)
   const pendingTranscriptRef = useRef<string>('')
+  const getAudioStreamRef = useRef<(() => MediaStream | null) | null>(null)
 
   // Transcription hook
   const {
@@ -71,10 +75,10 @@ export function InterviewRoom({
     },
   })
 
-  // Daily.co call hook (for audio stream)
-  const {
-    getCombinedAudioStream,
-  } = useDailyCall()
+  // Handler for receiving audio stream from VideoCall
+  const handleAudioStreamReady = useCallback((getStream: () => MediaStream | null) => {
+    getAudioStreamRef.current = getStream
+  }, [])
 
   // Process transcript through AI
   const processTranscript = useCallback(async () => {
@@ -111,15 +115,22 @@ export function InterviewRoom({
 
     // Start transcription when call is joined (interviewer only)
     if (role === 'interviewer') {
-      // Small delay to ensure audio is ready
+      // Small delay to ensure audio stream is ready
       setTimeout(() => {
-        const audioStream = getCombinedAudioStream()
-        if (audioStream) {
-          startTranscription(audioStream)
+        const getAudioStream = getAudioStreamRef.current
+        if (getAudioStream) {
+          const audioStream = getAudioStream()
+          if (audioStream) {
+            startTranscription(audioStream)
+          } else {
+            console.warn('[InterviewRoom] Audio stream not available yet')
+          }
+        } else {
+          console.warn('[InterviewRoom] getAudioStream function not available')
         }
-      }, 1000)
+      }, 1500)
     }
-  }, [role, getCombinedAudioStream, startTranscription])
+  }, [role, startTranscription])
 
   // Handle call left
   const handleCallLeft = useCallback(async () => {
@@ -159,20 +170,49 @@ export function InterviewRoom({
             {sessionNumber && ` · Session ${sessionNumber}`}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {isProcessing && (
-            <span className="text-xs text-primary flex items-center gap-1">
+            <span className="text-xs text-primary flex items-center gap-1.5 mr-2">
               <CircleNotch className="w-3 h-3 animate-spin" weight="bold" />
               Processing...
             </span>
           )}
+          {role === 'interviewer' && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-8 gap-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800',
+                  !showTranscript && 'text-zinc-500'
+                )}
+                onClick={() => setShowTranscript(!showTranscript)}
+              >
+                <ClosedCaptioning className="w-3.5 h-3.5" weight={showTranscript ? 'fill' : 'bold'} />
+                Transcript
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-8 gap-1.5 text-zinc-300 hover:text-white hover:bg-zinc-800',
+                  !showSidePanel && 'text-zinc-500'
+                )}
+                onClick={() => setShowSidePanel(!showSidePanel)}
+              >
+                <SidebarSimple className="w-3.5 h-3.5" weight={showSidePanel ? 'fill' : 'bold'} />
+                Guide
+              </Button>
+            </>
+          )}
+          <div className="w-px h-5 bg-zinc-700 mx-1" />
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700"
+            className="h-8 gap-1.5 text-zinc-300 hover:text-red-400 hover:bg-red-500/10"
             onClick={() => setShowEndModal(true)}
           >
-            <SignOut className="w-4 h-4 mr-2" weight="bold" />
+            <SignOut className="w-3.5 h-3.5" weight="bold" />
             End Session
           </Button>
         </div>
@@ -181,49 +221,52 @@ export function InterviewRoom({
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {role === 'interviewer' ? (
-          // Interviewer view: Video + Transcript + Knowledge Graph + AI Coach
+          // Interviewer view: Video + Transcript + Session Guide
           <>
             {/* Left: Video + Transcript */}
-            <div className="w-1/2 flex flex-col p-4 gap-4">
-              <div className="flex-1">
+            <div className={cn('flex flex-col p-4 gap-4 transition-all duration-300', showSidePanel ? 'w-2/3' : 'w-full')}>
+              <div className="flex-1 relative">
                 <VideoCall
                   roomUrl={roomUrl}
                   token={token}
                   onJoined={handleCallJoined}
                   onLeft={handleCallLeft}
-                  showRecordingControls
+                  onAudioStreamReady={handleAudioStreamReady}
                   className="h-full"
                 />
-              </div>
-              <div className="h-[300px]">
-                <TranscriptPanel
-                  lines={transcriptLines}
-                  currentInterim={currentInterim}
-                  isTranscribing={isTranscribing}
-                  isConnecting={!isTranscriptionConnected && isCallJoined}
-                  className="h-full"
+                {/* Floating question suggestions overlay */}
+                <QuestionSuggestionsOverlay
+                  sessionId={sessionId}
+                  recentTranscript={recentTranscript}
                 />
               </div>
+              {showTranscript && (
+                <div className="h-[300px]">
+                  <TranscriptPanel
+                    lines={transcriptLines}
+                    currentInterim={currentInterim}
+                    isTranscribing={isTranscribing}
+                    isConnecting={!isTranscriptionConnected && isCallJoined}
+                    className="h-full"
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Right: Knowledge Graph + AI Coach */}
-            <div className="w-1/2 flex flex-col p-4 pl-0 gap-4">
-              <div className="flex-1 bg-card rounded-xl border overflow-hidden">
-                <LiveKnowledgeGraph
-                  campaignId={campaignId}
-                  className="h-full"
-                />
-              </div>
-              <div className="h-[300px]">
-                <AICoachPanel
+            {/* Right: Session Guide (Topic Coverage + AI Guidance) */}
+            {showSidePanel && (
+              <div className="w-1/3 flex flex-col p-4 pl-0">
+                <SessionGuidePanel
                   sessionId={sessionId}
+                  campaignId={campaignId}
                   recentTranscript={recentTranscript}
                   expertName={expertName}
                   sessionNumber={sessionNumber}
                   goal={goal}
+                  className="h-full"
                 />
               </div>
-            </div>
+            )}
           </>
         ) : (
           // Guest view: Just video + transcript
@@ -234,6 +277,7 @@ export function InterviewRoom({
                 token={token}
                 onJoined={handleCallJoined}
                 onLeft={handleCallLeft}
+                onAudioStreamReady={handleAudioStreamReady}
                 className="h-full"
               />
             </div>

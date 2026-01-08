@@ -152,7 +152,7 @@ export function AICoachPanel({
   }, [lastRefreshTime]);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col h-full">
       <CardHeader className="py-3 border-b flex-row items-center justify-between space-y-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10 text-primary">

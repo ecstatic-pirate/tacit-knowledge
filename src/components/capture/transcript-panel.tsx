@@ -38,7 +38,7 @@ export function TranscriptPanel({
 
   return (
     <Card className={cn('flex flex-col', className)}>
-      <CardHeader className="py-3 border-b flex-row items-center justify-between space-y-0">
+      <CardHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10 text-primary">
             <TextAlignLeft className="w-4 h-4" weight="bold" />

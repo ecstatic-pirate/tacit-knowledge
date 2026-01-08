@@ -2,65 +2,55 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { CircleNotch, Warning, VideoCamera } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 
 interface SessionData {
   id: string
-  campaign_id: string
-  room_url: string | null
-  campaigns: {
-    expert_name: string
-    goal: string | null
-  }
+  campaignId: string
+  roomUrl: string | null
+  expertName: string
+  goal: string | null
 }
 
 export default function InterviewEntryPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const resolvedParams = use(params)
   const sessionId = resolvedParams.sessionId
   const router = useRouter()
-  const supabase = createClient()
 
   const [loading, setLoading] = useState(true)
   const [creatingRoom, setCreatingRoom] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionData | null>(null)
 
-  // Fetch session data
+  // Fetch session data from public API (no auth required)
   useEffect(() => {
     async function fetchSession() {
-      const { data, error } = await supabase
-        .from('sessions')
-        .select(`
-          id,
-          campaign_id,
-          room_url,
-          campaigns (
-            expert_name,
-            goal
-          )
-        `)
-        .eq('id', sessionId)
-        .single()
+      try {
+        const response = await fetch(`/api/public/interview/${sessionId}`)
 
-      if (error || !data) {
-        setError('Session not found')
+        if (!response.ok) {
+          setError('Session not found')
+          setLoading(false)
+          return
+        }
+
+        const data: SessionData = await response.json()
+        setSession(data)
         setLoading(false)
-        return
-      }
 
-      setSession(data as unknown as SessionData)
-      setLoading(false)
-
-      // If room already exists, redirect to interviewer view
-      if (data.room_url) {
-        router.push(`/interview/${sessionId}/interviewer`)
+        // If room already exists, redirect to interviewer view
+        if (data.roomUrl) {
+          router.push(`/interview/${sessionId}/interviewer`)
+        }
+      } catch (err) {
+        setError('Failed to load session')
+        setLoading(false)
       }
     }
 
     fetchSession()
-  }, [sessionId, supabase, router])
+  }, [sessionId, router])
 
   // Create room and start interview
   const handleStartInterview = async () => {
@@ -118,13 +108,13 @@ export default function InterviewEntryPage({ params }: { params: Promise<{ sessi
         <h1 className="text-2xl font-bold text-white mb-2">Start Interview</h1>
         <p className="text-zinc-400 mb-6">
           You&apos;re about to start a knowledge capture session with{' '}
-          <span className="text-white font-medium">{session.campaigns.expert_name}</span>
+          <span className="text-white font-medium">{session.expertName}</span>
         </p>
 
-        {session.campaigns.goal && (
+        {session.goal && (
           <div className="bg-zinc-800 rounded-lg p-4 mb-6 text-left">
             <p className="text-xs text-zinc-500 uppercase font-medium mb-1">Session Goal</p>
-            <p className="text-zinc-300 text-sm">{session.campaigns.goal}</p>
+            <p className="text-zinc-300 text-sm">{session.goal}</p>
           </div>
         )}
 

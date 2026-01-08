@@ -24,6 +24,7 @@ export interface UseDailyCallReturn {
   isAudioEnabled: boolean
   isVideoEnabled: boolean
   isRecording: boolean
+  isScreenSharing: boolean
   error: string | null
 
   // Video refs
@@ -36,6 +37,8 @@ export interface UseDailyCallReturn {
   toggleVideo: () => void
   startRecording: () => Promise<void>
   stopRecording: () => Promise<void>
+  startScreenShare: () => Promise<void>
+  stopScreenShare: () => void
 
   // Get combined audio stream (for Deepgram)
   getCombinedAudioStream: () => MediaStream | null
@@ -49,15 +52,18 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
   const [isInCall, setIsInCall] = useState(false)
   const [localParticipant, setLocalParticipant] = useState<DailyParticipant | null>(null)
   const [remoteParticipants, setRemoteParticipants] = useState<DailyParticipant[]>([])
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true)
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true)
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false)
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const combinedStreamRef = useRef<MediaStream | null>(null)
   const audioSourcesRef = useRef<MediaStreamAudioSourceNode[]>([])
+  const callObjectRef = useRef<DailyCall | null>(null)
+  const isJoiningRef = useRef(false)
 
   // Update participants from call object
   const updateParticipants = useCallback((call: DailyCall) => {
@@ -67,8 +73,9 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
 
     setLocalParticipant(local)
     setRemoteParticipants(remote)
-    setIsAudioEnabled(local.audio !== false)
-    setIsVideoEnabled(local.video !== false)
+    // Use strict equality to ensure we only show as enabled when explicitly true
+    setIsAudioEnabled(local.audio === true)
+    setIsVideoEnabled(local.video === true)
   }, [])
 
   // Set up local video
@@ -86,9 +93,27 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
 
   // Join a Daily.co call
   const joinCall = useCallback(async (roomUrl: string, token: string) => {
+    // Prevent duplicate join attempts
+    if (isJoiningRef.current) {
+      console.log('[useDailyCall] Already joining, skipping duplicate call')
+      return
+    }
+
     try {
+      isJoiningRef.current = true
       setIsJoining(true)
       setError(null)
+
+      // Clean up any existing call object first
+      if (callObjectRef.current) {
+        console.log('[useDailyCall] Destroying existing call object before creating new one')
+        try {
+          await callObjectRef.current.leave()
+        } catch { /* ignore leave errors */ }
+        callObjectRef.current.destroy()
+        callObjectRef.current = null
+        setCallObject(null)
+      }
 
       // Create call object
       const call = DailyIframe.createCallObject({
@@ -96,12 +121,28 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
         videoSource: true,
       })
 
+      // Store ref immediately to prevent duplicates
+      callObjectRef.current = call
+
       // Set up event listeners
-      call.on('joined-meeting', () => {
+      call.on('joined-meeting', async () => {
         setIsInCall(true)
         setIsJoining(false)
-        updateParticipants(call)
-        setupLocalVideo(call)
+        isJoiningRef.current = false
+
+        // Explicitly enable audio and video after joining
+        try {
+          await call.setLocalAudio(true)
+          await call.setLocalVideo(true)
+        } catch (err) {
+          console.warn('[useDailyCall] Failed to enable media:', err)
+        }
+
+        // Small delay to let media tracks initialize
+        setTimeout(() => {
+          updateParticipants(call)
+          setupLocalVideo(call)
+        }, 500)
       })
 
       call.on('left-meeting', () => {
@@ -151,6 +192,19 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
         setIsRecording(false)
       })
 
+      // Screen share events
+      call.on('local-screen-share-started', () => {
+        setIsScreenSharing(true)
+      })
+
+      call.on('local-screen-share-stopped', () => {
+        setIsScreenSharing(false)
+      })
+
+      call.on('local-screen-share-canceled', () => {
+        setIsScreenSharing(false)
+      })
+
       call.on('error', (event) => {
         const errorMsg = event?.errorMsg || 'Unknown error'
         setError(errorMsg)
@@ -169,17 +223,28 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
       const errorMsg = err instanceof Error ? err.message : 'Failed to join call'
       setError(errorMsg)
       setIsJoining(false)
+      isJoiningRef.current = false
+      // Clean up on error
+      if (callObjectRef.current) {
+        callObjectRef.current.destroy()
+        callObjectRef.current = null
+      }
       onError?.(err instanceof Error ? err : new Error(errorMsg))
     }
   }, [onAudioTrack, onParticipantJoined, onParticipantLeft, onError, updateParticipants, setupLocalVideo])
 
   // Leave the call
   const leaveCall = useCallback(async () => {
-    if (callObject) {
-      await callObject.leave()
-      callObject.destroy()
+    const call = callObjectRef.current
+    if (call) {
+      try {
+        await call.leave()
+      } catch { /* ignore */ }
+      call.destroy()
+      callObjectRef.current = null
       setCallObject(null)
       setIsInCall(false)
+      isJoiningRef.current = false
 
       // Clean up audio context
       if (audioContextRef.current) {
@@ -188,25 +253,27 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
       }
       combinedStreamRef.current = null
     }
-  }, [callObject])
+  }, [])
 
   // Toggle local audio
   const toggleAudio = useCallback(() => {
-    if (callObject) {
+    const call = callObjectRef.current
+    if (call) {
       const newState = !isAudioEnabled
-      callObject.setLocalAudio(newState)
+      call.setLocalAudio(newState)
       setIsAudioEnabled(newState)
     }
-  }, [callObject, isAudioEnabled])
+  }, [isAudioEnabled])
 
   // Toggle local video
   const toggleVideo = useCallback(() => {
-    if (callObject) {
+    const call = callObjectRef.current
+    if (call) {
       const newState = !isVideoEnabled
-      callObject.setLocalVideo(newState)
+      call.setLocalVideo(newState)
       setIsVideoEnabled(newState)
     }
-  }, [callObject, isVideoEnabled])
+  }, [isVideoEnabled])
 
   // Start cloud recording
   const startRecording = useCallback(async () => {
@@ -222,9 +289,33 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
     }
   }, [callObject])
 
+  // Start screen sharing
+  const startScreenShare = useCallback(async () => {
+    const call = callObjectRef.current
+    if (call) {
+      try {
+        await call.startScreenShare()
+      } catch (err) {
+        console.error('[useDailyCall] Failed to start screen share:', err)
+        // Don't set error state - user may have just cancelled the dialog
+      }
+    } else {
+      console.warn('[useDailyCall] Cannot start screen share - no call object')
+    }
+  }, [])
+
+  // Stop screen sharing
+  const stopScreenShare = useCallback(() => {
+    const call = callObjectRef.current
+    if (call) {
+      call.stopScreenShare()
+    }
+  }, [])
+
   // Get combined audio stream from all participants (for Deepgram)
   const getCombinedAudioStream = useCallback((): MediaStream | null => {
-    if (!callObject) return null
+    const call = callObjectRef.current
+    if (!call) return null
 
     try {
       // Clean up previous audio sources to prevent memory leak
@@ -239,7 +330,7 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
       }
       const audioContext = audioContextRef.current
 
-      const participants = callObject.participants()
+      const participants = call.participants()
       const destination = audioContext.createMediaStreamDestination()
 
       // Add all audio tracks to the destination
@@ -258,15 +349,21 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
       console.error('Failed to create combined audio stream:', err)
       return null
     }
-  }, [callObject])
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (callObject) {
-        callObject.leave()
-        callObject.destroy()
+      const call = callObjectRef.current
+      if (call) {
+        console.log('[useDailyCall] Cleanup: destroying call object on unmount')
+        try {
+          call.leave()
+        } catch { /* ignore */ }
+        call.destroy()
+        callObjectRef.current = null
       }
+      isJoiningRef.current = false
       // Clean up audio sources
       audioSourcesRef.current.forEach(source => {
         try { source.disconnect() } catch { /* ignore */ }
@@ -276,7 +373,7 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
         audioContextRef.current.close()
       }
     }
-  }, [callObject])
+  }, []) // Empty deps - only run on unmount
 
   return {
     callObject,
@@ -287,6 +384,7 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
     isAudioEnabled,
     isVideoEnabled,
     isRecording,
+    isScreenSharing,
     error,
     localVideoRef: localVideoRef as React.RefObject<HTMLVideoElement>,
     joinCall,
@@ -295,6 +393,8 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
     toggleVideo,
     startRecording,
     stopRecording,
+    startScreenShare,
+    stopScreenShare,
     getCombinedAudioStream,
   }
 }

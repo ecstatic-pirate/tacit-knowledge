@@ -73,7 +73,7 @@ export async function createRoom(options: CreateRoomOptions = {}): Promise<Daily
         exp: Math.floor(Date.now() / 1000) + expirySeconds,
         max_participants: maxParticipants,
         enable_chat: true,
-        enable_screenshare: false,
+        enable_screenshare: true,
         enable_recording: enableRecording ? 'cloud' : undefined,
         start_video_off: false,
         start_audio_off: false,
@@ -120,7 +120,7 @@ export async function createMeetingToken(options: CreateTokenOptions): Promise<D
         is_owner: isOwner,
         exp: Math.floor(Date.now() / 1000) + expirySeconds,
         enable_recording: isOwner ? 'cloud' : undefined,
-        start_cloud_recording: false, // Don't auto-start, let interviewer control
+        start_cloud_recording: isOwner, // Auto-start recording for interviewers
       },
     }),
   })

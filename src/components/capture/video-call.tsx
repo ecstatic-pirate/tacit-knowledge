@@ -8,7 +8,7 @@ import {
   VideoCamera,
   VideoCameraSlash,
   Phone,
-  Record,
+  DesktopTower,
   CircleNotch,
   User,
   Warning,
@@ -23,7 +23,8 @@ interface VideoCallProps {
   onJoined?: () => void
   onLeft?: () => void
   onError?: (error: Error) => void
-  showRecordingControls?: boolean
+  /** Callback with audio stream for transcription */
+  onAudioStreamReady?: (getStream: () => MediaStream | null) => void
   className?: string
 }
 
@@ -34,7 +35,7 @@ export function VideoCall({
   onJoined,
   onLeft,
   onError,
-  showRecordingControls = false,
+  onAudioStreamReady,
   className,
 }: VideoCallProps) {
   const {
@@ -45,26 +46,33 @@ export function VideoCall({
     remoteParticipants,
     isAudioEnabled,
     isVideoEnabled,
-    isRecording,
+    isScreenSharing,
     error,
     localVideoRef,
     joinCall,
     leaveCall,
     toggleAudio,
     toggleVideo,
-    startRecording,
-    stopRecording,
+    startScreenShare,
+    stopScreenShare,
+    getCombinedAudioStream,
   } = useDailyCall({
     onAudioTrack,
     onError,
   })
 
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
+  const hasAttemptedJoin = useRef(false)
 
-  // Auto-join when component mounts
+  // Auto-join when component mounts (with small delay for SDK initialization)
   useEffect(() => {
-    if (roomUrl && token && !isInCall && !isJoining) {
-      joinCall(roomUrl, token)
+    if (roomUrl && token && !isInCall && !isJoining && !hasAttemptedJoin.current) {
+      hasAttemptedJoin.current = true
+      // Small delay to ensure Daily.co SDK is fully initialized
+      const timer = setTimeout(() => {
+        joinCall(roomUrl, token)
+      }, 500)
+      return () => clearTimeout(timer)
     }
   }, [roomUrl, token, isInCall, isJoining, joinCall])
 
@@ -72,8 +80,10 @@ export function VideoCall({
   useEffect(() => {
     if (isInCall) {
       onJoined?.()
+      // Pass the audio stream getter to the parent
+      onAudioStreamReady?.(getCombinedAudioStream)
     }
-  }, [isInCall, onJoined])
+  }, [isInCall, onJoined, onAudioStreamReady, getCombinedAudioStream])
 
   // Set up remote video
   useEffect(() => {
@@ -218,17 +228,16 @@ export function VideoCall({
           )}
         </Button>
 
-        {/* Recording Toggle (optional) */}
-        {showRecordingControls && (
-          <Button
-            variant={isRecording ? 'destructive' : 'secondary'}
-            size="icon"
-            className="rounded-full w-12 h-12"
-            onClick={isRecording ? stopRecording : startRecording}
-          >
-            <Record className={cn('w-5 h-5', isRecording && 'animate-pulse')} weight="fill" />
-          </Button>
-        )}
+        {/* Screen Share Toggle */}
+        <Button
+          variant={isScreenSharing ? 'default' : 'secondary'}
+          size="icon"
+          className="rounded-full w-12 h-12"
+          onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+          title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+        >
+          <DesktopTower className={cn('w-5 h-5', isScreenSharing && 'text-primary-foreground')} weight="bold" />
+        </Button>
 
         {/* Leave Call */}
         <Button

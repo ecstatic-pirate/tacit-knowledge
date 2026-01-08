@@ -2,21 +2,17 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { InterviewRoom } from '@/components/capture/interview-room'
 import { CircleNotch, Warning } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 
 interface SessionData {
   id: string
-  campaign_id: string
-  session_number: number
-  room_url: string | null
-  campaigns: {
-    id: string
-    expert_name: string
-    goal: string | null
-  }
+  campaignId: string
+  sessionNumber: number
+  roomUrl: string | null
+  expertName: string
+  goal: string | null
 }
 
 interface RoomData {
@@ -28,70 +24,61 @@ export default function InterviewerPage({ params }: { params: Promise<{ sessionI
   const resolvedParams = use(params)
   const sessionId = resolvedParams.sessionId
   const router = useRouter()
-  const supabase = createClient()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionData | null>(null)
   const [roomData, setRoomData] = useState<RoomData | null>(null)
 
-  // Fetch session and room data
+  // Fetch session and room data from public API (no auth required)
   useEffect(() => {
     async function fetchData() {
-      // Get session
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('sessions')
-        .select(`
-          id,
-          campaign_id,
-          session_number,
-          room_url,
-          campaigns (
-            id,
-            expert_name,
-            goal
-          )
-        `)
-        .eq('id', sessionId)
-        .single()
+      try {
+        // Get session from public API
+        const sessionResponse = await fetch(`/api/public/interview/${sessionId}`)
 
-      if (sessionError || !sessionData) {
-        setError('Session not found')
+        if (!sessionResponse.ok) {
+          setError('Session not found')
+          setLoading(false)
+          return
+        }
+
+        const sessionData: SessionData = await sessionResponse.json()
+        setSession(sessionData)
+
+        // If no room URL, redirect to entry page
+        if (!sessionData.roomUrl) {
+          router.push(`/interview/${sessionId}`)
+          return
+        }
+
+        // Get interviewer token from public API (no auth required)
+        const response = await fetch(`/api/public/interview/${sessionId}/token?role=interviewer`)
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          setError(errorData.error || 'Failed to get room access')
+          setLoading(false)
+          return
+        }
+
+        const data = await response.json()
+        setRoomData({
+          roomUrl: data.roomUrl,
+          interviewerToken: data.token,
+        })
         setLoading(false)
-        return
-      }
-
-      setSession(sessionData as unknown as SessionData)
-
-      // If no room URL, redirect to entry page
-      if (!sessionData.room_url) {
-        router.push(`/interview/${sessionId}`)
-        return
-      }
-
-      // Get tokens for this session
-      const response = await fetch(`/api/daily/create-room?sessionId=${sessionId}`)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        setError(errorData.error || 'Failed to get room access')
+      } catch (err) {
+        setError('Failed to load session')
         setLoading(false)
-        return
       }
-
-      const data = await response.json()
-      setRoomData({
-        roomUrl: data.roomUrl,
-        interviewerToken: data.interviewerToken,
-      })
-      setLoading(false)
     }
 
     fetchData()
-  }, [sessionId, supabase, router])
+  }, [sessionId, router])
 
   const handleLeave = () => {
-    router.push(`/campaigns/${session?.campaign_id}`)
+    router.push(`/campaigns/${session?.campaignId}`)
   }
 
   if (loading) {
@@ -118,13 +105,13 @@ export default function InterviewerPage({ params }: { params: Promise<{ sessionI
   return (
     <InterviewRoom
       sessionId={sessionId}
-      campaignId={session.campaign_id}
+      campaignId={session.campaignId}
       roomUrl={roomData.roomUrl}
       token={roomData.interviewerToken}
       role="interviewer"
-      expertName={session.campaigns.expert_name}
-      goal={session.campaigns.goal || undefined}
-      sessionNumber={session.session_number}
+      expertName={session.expertName}
+      goal={session.goal || undefined}
+      sessionNumber={session.sessionNumber}
       onLeave={handleLeave}
     />
   )

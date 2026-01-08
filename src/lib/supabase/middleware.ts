@@ -57,7 +57,9 @@ export async function updateSession(request: NextRequest) {
     '/assess',      // Expert self-assessment form (token-based)
     '/feedback',    // Collaborator feedback form (token-based)
     '/guide',       // Interview guide (token-based, for interviewers)
+    '/interview',   // Interview room (guests and interviewers join via unique links)
     '/api/public',  // Public API endpoints for form submissions
+    '/api/daily',   // Daily.co room creation API
   ]
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)

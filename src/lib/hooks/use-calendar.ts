@@ -42,10 +42,15 @@ export function useCalendar() {
       .from('calendar_connections')
       .select('*')
       .eq('provider', 'microsoft')
-      .single()
+      .maybeSingle()
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows
-      setError(fetchError.message)
+    if (fetchError) {
+      // Log the error for debugging but don't show to user for non-critical failures
+      console.error('[useCalendar] Error checking connection:', fetchError.code, fetchError.message)
+      // Only show error for unexpected failures
+      if (fetchError.code !== 'PGRST116') {
+        setError(fetchError.message)
+      }
     }
 
     if (data) {

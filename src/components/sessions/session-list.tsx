@@ -5,10 +5,7 @@ import {
   Calendar,
   Trash,
   CircleNotch,
-  Play,
   Copy,
-  User,
-  Users,
   CaretDown,
   CaretUp,
   Sparkle,
@@ -285,7 +282,7 @@ export function SessionList({
                 {hasAiTopics ? (
                   <div className="mt-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-neutral-700 mb-3">
-                      <Sparkle className="w-4 h-4 text-amber-500" weight="fill" />
+                      <Sparkle className="w-4 h-4 text-primary" weight="fill" />
                       Topics to Cover
                     </div>
                     <div className="space-y-3">
@@ -323,22 +320,6 @@ export function SessionList({
 
                 {/* Actions */}
                 <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-wrap items-center gap-2">
-                  {/* Start/Continue button */}
-                  {(session.status === 'scheduled' || session.status === 'in_progress' || session.status === 'paused') && (
-                    <Button
-                      size="sm"
-                      variant={session.status === 'in_progress' || session.status === 'paused' ? 'default' : 'outline'}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        router.push(`/capture/${session.id}`)
-                      }}
-                      className="gap-1"
-                    >
-                      <Play className="w-3.5 h-3.5" weight="bold" />
-                      {session.status === 'in_progress' ? 'Continue' : session.status === 'paused' ? 'Resume' : 'Start Capture'}
-                    </Button>
-                  )}
-
                   {/* Link copy buttons */}
                   {showLinks && session.status !== 'completed' && session.status !== 'cancelled' && (
                     <>
@@ -349,11 +330,10 @@ export function SessionList({
                           e.stopPropagation()
                           copyLink(session.id, 'interviewer')
                         }}
-                        className="gap-1"
+                        className="gap-1.5"
                       >
-                        <User className="w-3.5 h-3.5" weight="bold" />
-                        <Copy className="w-3 h-3" weight="bold" />
                         Interviewer Link
+                        <Copy className="w-3.5 h-3.5" weight="bold" />
                       </Button>
                       <Button
                         size="sm"
@@ -362,11 +342,10 @@ export function SessionList({
                           e.stopPropagation()
                           copyLink(session.id, 'guest')
                         }}
-                        className="gap-1"
+                        className="gap-1.5"
                       >
-                        <Users className="w-3.5 h-3.5" weight="bold" />
-                        <Copy className="w-3 h-3" weight="bold" />
                         Guest Link
+                        <Copy className="w-3.5 h-3.5" weight="bold" />
                       </Button>
                     </>
                   )}
