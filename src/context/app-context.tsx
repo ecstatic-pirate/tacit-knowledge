@@ -135,6 +135,21 @@ function mapDBTaskToApp(dbTask: DBTask): Task {
   }
 }
 
+// Timeout error class for identification
+class TimeoutError extends Error {
+  constructor(operation: string, ms: number) {
+    super(`${operation} timed out after ${ms}ms`)
+    this.name = 'TimeoutError'
+  }
+}
+
+// Create a timeout promise
+function createTimeout(ms: number, operation: string): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new TimeoutError(operation, ms)), ms)
+  })
+}
+
 // Classify fatal auth errors that should immediately logout (no retry)
 // NOTE: 'JWT expired' is NOT fatal - let the auto-refresh mechanism handle it
 function isFatalAuthError(error: { message?: string; code?: string; status?: number } | null): boolean {
@@ -194,6 +209,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const authRetryCountRef = useRef(0)
   const isAuthCheckingRef = useRef(false)
   const initializedRef = useRef(false)
+  const isInitializingRef = useRef(false) // Global lock to prevent concurrent initializations
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null)
 
   // Handle auth errors by clearing state and redirecting to login
@@ -288,65 +304,81 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { user: null, shouldLogout: false }
   }, [supabase])
 
-  // Fetch user profile and organization
+  // Fetch user profile and organization with timeout protection
   const fetchUserData = useCallback(async (authUser: User): Promise<boolean> => {
     console.log('[AppProvider] fetchUserData called for user:', authUser.id, authUser.email)
 
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', authUser.id)
-      .single()
+    try {
+      const userQuery = supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
 
-    console.log('[AppProvider] fetchUserData result:', { userData: userData ? 'found' : 'null', error: userError?.message })
+      const { data: userData, error: userError } = await Promise.race([
+        userQuery,
+        createTimeout(10000, 'fetchUserData:users')
+      ])
 
-    if (userError) {
-      console.error('Error fetching user:', userError)
-      if (isFatalAuthError(userError)) {
-        await handleAuthError('fetchUserData:fatal')
-        return false
-      } else if (isAuthError(userError)) {
-        await handleAuthError('fetchUserData:auth')
-        return false
-      }
-      return false
-    }
+      console.log('[AppProvider] fetchUserData result:', { userData: userData ? 'found' : 'null', error: userError?.message })
 
-    if (!userData) {
-      console.error('No user data found')
-      return false
-    }
-
-    setAppUser({
-      id: userData.id,
-      email: userData.email,
-      fullName: userData.full_name ?? undefined,
-      avatarUrl: userData.avatar_url ?? undefined,
-      role: userData.role,
-      orgId: userData.org_id,
-    })
-
-    // Fetch organization
-    const { data: orgData, error: orgError } = await supabase
-      .from('organizations')
-      .select('*')
-      .eq('id', userData.org_id)
-      .single()
-
-    if (orgError) {
-      console.error('Error fetching organization:', orgError)
-      if (isFatalAuthError(orgError)) {
-        await handleAuthError('fetchUserData:org:fatal')
-        return false
-      } else if (isAuthError(orgError)) {
-        await handleAuthError('fetchUserData:org:auth')
+      if (userError) {
+        console.error('Error fetching user:', userError)
+        if (isFatalAuthError(userError)) {
+          await handleAuthError('fetchUserData:fatal')
+          return false
+        } else if (isAuthError(userError)) {
+          await handleAuthError('fetchUserData:auth')
+          return false
+        }
         return false
       }
+
+      if (!userData) {
+        console.error('No user data found')
+        return false
+      }
+
+      setAppUser({
+        id: userData.id,
+        email: userData.email,
+        fullName: userData.full_name ?? undefined,
+        avatarUrl: userData.avatar_url ?? undefined,
+        role: userData.role,
+        orgId: userData.org_id,
+      })
+
+      // Fetch organization
+      const orgQuery = supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', userData.org_id)
+        .single()
+
+      const { data: orgData, error: orgError } = await Promise.race([
+        orgQuery,
+        createTimeout(10000, 'fetchUserData:organizations')
+      ])
+
+      if (orgError) {
+        console.error('Error fetching organization:', orgError)
+        if (isFatalAuthError(orgError)) {
+          await handleAuthError('fetchUserData:org:fatal')
+          return false
+        } else if (isAuthError(orgError)) {
+          await handleAuthError('fetchUserData:org:auth')
+          return false
+        }
+        return false
+      }
+
+      setOrganization(orgData)
+      return true
+    } catch (err) {
+      console.error('[AppProvider] fetchUserData exception:', err)
+      // Timeout or other error - don't treat as fatal, allow retry
       return false
     }
-
-    setOrganization(orgData)
-    return true
   }, [supabase, handleAuthError])
 
   // Fetch campaigns with skills count
@@ -424,7 +456,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Initialize auth and data
   useEffect(() => {
     let isMounted = true
-    let isInitializing = false
 
     // Start auto-refresh to keep tokens fresh
     // This is critical for long-running sessions
@@ -434,9 +465,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const initializeUser = async (authUser: User, source: string = 'unknown') => {
       if (!isMounted) return
 
-      // Prevent concurrent initialization
-      if (isInitializing) {
-        console.log('[AppProvider] Already initializing, skipping duplicate call from:', source)
+      // Prevent concurrent initialization using global ref (shared across useEffects)
+      if (isInitializingRef.current) {
+        console.log('[AppProvider] Already initializing (global lock), skipping duplicate call from:', source)
         return
       }
 
@@ -446,14 +477,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      isInitializing = true
+      isInitializingRef.current = true
       console.log('[AppProvider] Initializing user from', source, ':', authUser.id, authUser.email)
       setUser(authUser)
 
       try {
         const userDataSuccess = await fetchUserData(authUser)
         if (!isMounted) {
-          isInitializing = false
+          isInitializingRef.current = false
           return
         }
 
@@ -473,7 +504,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (isMounted) {
         setIsLoading(false)
-        isInitializing = false
+        isInitializingRef.current = false
       }
     }
 
@@ -581,8 +612,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe()
       // Stop auto-refresh to avoid memory leaks
       supabase.auth.stopAutoRefresh()
-      // Reset initialized ref on unmount so HMR/Strict Mode can re-initialize
+      // Reset refs on unmount so HMR/Strict Mode can re-initialize
       initializedRef.current = false
+      isInitializingRef.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -593,9 +625,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let isMounted = true
 
     const validateAndRecoverSession = async () => {
-      // Prevent concurrent validation checks or after unmount
-      if (isAuthCheckingRef.current || !isMounted) {
-        console.log('[AppProvider] Auth check already in progress or unmounted, skipping')
+      // Prevent concurrent validation checks, concurrent initialization, or after unmount
+      if (isAuthCheckingRef.current || isInitializingRef.current || !isMounted) {
+        console.log('[AppProvider] Auth check/init already in progress or unmounted, skipping')
         return
       }
 
@@ -615,13 +647,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
           console.log('[AppProvider] Session validated successfully')
 
           // RECOVERY: If we have a valid user but no appUser data, try to fetch it
-          if (!appUser && validatedUser) {
+          // Double-check isInitializingRef to avoid concurrent data fetching
+          if (!appUser && validatedUser && !isInitializingRef.current) {
             console.log('[AppProvider] Detected missing appUser data, attempting recovery...')
-            const userDataSuccess = await fetchUserData(validatedUser)
-            if (userDataSuccess && isMounted) {
-              await refreshData()
-              initializedRef.current = true
-              console.log('[AppProvider] Data recovery successful')
+            isInitializingRef.current = true
+            try {
+              const userDataSuccess = await fetchUserData(validatedUser)
+              if (userDataSuccess && isMounted) {
+                await refreshData()
+                initializedRef.current = true
+                console.log('[AppProvider] Data recovery successful')
+              }
+            } finally {
+              isInitializingRef.current = false
             }
           }
         }
@@ -680,9 +718,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     // Immediately attempt recovery if we have user but no appUser
-    if (!appUser) {
+    // Skip if already initializing (from SIGNED_IN handler)
+    if (!appUser && !isInitializingRef.current) {
       console.log('[AppProvider] Starting immediate recovery attempt...')
       validateAndRecoverSession()
+    } else if (!appUser && isInitializingRef.current) {
+      console.log('[AppProvider] Skipping immediate recovery - initialization already in progress')
     }
 
     return () => {
