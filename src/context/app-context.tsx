@@ -498,8 +498,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (session?.user) {
             await initializeUser(session.user, 'INITIAL_SESSION')
           } else {
-            // No session - just stop loading, don't treat as error
-            setIsLoading(false)
+            // No session from INITIAL_SESSION - but don't trust it completely
+            // The checkSession() call will verify with getUser() as a fallback
+            console.log('[AppProvider] INITIAL_SESSION has no session, will verify with getUser()')
+            // Don't clear user state here - let checkSession verify first
           }
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Token was refreshed successfully - reset retry count
