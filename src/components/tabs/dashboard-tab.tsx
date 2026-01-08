@@ -45,7 +45,7 @@ export function DashboardTab({
         />
 
         {/* Stats Row */}
-        <div className={cn('grid grid-cols-3 gap-4', spacing.marginBottomSection)}>
+        <div className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4', spacing.marginBottomSection)}>
           <div className="border rounded-lg bg-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-secondary">

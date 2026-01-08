@@ -54,18 +54,18 @@ export const spacing = {
 export const containers = {
   // Standard page container
   pageContainer: 'min-h-screen bg-background',
-  pageInner: 'max-w-5xl mx-auto px-6 py-8',
+  pageInner: 'max-w-5xl mx-auto px-4 py-6 md:px-6 md:py-8',
 
   // Wider layouts (dashboards with more content)
-  wideContainer: 'max-w-6xl mx-auto px-6 py-8',
+  wideContainer: 'w-full max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-8',
 
   // Narrower layouts (forms, focused content)
-  narrowContainer: 'max-w-3xl mx-auto px-6 py-8',
+  narrowContainer: 'max-w-3xl mx-auto px-4 py-6 md:px-6 md:py-8',
 
   // Responsive containers (desktop-first approach)
-  pageInnerResponsive: 'max-w-5xl mx-auto px-6 py-8 sm:px-4 sm:py-6',
-  wideContainerResponsive: 'max-w-6xl mx-auto px-6 py-8 sm:px-4 sm:py-6',
-  narrowContainerResponsive: 'max-w-3xl mx-auto px-6 py-8 sm:px-4 sm:py-6',
+  pageInnerResponsive: 'max-w-5xl mx-auto px-4 py-6 md:px-6 md:py-8',
+  wideContainerResponsive: 'w-full max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-8',
+  narrowContainerResponsive: 'max-w-3xl mx-auto px-4 py-6 md:px-6 md:py-8',
 
   // Grid layouts
   gridDefault: 'grid grid-cols-1 gap-4',

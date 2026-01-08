@@ -622,11 +622,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Validate every 5 minutes
     const intervalId = setInterval(validateAndRecoverSession, 5 * 60 * 1000)
 
-    // Also validate on window focus (user returns to tab)
+    // Validate on window focus (user returns to tab)
     const handleFocus = () => {
+      console.log('[AppProvider] Window focused, validating session...')
       validateAndRecoverSession()
     }
     window.addEventListener('focus', handleFocus)
+
+    // Also validate on visibility change (more reliable for background/foreground)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[AppProvider] Page became visible, validating session...')
+        validateAndRecoverSession()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     // Immediately attempt recovery if we have user but no appUser
     if (!appUser) {
@@ -638,6 +648,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isMounted = false
       clearInterval(intervalId)
       window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [user, appUser, validateSessionWithRetry, handleAuthError, fetchUserData, refreshData])
 
