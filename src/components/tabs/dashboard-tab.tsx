@@ -4,7 +4,6 @@ import { Campaign, Task } from '@/types';
 import {
   Users,
   Clock,
-  CheckCircle,
   CaretRight,
   Plus
 } from 'phosphor-react';
@@ -45,7 +44,7 @@ export function DashboardTab({
         />
 
         {/* Stats Row */}
-        <div className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4', spacing.marginBottomSection)}>
+        <div className={cn('grid grid-cols-1 sm:grid-cols-2 gap-4', spacing.marginBottomSection)}>
           <div className="border rounded-lg bg-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-secondary">
@@ -65,17 +64,6 @@ export function DashboardTab({
               <div>
                 <p className="text-2xl font-semibold">{metrics.upcomingSessions}</p>
                 <p className="text-xs text-muted-foreground">Upcoming Sessions</p>
-              </div>
-            </div>
-          </div>
-          <div className="border rounded-lg bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-secondary">
-                <CheckCircle className="w-4 h-4 text-muted-foreground" weight="bold" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold">{metrics.totalSkillsCaptured}</p>
-                <p className="text-xs text-muted-foreground">Skills Captured</p>
               </div>
             </div>
           </div>
