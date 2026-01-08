@@ -304,9 +304,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { user: null, shouldLogout: false }
   }, [supabase])
 
-  // Fetch user profile and organization with timeout protection
-  const fetchUserData = useCallback(async (authUser: User): Promise<boolean> => {
-    console.log('[AppProvider] fetchUserData called for user:', authUser.id, authUser.email)
+  // Fetch user profile and organization with timeout protection and retry
+  const fetchUserData = useCallback(async (authUser: User, retryCount = 0): Promise<boolean> => {
+    const MAX_RETRIES = 3
+    const TIMEOUT_MS = 8000 // 8 seconds per attempt
+
+    console.log('[AppProvider] fetchUserData called for user:', authUser.id, authUser.email, retryCount > 0 ? `(retry ${retryCount})` : '')
 
     try {
       const userQuery = supabase
@@ -317,7 +320,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const { data: userData, error: userError } = await Promise.race([
         userQuery,
-        createTimeout(10000, 'fetchUserData:users')
+        createTimeout(TIMEOUT_MS, 'fetchUserData:users')
       ])
 
       console.log('[AppProvider] fetchUserData result:', { userData: userData ? 'found' : 'null', error: userError?.message })
@@ -375,8 +378,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setOrganization(orgData)
       return true
     } catch (err) {
+      // Check if it's a timeout error and we can retry
+      if (err instanceof TimeoutError && retryCount < MAX_RETRIES) {
+        console.log(`[AppProvider] fetchUserData timed out, retrying (${retryCount + 1}/${MAX_RETRIES})...`)
+        // Small delay before retry to let browser potentially unthrottle
+        await new Promise(resolve => setTimeout(resolve, 500))
+        return fetchUserData(authUser, retryCount + 1)
+      }
+
       console.error('[AppProvider] fetchUserData exception:', err)
-      // Timeout or other error - don't treat as fatal, allow retry
+      // Non-timeout error or max retries reached - don't treat as fatal, allow external retry
       return false
     }
   }, [supabase, handleAuthError])
