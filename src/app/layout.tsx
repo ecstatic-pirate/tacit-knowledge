@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Libre_Baskerville } from 'next/font/google';
 import './globals.css';
 import { Sidebar } from '@/components/layout/sidebar';
+import { MainContent } from '@/components/layout/main-content';
 import { ToastProvider } from '@/components/ui/toast';
 import { AppProvider } from '@/context/app-context';
 
@@ -33,11 +34,9 @@ export default function RootLayout({
           <ToastProvider>
             <div className="min-h-screen">
               <Sidebar />
-              <main className="min-h-screen lg:pl-64">
-                <div className="w-full max-w-full">
-                  {children}
-                </div>
-              </main>
+              <MainContent>
+                {children}
+              </MainContent>
             </div>
           </ToastProvider>
         </AppProvider>
