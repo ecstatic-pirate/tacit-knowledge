@@ -423,37 +423,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Initialize auth and data
   useEffect(() => {
     let isMounted = true
+    let isInitializing = false
 
-    const initializeUser = async (authUser: User) => {
+    const initializeUser = async (authUser: User, source: string = 'unknown') => {
       if (!isMounted) return
 
-      // Skip if already initializing or initialized in this mount cycle
-      if (initializedRef.current) {
-        console.log('[AppProvider] Already initialized, skipping')
+      // Prevent concurrent initialization
+      if (isInitializing) {
+        console.log('[AppProvider] Already initializing, skipping duplicate call from:', source)
         return
       }
 
-      // Mark as initializing (will be set to false on cleanup)
-      initializedRef.current = true
-      console.log('[AppProvider] Initializing user...', authUser.id)
+      // Skip if already successfully initialized with this user
+      if (initializedRef.current && user?.id === authUser.id && appUser) {
+        console.log('[AppProvider] Already initialized with this user, skipping')
+        return
+      }
+
+      isInitializing = true
+      console.log('[AppProvider] Initializing user from', source, ':', authUser.id, authUser.email)
       setUser(authUser)
 
       try {
         const userDataSuccess = await fetchUserData(authUser)
-        if (!isMounted) return
+        if (!isMounted) {
+          isInitializing = false
+          return
+        }
 
         if (userDataSuccess) {
           await refreshData()
+          // Only mark as initialized AFTER successful data fetch
+          initializedRef.current = true
           console.log('[AppProvider] User initialized successfully')
         } else {
-          console.log('[AppProvider] Failed to fetch user data')
+          console.log('[AppProvider] Failed to fetch user data, will allow retry')
+          // Don't set initializedRef - allow retry on next attempt
         }
       } catch (err) {
         console.error('[AppProvider] Exception during initialization:', err)
+        // Don't set initializedRef - allow retry on next attempt
       }
 
       if (isMounted) {
         setIsLoading(false)
+        isInitializing = false
       }
     }
 
@@ -465,6 +479,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setCampaigns([])
       setTasks([])
       setIsLoading(false)
+      initializedRef.current = false
     }
 
     // Set up auth listener
@@ -475,14 +490,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.log('[AppProvider] Auth state change:', event, 'session:', session ? 'exists' : 'null', 'user:', session?.user?.email)
 
         if (event === 'SIGNED_IN' && session?.user) {
-          await initializeUser(session.user)
+          await initializeUser(session.user, 'SIGNED_IN')
         } else if (event === 'SIGNED_OUT') {
-          initializedRef.current = false
           authRetryCountRef.current = 0
           clearUser()
         } else if (event === 'INITIAL_SESSION') {
           if (session?.user) {
-            await initializeUser(session.user)
+            await initializeUser(session.user, 'INITIAL_SESSION')
           } else {
             // No session - just stop loading, don't treat as error
             setIsLoading(false)
@@ -492,6 +506,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setUser(session.user)
           authRetryCountRef.current = 0
           console.log('[AppProvider] Token refreshed successfully')
+          // Re-fetch data if we don't have it yet
+          if (!appUser) {
+            await initializeUser(session.user, 'TOKEN_REFRESHED')
+          }
         } else if (event === 'USER_UPDATED' && session?.user) {
           // User was updated, refresh user data
           setUser(session.user)
@@ -499,30 +517,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     )
 
-    // Immediately check current session (handles React Strict Mode double-mount)
-    // This ensures we always check the session, even if onAuthStateChange doesn't re-fire
+    // Check session using getUser() which validates with server
+    // This is more reliable than getSession() which only reads from storage
     const checkSession = async () => {
       // Small delay to let onAuthStateChange fire first if it will
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       if (!isMounted) return
-      if (initializedRef.current) {
+
+      // Skip if already successfully initialized
+      if (initializedRef.current && appUser) {
         console.log('[AppProvider] Already initialized, skipping session check')
         return
       }
 
-      console.log('[AppProvider] Checking current session...')
+      console.log('[AppProvider] Checking current session with getUser()...')
 
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        // Use getUser() instead of getSession() - it validates with the server
+        const { data: { user: validatedUser }, error } = await supabase.auth.getUser()
 
         if (!isMounted) return
 
-        if (session?.user) {
-          console.log('[AppProvider] Session found, initializing user:', session.user.email)
-          await initializeUser(session.user)
+        if (error) {
+          console.log('[AppProvider] getUser error:', error.message)
+          // If it's a fatal auth error, clear everything
+          if (isFatalAuthError(error)) {
+            clearUser()
+            return
+          }
+        }
+
+        if (validatedUser) {
+          console.log('[AppProvider] Validated user found:', validatedUser.email)
+          await initializeUser(validatedUser, 'checkSession')
         } else {
-          console.log('[AppProvider] No session found, setting loading to false')
+          console.log('[AppProvider] No valid user found, setting loading to false')
           setIsLoading(false)
         }
       } catch (err) {
@@ -544,12 +574,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Periodic session validation with retry logic
+  // Periodic session validation with retry logic and data recovery
   useEffect(() => {
     if (!user) return
     let isMounted = true
 
-    const validateSession = async () => {
+    const validateAndRecoverSession = async () => {
       // Prevent concurrent validation checks or after unmount
       if (isAuthCheckingRef.current || !isMounted) {
         console.log('[AppProvider] Auth check already in progress or unmounted, skipping')
@@ -570,6 +600,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
           console.log('[AppProvider] Transient validation failure, will retry later')
         } else {
           console.log('[AppProvider] Session validated successfully')
+
+          // RECOVERY: If we have a valid user but no appUser data, try to fetch it
+          if (!appUser && validatedUser) {
+            console.log('[AppProvider] Detected missing appUser data, attempting recovery...')
+            const userDataSuccess = await fetchUserData(validatedUser)
+            if (userDataSuccess && isMounted) {
+              await refreshData()
+              initializedRef.current = true
+              console.log('[AppProvider] Data recovery successful')
+            }
+          }
         }
       } catch (err) {
         console.error('[AppProvider] Session validation error:', err)
@@ -579,20 +620,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     // Validate every 5 minutes
-    const intervalId = setInterval(validateSession, 5 * 60 * 1000)
+    const intervalId = setInterval(validateAndRecoverSession, 5 * 60 * 1000)
 
     // Also validate on window focus (user returns to tab)
     const handleFocus = () => {
-      validateSession()
+      validateAndRecoverSession()
     }
     window.addEventListener('focus', handleFocus)
+
+    // Immediately attempt recovery if we have user but no appUser
+    if (!appUser) {
+      console.log('[AppProvider] Starting immediate recovery attempt...')
+      validateAndRecoverSession()
+    }
 
     return () => {
       isMounted = false
       clearInterval(intervalId)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [user, validateSessionWithRetry, handleAuthError])
+  }, [user, appUser, validateSessionWithRetry, handleAuthError, fetchUserData, refreshData])
 
   // Cross-tab logout synchronization via BroadcastChannel
   useEffect(() => {
