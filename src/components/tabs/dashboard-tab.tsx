@@ -5,7 +5,8 @@ import {
   Users,
   Clock,
   CaretRight,
-  Plus
+  Plus,
+  CheckCircle
 } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';

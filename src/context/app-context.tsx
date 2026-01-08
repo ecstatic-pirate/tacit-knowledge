@@ -136,22 +136,23 @@ function mapDBTaskToApp(dbTask: DBTask): Task {
 }
 
 // Classify fatal auth errors that should immediately logout (no retry)
+// NOTE: 'JWT expired' is NOT fatal - let the auto-refresh mechanism handle it
 function isFatalAuthError(error: { message?: string; code?: string; status?: number } | null): boolean {
   if (!error) return false
 
   const fatalPatterns = [
-    'JWT expired',
     'invalid claim',
-    'invalid JWT',
-    'refresh_token_not_found',
-    'PGRST301', // PostgREST JWT error
+    'invalid JWT',           // Malformed JWT - can't be fixed by refresh
+    'refresh_token_not_found', // Refresh token is gone - session is dead
+    'Invalid Refresh Token',   // Refresh token invalid - session is dead
   ]
 
   const errorStr = `${error.message || ''} ${error.code || ''}`
   const statusCode = error.status || (error.code ? parseInt(error.code, 10) : 0)
 
-  // 401/403 are fatal - session is definitely invalid
-  if (statusCode === 401 || statusCode === 403) {
+  // Only 403 is truly fatal (forbidden) - 401 might just need a refresh
+  // PGRST301 (JWT error) is also retryable - refresh might fix it
+  if (statusCode === 403) {
     return true
   }
 
@@ -425,6 +426,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let isMounted = true
     let isInitializing = false
 
+    // Start auto-refresh to keep tokens fresh
+    // This is critical for long-running sessions
+    console.log('[AppProvider] Starting Supabase auto-refresh')
+    supabase.auth.startAutoRefresh()
+
     const initializeUser = async (authUser: User, source: string = 'unknown') => {
       if (!isMounted) return
 
@@ -573,6 +579,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false
       subscription.unsubscribe()
+      // Stop auto-refresh to avoid memory leaks
+      supabase.auth.stopAutoRefresh()
       // Reset initialized ref on unmount so HMR/Strict Mode can re-initialize
       initializedRef.current = false
     }
@@ -635,10 +643,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     window.addEventListener('focus', handleFocus)
 
     // Also validate on visibility change (more reliable for background/foreground)
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('[AppProvider] Page became visible, validating session...')
-        validateAndRecoverSession()
+        console.log('[AppProvider] Page became visible, restarting auto-refresh and re-syncing session...')
+
+        // Restart auto-refresh in case it stopped while page was hidden
+        supabase.auth.startAutoRefresh()
+
+        // Force a fresh session read from cookies
+        // This is critical: getSession() re-reads cookies, ensuring we have
+        // the latest tokens (which middleware may have refreshed)
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          console.log('[AppProvider] Re-synced session from cookies:', session ? 'found' : 'null')
+
+          // If we got a session from cookies but don't have appUser, try to recover
+          if (session?.user && !appUser) {
+            console.log('[AppProvider] Have session but missing appUser, recovering...')
+            await validateAndRecoverSession()
+          } else if (!session && user) {
+            // Cookies say no session but we think we have a user - validate
+            console.log('[AppProvider] Cookie session missing, validating with server...')
+            await validateAndRecoverSession()
+          }
+        } catch (err) {
+          console.error('[AppProvider] Error re-syncing session:', err)
+          // Fall back to regular validation
+          await validateAndRecoverSession()
+        }
+      } else {
+        // Page is hidden - stop auto-refresh to save resources
+        console.log('[AppProvider] Page hidden, stopping auto-refresh')
+        supabase.auth.stopAutoRefresh()
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -655,7 +691,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [user, appUser, validateSessionWithRetry, handleAuthError, fetchUserData, refreshData])
+  }, [user, appUser, supabase, validateSessionWithRetry, handleAuthError, fetchUserData, refreshData])
 
   // Cross-tab logout synchronization via BroadcastChannel
   useEffect(() => {

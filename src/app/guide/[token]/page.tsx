@@ -184,7 +184,7 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
   const { campaign, skills, sessions, selfAssessment, collaboratorInsights } = guideData
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -199,7 +199,7 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
       </header>
 
       {/* Main content */}
-      <main className="max-w-4xl mx-auto px-4 py-12">
+      <main className="flex-1 max-w-4xl mx-auto px-4 py-12 w-full">
         {/* Expert Overview */}
         <section className="mb-12">
           <div className="flex items-start gap-6 mb-6">
@@ -518,7 +518,7 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 mt-16">
+      <footer className="border-t border-border/40 mt-auto">
         <div className="max-w-4xl mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
           <p>Tacit Knowledge Capture Platform</p>
         </div>
