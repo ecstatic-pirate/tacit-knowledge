@@ -29,6 +29,8 @@ import {
   Calendar,
   Book,
   ArrowSquareOut,
+  ChartBar,
+  Clipboard,
 } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -37,6 +39,10 @@ import { Modal } from '@/components/ui/modal'
 import type { CampaignAccessToken, CollaboratorResponse, Campaign, SelfAssessment, Json } from '@/lib/supabase/database.types'
 import { containers } from '@/lib/design-system'
 import { SessionForm, SessionList } from '@/components/sessions'
+import { useKnowledgeCoverageStats } from '@/lib/hooks/use-knowledge-coverage'
+import { CoverageBar } from '@/components/ui/coverage-bar'
+
+type TabId = 'overview' | 'interviews' | 'preparation' | 'feedback'
 
 interface CampaignWithDetails extends Campaign {
   organizations?: { name: string } | null
@@ -154,6 +160,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [skills, setSkills] = useState<Skill[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabId>('overview')
+
+  // Knowledge coverage
+  const { coveragePercentage, coveredCount, mentionedCount, notDiscussedCount, totalCount: topicCount, isLoading: coverageLoading } = useKnowledgeCoverageStats(campaignId)
 
   // Expandable sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
@@ -564,7 +576,82 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </div>
         )}
 
-        {/* Campaign Details Section */}
+        {/* Tab Navigation */}
+        <div className="flex border-b mb-6">
+          {[
+            { id: 'overview' as TabId, label: 'Overview', icon: Target },
+            { id: 'interviews' as TabId, label: 'Interviews', icon: Calendar },
+            { id: 'preparation' as TabId, label: 'Preparation', icon: Clipboard },
+            { id: 'feedback' as TabId, label: 'Feedback', icon: ChatCircleText },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors',
+                activeTab === tab.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30'
+              )}
+            >
+              <tab.icon className="w-4 h-4" weight={activeTab === tab.id ? 'fill' : 'bold'} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <>
+            {/* Knowledge Coverage Section */}
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <ChartBar className="w-5 h-5" weight="bold" />
+                Knowledge Coverage
+              </h2>
+              <div className="border rounded-lg bg-card p-5">
+                {topicCount > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold">{coveragePercentage}%</span>
+                      <span className="text-sm text-muted-foreground">
+                        {coveredCount} of {topicCount} topics covered
+                      </span>
+                    </div>
+                    <CoverageBar
+                      segments={[
+                        { label: 'Covered', value: coveredCount, color: 'bg-emerald-500' },
+                        { label: 'Mentioned', value: mentionedCount, color: 'bg-amber-400' },
+                        { label: 'To Discuss', value: notDiscussedCount, color: 'bg-zinc-200' },
+                      ]}
+                      size="lg"
+                    />
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                        <span className="text-muted-foreground">Covered ({coveredCount})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-amber-400" />
+                        <span className="text-muted-foreground">Mentioned ({mentionedCount})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-zinc-200" />
+                        <span className="text-muted-foreground">To Discuss ({notDiscussedCount})</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <ChartBar className="w-8 h-8 mx-auto mb-2" weight="bold" />
+                    <p>No topics to track yet</p>
+                    <p className="text-sm">Topics will be created during interview sessions</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Campaign Details Section */}
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Target className="w-5 h-5" weight="bold" />
@@ -606,8 +693,49 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         </section>
+          </>
+        )}
 
-        {/* Skills Section */}
+        {/* Interviews Tab */}
+        {activeTab === 'interviews' && (
+          <>
+            {/* Interview Plan Section */}
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5" weight="bold" />
+                Interview Plan
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({sessions.filter(s => s.status === 'completed').length}/{sessions.length} completed)
+                </span>
+              </h2>
+              <div className="border rounded-lg bg-card overflow-hidden">
+                {/* Add session form */}
+                <div className="p-5 border-b bg-neutral-50/50 relative">
+                  <SessionForm
+                    campaignId={campaignId}
+                    nextSessionNumber={sessions.length > 0 ? Math.max(...sessions.map(s => s.sessionNumber)) + 1 : 1}
+                    onSessionCreated={fetchData}
+                  />
+                </div>
+
+                {/* Sessions list */}
+                <div className="p-5">
+                  <SessionList
+                    sessions={sessions}
+                    showLinks
+                    onSessionDeleted={fetchData}
+                    emptyMessage="No sessions added yet. Add your first session above."
+                  />
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Preparation Tab */}
+        {activeTab === 'preparation' && (
+          <>
+            {/* Skills Section */}
         {skills.length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -682,37 +810,6 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             </div>
           </section>
         )}
-
-        {/* Interview Plan Section */}
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5" weight="bold" />
-            Interview Plan
-            <span className="text-sm font-normal text-muted-foreground">
-              ({sessions.filter(s => s.status === 'completed').length}/{sessions.length} completed)
-            </span>
-          </h2>
-          <div className="border rounded-lg bg-card overflow-hidden">
-            {/* Add session form */}
-            <div className="p-5 border-b bg-neutral-50/50 relative">
-              <SessionForm
-                campaignId={campaignId}
-                nextSessionNumber={sessions.length > 0 ? Math.max(...sessions.map(s => s.sessionNumber)) + 1 : 1}
-                onSessionCreated={fetchData}
-              />
-            </div>
-
-            {/* Sessions list */}
-            <div className="p-5">
-              <SessionList
-                sessions={sessions}
-                showLinks
-                onSessionDeleted={fetchData}
-                emptyMessage="No sessions added yet. Add your first session above."
-              />
-            </div>
-          </div>
-        </section>
 
         {/* Interviewer Guide Section */}
         <section className="mb-8">
@@ -892,9 +989,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             </div>
           )}
         </section>
+          </>
+        )}
 
-        {/* Collaborators Section */}
-        <section className="mb-8">
+        {/* Feedback Tab */}
+        {activeTab === 'feedback' && (
+          <>
+            {/* Collaborators Section */}
+            <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Users className="w-5 h-5" weight="bold" />
@@ -1070,7 +1172,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               </Button>
             </div>
           )}
-        </section>
+            </section>
+          </>
+        )}
       </div>
 
       {/* Collaborator Modal */}

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Lightbulb, FolderSimple, ArrowRight } from 'phosphor-react';
 import { createClient } from '@/lib/supabase/client';
 import { useApp } from '@/context/app-context';
+import { useKnowledgeCoverageStats } from '@/lib/hooks/use-knowledge-coverage';
 import { Button } from '@/components/ui/button';
 import { SimpleProgressBar } from '@/components/ui/coverage-bar';
 import { PageHeader } from '@/components/ui/page-header';
@@ -43,6 +44,9 @@ export default function PersonDetailPage() {
   const [expert, setExpert] = useState<ExpertData | null>(null);
   const [insights, setInsights] = useState<InsightData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Use the knowledge coverage hook for accurate coverage calculation
+  const { coveragePercentage, coveredCount, totalCount, isLoading: coverageLoading } = useKnowledgeCoverageStats(personId);
 
   useEffect(() => {
     if (authLoading) return;
@@ -136,8 +140,6 @@ export default function PersonDetailPage() {
     .toUpperCase()
     .substring(0, 2);
 
-  const coverage = Math.min(100, Math.round((insights.length / 15) * 100));
-
   // Group insights by project
   const insightsByProject = insights.reduce<Record<string, InsightData[]>>((acc, insight) => {
     const key = insight.projectName || 'Unassigned';
@@ -208,13 +210,26 @@ export default function PersonDetailPage() {
           <div className="border rounded-lg bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-muted-foreground">Knowledge Coverage</span>
-              <span className="text-sm font-semibold">{coverage}%</span>
+              <span className="text-sm font-semibold">
+                {totalCount > 0 ? `${coveragePercentage}%` : 'No topics defined'}
+              </span>
             </div>
-            <SimpleProgressBar
-              value={coverage}
-              color={coverage >= 70 ? 'bg-emerald-500' : coverage >= 40 ? 'bg-amber-500' : 'bg-red-400'}
-              size="lg"
-            />
+            {totalCount > 0 ? (
+              <>
+                <SimpleProgressBar
+                  value={coveragePercentage}
+                  color={coveragePercentage >= 70 ? 'bg-emerald-500' : coveragePercentage >= 40 ? 'bg-amber-500' : 'bg-red-400'}
+                  size="lg"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {coveredCount} of {totalCount} topics covered
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Topics will be tracked during interview sessions
+              </p>
+            )}
           </div>
         </div>
 
