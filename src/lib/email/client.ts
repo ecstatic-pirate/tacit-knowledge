@@ -1,6 +1,17 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazily initialize Resend to avoid build-time errors when API key is not available
+let resend: Resend | null = null
+
+function getResendClient(): Resend {
+  if (!resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY environment variable is not set')
+    }
+    resend = new Resend(process.env.RESEND_API_KEY)
+  }
+  return resend
+}
 
 // In development, skip actual email sending unless a verified domain is configured
 const isDev = process.env.NODE_ENV === 'development'
@@ -27,7 +38,8 @@ export async function sendEmail({ to, subject, html, from }: SendEmailOptions) {
   }
 
   try {
-    const { data, error } = await resend.emails.send({
+    const client = getResendClient()
+    const { data, error } = await client.emails.send({
       from: fromEmail,
       to,
       subject,
