@@ -22,6 +22,9 @@ export interface Collaborator {
   role: 'successor' | 'teammate' | 'partner' | 'manager' | 'report'
 }
 
+// Campaign subject type
+export type CampaignSubjectType = 'person' | 'project' | 'team'
+
 // App-level types that map database types to UI-friendly format
 export interface Campaign {
   id: string
@@ -41,6 +44,9 @@ export interface Campaign {
   selfAssessment?: SelfAssessment
   collaborators?: Collaborator[]
   skills?: string // Raw skills text from form
+  subjectType: CampaignSubjectType
+  projectId?: string
+  teamId?: string
 }
 
 export interface Task {
@@ -120,6 +126,9 @@ function mapDBCampaignToApp(dbCampaign: DBCampaign, skillsCount: number): Campai
     expertEmail: dbCampaign.expert_email ?? undefined,
     createdAt: dbCampaign.created_at ?? undefined,
     selfAssessment: dbCampaign.self_assessment as SelfAssessment | undefined,
+    subjectType: (dbCampaign.subject_type as CampaignSubjectType) ?? 'person',
+    projectId: dbCampaign.project_id ?? undefined,
+    teamId: dbCampaign.team_id ?? undefined,
   }
 }
 
@@ -307,7 +316,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Fetch user profile and organization with timeout protection and retry
   const fetchUserData = useCallback(async (authUser: User, retryCount = 0): Promise<boolean> => {
     const MAX_RETRIES = 3
-    const TIMEOUT_MS = 8000 // 8 seconds per attempt
+    const TIMEOUT_MS = 15000 // 15 seconds per attempt (browsers throttle timers in background tabs)
 
     console.log('[AppProvider] fetchUserData called for user:', authUser.id, authUser.email, retryCount > 0 ? `(retry ${retryCount})` : '')
 
@@ -380,9 +389,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       // Check if it's a timeout error and we can retry
       if (err instanceof TimeoutError && retryCount < MAX_RETRIES) {
-        console.log(`[AppProvider] fetchUserData timed out, retrying (${retryCount + 1}/${MAX_RETRIES})...`)
-        // Small delay before retry to let browser potentially unthrottle
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = 1000 * Math.pow(2, retryCount)
+        console.log(`[AppProvider] fetchUserData timed out, retrying in ${delay}ms (${retryCount + 1}/${MAX_RETRIES})...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
         return fetchUserData(authUser, retryCount + 1)
       }
 
@@ -938,6 +948,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         self_assessment: campaign.selfAssessment as unknown as Json,
         collaborators: campaign.collaborators as unknown as Json,
         created_by: user?.id,
+        subject_type: campaign.subjectType ?? 'person',
+        project_id: campaign.projectId ?? null,
+        team_id: campaign.teamId ?? null,
       })
       .select()
       .single()

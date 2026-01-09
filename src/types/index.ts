@@ -70,5 +70,46 @@ export interface Document {
 
 export type TabName = 'dashboard' | 'prepare' | 'capture' | 'planner' | 'reports'
 
+// Campaign subject type for distinguishing what the campaign is about
+export type CampaignSubjectType = 'person' | 'project' | 'team'
+
+// Concierge types for AI chat interface
+export interface Conversation {
+  id: string
+  userId: string
+  orgId: string
+  title: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Message {
+  id: string
+  conversationId: string
+  role: 'user' | 'assistant'
+  content: string
+  sources?: MessageSource[]
+  createdAt: string
+}
+
+export interface MessageSource {
+  type: 'transcript' | 'insight' | 'graph_node' | 'document'
+  id: string
+  title: string
+  excerpt: string
+  relevanceScore: number
+  metadata?: Record<string, unknown>
+}
+
+export interface SearchResult {
+  id: string
+  contentType: 'transcript' | 'insight' | 'graph_node' | 'document'
+  contentId: string
+  campaignId: string | null
+  chunkText: string
+  metadata: Record<string, unknown> | null
+  similarity: number
+}
+
 // Re-export database types for direct database access
 export type * from '@/lib/supabase/database.types'

@@ -125,14 +125,14 @@ export async function generateInterviewPlan(
   const selfAssessmentText = `
 What they know: ${selfAssessment.what_you_know || 'Not provided'}
 Questions people ask them: ${selfAssessment.questions_people_ask?.join(', ') || 'Not provided'}
-What will break after they leave: ${selfAssessment.what_will_break || 'Not provided'}
+What might become challenging: ${selfAssessment.what_will_break || 'Not provided'}
 Topics they want to cover: ${selfAssessment.topics_to_cover?.join(', ') || 'Not provided'}
 `
 
   const openai = getOpenAIClient()
   const response = await openai.responses.create({
     model: MODELS.STANDARD,
-    input: `You are an expert interviewer preparing to capture tacit knowledge from a departing expert.
+    input: `You are an expert interviewer preparing to capture tacit knowledge from an expert.
 
 Expert: ${expertName}
 Role: ${expertRole}
@@ -155,7 +155,7 @@ Focus questions on:
 - Decision rationale ("why" questions)
 - Edge cases and gotchas
 - Relationships and who to contact
-- What will be hard after they leave
+- What might be challenging without this knowledge
 
 Respond in JSON format:
 {

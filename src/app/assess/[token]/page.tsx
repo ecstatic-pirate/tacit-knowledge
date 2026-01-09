@@ -373,14 +373,14 @@ export default function ExpertAssessmentPage({ params }: { params: Promise<{ tok
           {/* What Will Break */}
           <section>
             <label className="block mb-3">
-              <span className="text-lg font-medium">What will break when you leave?</span>
+              <span className="text-lg font-medium">What might become challenging without your expertise?</span>
               <span className="block text-sm text-muted-foreground mt-1">
-                Be honest about the processes, relationships, or knowledge that depend on you being available.
+                Be honest about the processes, relationships, or knowledge that depend on your involvement.
               </span>
             </label>
             <textarea
               className="w-full min-h-[160px] px-4 py-3 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-              placeholder="The vendor relationship with Acme Corp relies on my personal contact there. Also, the monthly reconciliation process has edge cases that only I know how to handle..."
+              placeholder="The vendor relationship with Acme Corp relies on my personal contact there. The monthly reconciliation process has edge cases that only I know how to handle..."
               value={formData.what_will_break}
               onChange={(e) => setFormData(prev => ({ ...prev, what_will_break: e.target.value }))}
             />

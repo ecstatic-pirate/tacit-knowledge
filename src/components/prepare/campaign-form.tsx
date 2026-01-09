@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { User, Sparkle, CircleNotch, ArrowRight, ArrowLeft, Target, Check, FileText, Users, Plus, X } from 'phosphor-react'
+import { useSearchParams } from 'next/navigation'
+import { User, Sparkle, CircleNotch, ArrowRight, ArrowLeft, Target, Check, FileText, Users, Plus, X, UserCircle, Folder, UsersThree } from 'phosphor-react'
 import { Input, Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { FileUpload } from './file-upload'
 import { AISuggestions } from './ai-suggestions'
+import type { CampaignSubjectType } from '@/types'
 
 interface CampaignFormProps {
   onSubmit: (data: CampaignFormData) => Promise<{ id: string } | void>
@@ -31,16 +33,46 @@ export interface CampaignFormData {
   captureMode: 'human_led' | 'ai_guided' | 'hybrid'
   expertEmail?: string
   collaborators: Collaborator[]
+  subjectType: CampaignSubjectType
+  projectId?: string
+  teamId?: string
 }
 
 type CaptureMode = 'human_led' | 'ai_guided' | 'hybrid'
 
 const STEPS = [
+  { id: 0, title: 'Subject', description: 'What to document?' },
   { id: 1, title: 'Expert', description: 'Who holds the knowledge?' },
   { id: 2, title: 'Objective', description: 'What to capture?' },
   { id: 3, title: 'Collaborators', description: 'Who else should provide input?' },
   { id: 4, title: 'Approach', description: 'How to capture?' },
   { id: 5, title: 'Documents', description: 'Upload & generate plan' },
+]
+
+const subjectTypeOptions: Array<{
+  id: CampaignSubjectType
+  label: string
+  description: string
+  icon: typeof UserCircle
+}> = [
+  {
+    id: 'person',
+    label: 'Person',
+    description: 'Capture expertise from an individual',
+    icon: UserCircle,
+  },
+  {
+    id: 'project',
+    label: 'Project',
+    description: 'Document knowledge about a project',
+    icon: Folder,
+  },
+  {
+    id: 'team',
+    label: 'Team',
+    description: 'Capture team practices and processes',
+    icon: UsersThree,
+  },
 ]
 
 const captureModeOptions: Array<{
@@ -71,7 +103,8 @@ export function CampaignForm({
   onEditSuggestions,
   isSubmitting = false
 }: CampaignFormProps) {
-  const [currentStep, setCurrentStep] = useState(1)
+  const searchParams = useSearchParams()
+  const [currentStep, setCurrentStep] = useState(0)
   const [createdCampaignId, setCreatedCampaignId] = useState<string | null>(null)
   const [extractedSkills, setExtractedSkills] = useState<string[]>([])
   const [formData, setFormData] = useState<CampaignFormData>({
@@ -84,6 +117,7 @@ export function CampaignForm({
     captureMode: 'hybrid',
     expertEmail: '',
     collaborators: [],
+    subjectType: 'person',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -96,13 +130,31 @@ export function CampaignForm({
     )
   }, [])
 
+  // Parse URL params for pre-filling (from Knowledge Hub CTAs)
+  useEffect(() => {
+    const type = searchParams.get('type') as CampaignSubjectType | null
+    const projectId = searchParams.get('projectId')
+    const teamId = searchParams.get('teamId')
+
+    if (type && ['person', 'project', 'team'].includes(type)) {
+      setFormData(prev => ({
+        ...prev,
+        subjectType: type,
+        projectId: projectId ?? undefined,
+        teamId: teamId ?? undefined,
+      }))
+      // Skip step 0 if type is pre-selected
+      setCurrentStep(1)
+    }
+  }, [searchParams])
+
   const fillDemoData = () => {
     setFormData({
       name: 'James Morrison',
       role: 'Billing Systems Lead',
       department: 'Operations',
       yearsExperience: 15,
-      goal: 'Capture institutional knowledge about legacy billing reconciliation processes before retirement.',
+      goal: 'Capture institutional knowledge about legacy billing reconciliation processes.',
       skills: 'SAP integration\nException handling\nMonth-end close procedures\nVendor dispute resolution',
       captureMode: 'hybrid',
       expertEmail: 'james.morrison@example.com',
@@ -111,7 +163,31 @@ export function CampaignForm({
         { name: 'Mike Johnson', email: 'mike.johnson@example.com', role: 'teammate' },
         { name: 'Lisa Park', email: 'lisa.park@example.com', role: 'partner' },
       ],
+      subjectType: 'person',
     })
+  }
+
+  // Dynamic labels based on subject type
+  const getExpertLabel = () => {
+    switch (formData.subjectType) {
+      case 'project':
+        return 'Project Expert'
+      case 'team':
+        return 'Team Representative'
+      default:
+        return 'Expert'
+    }
+  }
+
+  const getStepDescription = () => {
+    switch (formData.subjectType) {
+      case 'project':
+        return 'Who knows most about this project?'
+      case 'team':
+        return 'Who can represent the team\'s knowledge?'
+      default:
+        return 'Who holds the knowledge?'
+    }
   }
 
   const [newCollaborator, setNewCollaborator] = useState<Collaborator>({
@@ -181,7 +257,7 @@ export function CampaignForm({
   }
 
   const handleBack = () => {
-    if (currentStep > 1) {
+    if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
     }
   }
@@ -253,6 +329,78 @@ export function CampaignForm({
         )}
       </div>
 
+      {/* Step 0: Subject Type Selection */}
+      {currentStep === 0 && (
+        <div className="border rounded-lg bg-card">
+          <div className="p-4 border-b flex items-center gap-3">
+            <div className="p-2 rounded-md bg-secondary">
+              <Sparkle className="w-4 h-4 text-muted-foreground" weight="bold" />
+            </div>
+            <div>
+              <h3 className="font-medium">What are you documenting?</h3>
+              <p className="text-xs text-muted-foreground">
+                Select the type of knowledge you want to capture
+              </p>
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="grid gap-3">
+              {subjectTypeOptions.map((option) => {
+                const Icon = option.icon
+                return (
+                  <label
+                    key={option.id}
+                    className={cn(
+                      'flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-colors border',
+                      formData.subjectType === option.id
+                        ? 'border-foreground bg-secondary/50'
+                        : 'border-border hover:bg-secondary/30'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="subject-type"
+                      value={option.id}
+                      checked={formData.subjectType === option.id}
+                      onChange={() => setFormData({ ...formData, subjectType: option.id })}
+                      className="sr-only"
+                    />
+                    <div
+                      className={cn(
+                        'w-10 h-10 rounded-lg flex items-center justify-center transition-colors',
+                        formData.subjectType === option.id
+                          ? 'bg-foreground text-background'
+                          : 'bg-secondary text-muted-foreground'
+                      )}
+                    >
+                      <Icon className="w-5 h-5" weight="bold" />
+                    </div>
+                    <div className="flex-1">
+                      <span className="font-medium text-sm">{option.label}</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {option.description}
+                      </p>
+                    </div>
+                    <div
+                      className={cn(
+                        'w-4 h-4 rounded-full border-2 flex items-center justify-center',
+                        formData.subjectType === option.id
+                          ? 'border-foreground'
+                          : 'border-muted-foreground'
+                      )}
+                    >
+                      {formData.subjectType === option.id && (
+                        <div className="w-2 h-2 rounded-full bg-foreground" />
+                      )}
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Step 1: Expert Profile */}
       {currentStep === 1 && (
         <div className="border rounded-lg bg-card">
@@ -261,15 +409,15 @@ export function CampaignForm({
               <User className="w-4 h-4 text-muted-foreground" weight="bold" />
             </div>
             <div>
-              <h3 className="font-medium">Expert Profile</h3>
+              <h3 className="font-medium">{getExpertLabel()} Profile</h3>
               <p className="text-xs text-muted-foreground">
-                Basic information about the knowledge holder
+                {getStepDescription()}
               </p>
             </div>
           </div>
           <div className="p-4 space-y-4">
             <Input
-              label="Expert Name"
+              label={`${getExpertLabel()} Name`}
               placeholder="James Morrison"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -528,7 +676,7 @@ export function CampaignForm({
       {currentStep < 5 && (
         <div className="flex items-center justify-between pt-2">
           <div>
-            {currentStep > 1 && (
+            {currentStep > 0 && (
               <Button type="button" variant="ghost" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4 mr-2" weight="bold" />
                 Back
@@ -538,7 +686,7 @@ export function CampaignForm({
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground mr-2">
-              Step {currentStep} of {STEPS.length}
+              Step {currentStep + 1} of {STEPS.length}
             </span>
             <Button type="button" onClick={handleNext} disabled={isSubmitting}>
               {isSubmitting ? (

@@ -401,7 +401,7 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
 
                 {selfAssessment.what_will_break && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-2">What Would Break Without Them</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">What Might Be Challenging</p>
                     <p className="text-foreground">{selfAssessment.what_will_break}</p>
                   </div>
                 )}

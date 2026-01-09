@@ -131,6 +131,7 @@ export type Database = {
           self_assessment: Json | null
           started_at: string | null
           status: string | null
+          subject_type: string
           team_id: string | null
           total_sessions: number | null
           updated_at: string | null
@@ -158,6 +159,7 @@ export type Database = {
           self_assessment?: Json | null
           started_at?: string | null
           status?: string | null
+          subject_type?: string
           team_id?: string | null
           total_sessions?: number | null
           updated_at?: string | null
@@ -185,6 +187,7 @@ export type Database = {
           self_assessment?: Json | null
           started_at?: string | null
           status?: string | null
+          subject_type?: string
           team_id?: string | null
           total_sessions?: number | null
           updated_at?: string | null
@@ -1091,6 +1094,143 @@ export type Database = {
           },
         ]
       }
+      concierge_conversations: {
+        Row: {
+          id: string
+          user_id: string
+          org_id: string
+          title: string
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          org_id: string
+          title?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          org_id?: string
+          title?: string
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_conversations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concierge_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          role: string
+          content: string
+          sources: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          role: string
+          content: string
+          sources?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          role?: string
+          content?: string
+          sources?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_embeddings: {
+        Row: {
+          id: string
+          org_id: string
+          content_type: string
+          content_id: string
+          campaign_id: string | null
+          chunk_text: string
+          chunk_index: number
+          metadata: Json
+          embedding: unknown | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          content_type: string
+          content_id: string
+          campaign_id?: string | null
+          chunk_text: string
+          chunk_index?: number
+          metadata?: Json
+          embedding?: unknown | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          content_type?: string
+          content_id?: string
+          campaign_id?: string | null
+          chunk_text?: string
+          chunk_index?: number
+          metadata?: Json
+          embedding?: unknown | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_embeddings_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_embeddings_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transcript_lines: {
         Row: {
           confidence: number | null
@@ -1210,6 +1350,25 @@ export type Database = {
       schedule_token_reminders: {
         Args: { p_token_id: string }
         Returns: undefined
+      }
+      search_knowledge: {
+        Args: {
+          query_embedding: unknown
+          match_threshold?: number
+          match_count?: number
+          filter_org_id?: string
+          filter_campaign_id?: string
+          filter_content_types?: string[]
+        }
+        Returns: {
+          id: string
+          content_type: string
+          content_id: string
+          campaign_id: string | null
+          chunk_text: string
+          metadata: Json
+          similarity: number
+        }[]
       }
     }
     Enums: {
@@ -1346,6 +1505,9 @@ export type CalendarConnection = Tables<'calendar_connections'>
 export type CampaignAccessToken = Tables<'campaign_access_tokens'>
 export type CollaboratorResponse = Tables<'collaborator_responses'>
 export type EmailReminder = Tables<'email_reminders'>
+export type ConciergeConversation = Tables<'concierge_conversations'>
+export type ConciergeMessage = Tables<'concierge_messages'>
+export type KnowledgeEmbedding = Tables<'knowledge_embeddings'>
 
 // SelfAssessment type for the JSONB field
 export type SelfAssessment = {

@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/app-context';
 import { useToast } from '@/components/ui/toast';
 import { PrepareTab } from '@/components/tabs';
 import { CampaignFormData } from '@/components/prepare';
+import { CircleNotch } from 'phosphor-react';
 
-export default function PreparePage() {
+function PreparePageContent() {
   const { addCampaign } = useApp();
   const { showToast } = useToast();
   const router = useRouter();
@@ -28,6 +29,9 @@ export default function PreparePage() {
         expertEmail: data.expertEmail || undefined,
         collaborators: data.collaborators,
         skills: data.skills || undefined,
+        subjectType: data.subjectType,
+        projectId: data.projectId,
+        teamId: data.teamId,
       });
       showToast(`Campaign "${data.name}" created successfully!`);
 
@@ -76,5 +80,21 @@ export default function PreparePage() {
       onAcceptSuggestions={handleAcceptSuggestions}
       onEditSuggestions={handleEditSuggestions}
     />
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <CircleNotch className="w-8 h-8 animate-spin text-muted-foreground" weight="bold" />
+    </div>
+  );
+}
+
+export default function PreparePage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <PreparePageContent />
+    </Suspense>
   );
 }

@@ -197,3 +197,40 @@ export function SessionsSkeleton() {
     </div>
   );
 }
+
+// Concierge page skeleton
+export function ConciergeSkeleton() {
+  return (
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-9 w-9 rounded-lg" />
+      </div>
+
+      {/* Chat area skeleton */}
+      <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Skeleton className="w-16 h-16 rounded-2xl mx-auto mb-6" />
+            <Skeleton className="h-8 w-48 mx-auto mb-2" />
+            <Skeleton className="h-4 w-80 mx-auto mb-8" />
+            <div className="space-y-3 max-w-md mx-auto">
+              <Skeleton className="h-16 w-full rounded-xl" />
+              <Skeleton className="h-16 w-full rounded-xl" />
+              <Skeleton className="h-16 w-full rounded-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Input skeleton */}
+        <div className="p-4 border-t border-border">
+          <div className="flex gap-3">
+            <Skeleton className="flex-1 h-12 rounded-xl" />
+            <Skeleton className="w-12 h-12 rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

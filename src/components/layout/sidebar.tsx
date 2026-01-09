@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Sparkle, Plus, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText } from 'phosphor-react';
+import { Sparkle, Plus, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText, ChatCircleDots } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/app-context';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Campaigns', href: '/dashboard', icon: ChartBar },
   { label: 'Sessions', href: '/planner', icon: Calendar },
   { label: 'Knowledge Hub', href: '/graph', icon: Lightbulb },
+  { label: 'Concierge', href: '/concierge', icon: ChatCircleDots },
   { label: 'Reports', href: '/reports', icon: FileText, disabled: true },
   { label: 'Notifications', href: '/notifications', icon: Bell, disabled: true },
 ];
