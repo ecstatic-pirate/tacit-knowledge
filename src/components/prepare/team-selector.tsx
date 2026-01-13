@@ -163,14 +163,7 @@ export function TeamSelector({
                       style={{ backgroundColor: team.color }}
                     />
                   )}
-                  <div>
-                    <div className="font-medium">{team.name}</div>
-                    {team.description && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {team.description}
-                      </div>
-                    )}
-                  </div>
+                  <span className="font-medium">{team.name}</span>
                 </button>
               ))}
 

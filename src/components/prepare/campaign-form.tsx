@@ -206,8 +206,8 @@ const EXPERT_SIDEBAR: Record<number, SidebarContent> = {
     title: 'Expert Profile Tips',
     tips: [
       { icon: Lightbulb, text: 'Include their official title for accurate documentation' },
-      { icon: Info, text: 'Years of experience helps calibrate questions' },
-      { icon: CheckCircle, text: 'Email enables sending capture invitations directly' },
+      { icon: Info, text: 'Email enables sending capture invitations directly' },
+      { icon: CheckCircle, text: 'Team is selected in the next step' },
     ],
   },
   1: {
@@ -375,8 +375,6 @@ export function CampaignForm({
         ...formData,
         name: 'James Morrison',
         role: 'Billing Systems Lead',
-        department: 'Operations',
-        yearsExperience: 15,
         goal: 'Capture institutional knowledge about legacy billing reconciliation processes.',
         skills: 'SAP integration\nException handling\nMonth-end close procedures\nVendor dispute resolution',
         captureMode: 'hybrid',
@@ -653,21 +651,6 @@ export function CampaignForm({
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   error={errors.role}
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Department"
-                    placeholder="Operations"
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  />
-                  <Input
-                    label="Years of Experience"
-                    type="number"
-                    placeholder="15"
-                    value={formData.yearsExperience || ''}
-                    onChange={(e) => setFormData({ ...formData, yearsExperience: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
                 <Input
                   label="Email"
                   type="email"
