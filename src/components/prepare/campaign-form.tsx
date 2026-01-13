@@ -1,21 +1,18 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { User, Sparkle, CircleNotch, ArrowRight, ArrowLeft, Target, Check, Users, Plus, X, UserCircle, Folder, Calendar, Lightning, Lightbulb, Info, CheckCircle } from 'phosphor-react'
+import { User, Sparkle, CircleNotch, ArrowRight, ArrowLeft, Check, Users, Plus, X, UserCircle, Folder, Calendar, Lightning, Lightbulb, Info, CheckCircle } from 'phosphor-react'
 import { Input, Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { FileUpload } from './file-upload'
-import { AISuggestions } from './ai-suggestions'
 import { TeamSelector } from './team-selector'
 import { ProjectSelector } from './project-selector'
 import type { CampaignSubjectType } from '@/types'
 
 interface CampaignFormProps {
   onSubmit: (data: CampaignFormData) => Promise<{ id: string } | void>
-  onAcceptSuggestions?: (campaignId: string) => void
-  onEditSuggestions?: (campaignId: string) => void
   isSubmitting?: boolean
 }
 
@@ -59,23 +56,21 @@ export interface CampaignFormData {
   suggestedDomains?: { name: string; confidence: number; description: string }[]
 }
 
-// Steps for Expert campaign flow
+// Steps for Expert campaign flow (simplified - no AI domains step)
 const EXPERT_STEPS = [
   { id: 0, title: 'Expert', description: 'Who holds the knowledge?' },
   { id: 1, title: 'Team', description: 'Which team are they on?' },
   { id: 2, title: 'Documents', description: 'Upload relevant files' },
-  { id: 3, title: 'Domains', description: 'AI-suggested knowledge areas' },
-  { id: 4, title: 'Collaborators', description: 'Who else can provide input?' },
-  { id: 5, title: 'Capture', description: 'How to conduct sessions?' },
+  { id: 3, title: 'Collaborators', description: 'Who else can provide input?' },
+  { id: 4, title: 'Capture', description: 'How to conduct sessions?' },
 ]
 
-// Steps for Project campaign flow (no Team step - projects are cross-functional)
+// Steps for Project campaign flow (simplified - no AI focus step)
 const PROJECT_STEPS = [
   { id: 0, title: 'Project', description: 'What project to document?' },
   { id: 1, title: 'Documents', description: 'Upload project artifacts' },
   { id: 2, title: 'Contributors', description: 'Who to interview?' },
   { id: 3, title: 'Capture', description: 'How to conduct sessions?' },
-  { id: 4, title: 'Focus', description: 'AI-suggested focus areas' },
 ]
 
 // Subject type selection (only Expert and Project now)
@@ -211,8 +206,8 @@ const EXPERT_SIDEBAR: Record<number, SidebarContent> = {
     title: 'Expert Profile Tips',
     tips: [
       { icon: Lightbulb, text: 'Include their official title for accurate documentation' },
-      { icon: Info, text: 'Years of experience helps AI calibrate questions' },
-      { icon: CheckCircle, text: 'Email enables sending interview invitations directly' },
+      { icon: Info, text: 'Years of experience helps calibrate questions' },
+      { icon: CheckCircle, text: 'Email enables sending capture invitations directly' },
     ],
   },
   1: {
@@ -226,49 +221,42 @@ const EXPERT_SIDEBAR: Record<number, SidebarContent> = {
     title: 'Document Upload',
     tips: [
       { icon: Lightbulb, text: 'PDFs, Word docs, and text files work best' },
-      { icon: Info, text: 'AI analyzes documents to suggest knowledge domains' },
-      { icon: CheckCircle, text: 'More context = better AI suggestions' },
+      { icon: Info, text: 'Documents provide context for capture sessions' },
+      { icon: CheckCircle, text: 'You can skip this and upload later' },
     ],
   },
   3: {
-    title: 'Knowledge Domains',
-    tips: [
-      { icon: Lightbulb, text: 'AI-suggested domains guide interview questions' },
-      { icon: Info, text: 'You can edit or add domains after campaign creation' },
-    ],
-  },
-  4: {
     title: 'Adding Collaborators',
     tips: [
       { icon: Lightbulb, text: 'Successors provide the most valuable 360° input' },
-      { icon: Info, text: 'Collaborators receive brief surveys, not full interviews' },
+      { icon: Info, text: 'Collaborators receive brief surveys, not full sessions' },
       { icon: CheckCircle, text: '2-4 collaborators is ideal for comprehensive coverage' },
     ],
   },
-  5: {
-    title: 'Interview Format',
+  4: {
+    title: 'Capture Format',
     tips: [
-      { icon: Lightbulb, text: 'Human-led interviews capture nuance best' },
+      { icon: Lightbulb, text: 'Human-led sessions capture nuance best' },
       { icon: Info, text: 'AI-Async works well for busy experts' },
       { icon: CheckCircle, text: 'You can change format for individual sessions later' },
     ],
   },
 }
 
-// Sidebar content for Project flow steps (no Team step)
+// Sidebar content for Project flow steps
 const PROJECT_SIDEBAR: Record<number, SidebarContent> = {
   0: {
     title: 'Project Details',
     tips: [
       { icon: Lightbulb, text: 'Be specific—"Payment Gateway v2" beats "Payment System"' },
-      { icon: Info, text: 'Description helps AI generate relevant questions' },
+      { icon: Info, text: 'Description helps generate relevant questions' },
     ],
   },
   1: {
     title: 'Project Artifacts',
     tips: [
       { icon: Lightbulb, text: 'Upload specs, architecture docs, or runbooks' },
-      { icon: Info, text: 'AI will suggest focus areas based on content' },
+      { icon: Info, text: 'Documents provide context for capture sessions' },
       { icon: CheckCircle, text: 'No docs? Contributors will fill in the gaps' },
     ],
   },
@@ -281,18 +269,11 @@ const PROJECT_SIDEBAR: Record<number, SidebarContent> = {
     ],
   },
   3: {
-    title: 'Capture Schedule',
+    title: 'Capture Format',
     tips: [
       { icon: Lightbulb, text: 'Cadence-based works well for ongoing projects' },
       { icon: Info, text: 'Event-driven is better for one-time documentation' },
-    ],
-  },
-  4: {
-    title: 'Focus Areas',
-    tips: [
-      { icon: Lightbulb, text: 'Focus areas guide what knowledge to prioritize' },
-      { icon: Info, text: 'AI suggests areas based on docs and contributor input' },
-      { icon: CheckCircle, text: 'Start with 3-5 key areas' },
+      { icon: CheckCircle, text: 'You can change format for individual sessions later' },
     ],
   },
 }
@@ -331,8 +312,6 @@ function StepSidebar({ content }: { content: SidebarContent }) {
 
 export function CampaignForm({
   onSubmit,
-  onAcceptSuggestions,
-  onEditSuggestions,
   isSubmitting = false
 }: CampaignFormProps) {
   const searchParams = useSearchParams()
@@ -341,15 +320,6 @@ export function CampaignForm({
   const [subjectType, setSubjectType] = useState<CampaignSubjectType>('person')
   const [currentStep, setCurrentStep] = useState(-1) // -1 = subject selection
   const [createdCampaignId, setCreatedCampaignId] = useState<string | null>(null)
-  const [extractedSkills, setExtractedSkills] = useState<string[]>([])
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [aiSuggestions, setAiSuggestions] = useState<{
-    domains: { name: string; confidence: number; description: string }[]
-    skills: string[]
-    focusAreas: { area: string; description: string; priority: 'high' | 'medium' | 'low' }[]
-    keyTopics: string[]
-    summary: string
-  } | null>(null)
 
   // Form data
   const [formData, setFormData] = useState<CampaignFormData>({
@@ -510,13 +480,6 @@ export function CampaignForm({
       }
     }
 
-    // Trigger AI analysis after documents step
-    // Expert: step 2, Project: step 1
-    const documentsStep = subjectType === 'person' ? 2 : 1
-    if (currentStep === documentsStep && createdCampaignId) {
-      await analyzeDocuments()
-    }
-
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1)
     }
@@ -534,7 +497,6 @@ export function CampaignForm({
     // Create campaign before documents step if not created
     // Expert: documents at step 2, Project: documents at step 1
     const documentsStep = subjectType === 'person' ? 2 : 1
-    const preDocStep = subjectType === 'person' ? 1 : 0
 
     if (step >= documentsStep && !createdCampaignId && validateStep(0) && (subjectType === 'project' || validateStep(1))) {
       const result = await onSubmit(formData)
@@ -544,52 +506,6 @@ export function CampaignForm({
     }
     setCurrentStep(step)
   }
-
-  // Analyze documents with AI
-  const analyzeDocuments = async () => {
-    if (!createdCampaignId) return
-
-    setIsAnalyzing(true)
-    try {
-      const response = await fetch('/api/ai/analyze-campaign-documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: createdCampaignId,
-          campaignType: subjectType,
-          contextInfo: subjectType === 'person'
-            ? { expertName: formData.name, expertRole: formData.role }
-            : { projectName: formData.name, projectDescription: formData.goal },
-        }),
-      })
-
-      const data = await response.json()
-      if (data.success && data.suggestions) {
-        setAiSuggestions({
-          domains: data.suggestions.suggestedDomains || [],
-          skills: data.suggestions.suggestedSkills || [],
-          focusAreas: data.suggestions.suggestedFocusAreas || [],
-          keyTopics: data.suggestions.keyTopics || [],
-          summary: data.suggestions.summary || '',
-        })
-
-        // Update form data with AI suggestions
-        setFormData(prev => ({
-          ...prev,
-          suggestedDomains: data.suggestions.suggestedDomains || [],
-          focusAreas: (data.suggestions.suggestedFocusAreas || []).map((f: { area: string }) => f.area),
-        }))
-      }
-    } catch (err) {
-      console.error('Failed to analyze documents:', err)
-    } finally {
-      setIsAnalyzing(false)
-    }
-  }
-
-  const handleSkillsExtracted = useCallback((skills: string[]) => {
-    setExtractedSkills((prev) => [...new Set([...prev, ...skills])])
-  }, [])
 
   // Handle subject type selection
   const handleSubjectTypeSelect = (type: CampaignSubjectType) => {
@@ -796,85 +712,16 @@ export function CampaignForm({
             <div className="space-y-6">
               <FileUpload
                 campaignId={createdCampaignId || undefined}
-                onSkillsExtracted={handleSkillsExtracted}
-              />
+                              />
               <div className="text-xs text-muted-foreground text-center">
-                Upload documents to help AI understand the expert&apos;s knowledge domains.
+                Upload documents to provide context for capture sessions.
                 You can skip this step and upload documents later.
               </div>
             </div>
           )}
 
-          {/* Step 3: AI-Suggested Domains */}
+          {/* Step 3: Collaborators */}
           {currentStep === 3 && (
-            <div className="border rounded-lg bg-card">
-              <div className="p-4 border-b flex items-center gap-3">
-                <div className="p-2 rounded-md bg-secondary">
-                  <Sparkle className="w-4 h-4 text-muted-foreground" weight="bold" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Knowledge Domains</h3>
-                  <p className="text-xs text-muted-foreground">
-                    AI-suggested domains based on uploaded documents
-                  </p>
-                </div>
-              </div>
-              <div className="p-4 space-y-4">
-                {isAnalyzing ? (
-                  <div className="flex items-center justify-center py-8">
-                    <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" weight="bold" />
-                    <span className="ml-2 text-sm text-muted-foreground">Analyzing documents...</span>
-                  </div>
-                ) : aiSuggestions?.domains && aiSuggestions.domains.length > 0 ? (
-                  <>
-                    <p className="text-sm text-muted-foreground">{aiSuggestions.summary}</p>
-                    <div className="space-y-2">
-                      {aiSuggestions.domains.map((domain, index) => (
-                        <div key={index} className="p-3 rounded-lg bg-secondary/50 border border-border">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{domain.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {Math.round(domain.confidence * 100)}% confidence
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">{domain.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {aiSuggestions.skills.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium mb-2">Suggested Skills</p>
-                        <div className="flex flex-wrap gap-2">
-                          {aiSuggestions.skills.map((skill, index) => (
-                            <span key={index} className="px-2 py-1 text-xs bg-secondary rounded-md">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-sm text-muted-foreground">
-                      No documents uploaded yet. You can define knowledge areas manually.
-                    </p>
-                    <Textarea
-                      label="Key Skills to Focus On"
-                      placeholder="One skill per line"
-                      value={formData.skills}
-                      onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-                      rows={5}
-                      className="mt-4"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Collaborators */}
-          {currentStep === 4 && (
             <div className="border rounded-lg bg-card">
               <div className="p-4 border-b flex items-center gap-3">
                 <div className="p-2 rounded-md bg-secondary">
@@ -977,71 +824,62 @@ export function CampaignForm({
             </div>
           )}
 
-          {/* Step 5: Capture Mode */}
-          {currentStep === 5 && (
-            <div className="space-y-6">
-              <div className="border rounded-lg bg-card">
-                <div className="p-4 border-b flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-secondary">
-                    <Sparkle className="w-4 h-4 text-muted-foreground" weight="bold" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Interview Format</h3>
-                    <p className="text-xs text-muted-foreground">
-                      How should knowledge capture sessions be conducted?
-                    </p>
-                  </div>
+          {/* Step 4: Capture Format */}
+          {currentStep === 4 && (
+            <div className="border rounded-lg bg-card">
+              <div className="p-4 border-b flex items-center gap-3">
+                <div className="p-2 rounded-md bg-secondary">
+                  <Sparkle className="w-4 h-4 text-muted-foreground" weight="bold" />
                 </div>
-                <div className="p-4">
-                  <div className="space-y-3">
-                    {interviewFormatOptions.map((option) => (
-                      <label
-                        key={option.id}
-                        className={cn(
-                          'flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-colors border',
-                          formData.interviewFormat === option.id
-                            ? 'border-foreground bg-secondary/50'
-                            : 'border-border hover:bg-secondary/30'
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          name="interview-format"
-                          value={option.id}
-                          checked={formData.interviewFormat === option.id}
-                          onChange={() => setFormData({ ...formData, interviewFormat: option.id })}
-                          className="sr-only"
-                        />
-                        <div
-                          className={cn(
-                            'w-4 h-4 rounded-full border-2 flex items-center justify-center',
-                            formData.interviewFormat === option.id
-                              ? 'border-foreground'
-                              : 'border-muted-foreground'
-                          )}
-                        >
-                          {formData.interviewFormat === option.id && (
-                            <div className="w-2 h-2 rounded-full bg-foreground" />
-                          )}
-                        </div>
-                        <div>
-                          <span className="font-medium text-sm">{option.label}</span>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {option.description}
-                          </p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
+                <div>
+                  <h3 className="font-medium">Capture Format</h3>
+                  <p className="text-xs text-muted-foreground">
+                    How should knowledge capture sessions be conducted?
+                  </p>
                 </div>
               </div>
-
-              <AISuggestions
-                campaignId={createdCampaignId || undefined}
-                extractedSkills={extractedSkills}
-                onAccept={() => createdCampaignId && onAcceptSuggestions?.(createdCampaignId)}
-                onEdit={() => createdCampaignId && onEditSuggestions?.(createdCampaignId)}
-              />
+              <div className="p-4">
+                <div className="space-y-3">
+                  {interviewFormatOptions.map((option) => (
+                    <label
+                      key={option.id}
+                      className={cn(
+                        'flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-colors border',
+                        formData.interviewFormat === option.id
+                          ? 'border-foreground bg-secondary/50'
+                          : 'border-border hover:bg-secondary/30'
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="capture-format"
+                        value={option.id}
+                        checked={formData.interviewFormat === option.id}
+                        onChange={() => setFormData({ ...formData, interviewFormat: option.id })}
+                        className="sr-only"
+                      />
+                      <div
+                        className={cn(
+                          'w-4 h-4 rounded-full border-2 flex items-center justify-center',
+                          formData.interviewFormat === option.id
+                            ? 'border-foreground'
+                            : 'border-muted-foreground'
+                        )}
+                      >
+                        {formData.interviewFormat === option.id && (
+                          <div className="w-2 h-2 rounded-full bg-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-medium text-sm">{option.label}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {option.description}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </>
@@ -1124,8 +962,7 @@ export function CampaignForm({
             <div className="space-y-6">
               <FileUpload
                 campaignId={createdCampaignId || undefined}
-                onSkillsExtracted={handleSkillsExtracted}
-              />
+                              />
               <div className="text-xs text-muted-foreground text-center">
                 Upload project artifacts (specs, docs, diagrams) to help AI suggest focus areas.
               </div>
@@ -1301,14 +1138,14 @@ export function CampaignForm({
                 </div>
               </div>
 
-              {/* Interview Format */}
+              {/* Capture Format */}
               <div className="border rounded-lg bg-card">
                 <div className="p-4 border-b flex items-center gap-3">
                   <div className="p-2 rounded-md bg-secondary">
                     <Sparkle className="w-4 h-4 text-muted-foreground" weight="bold" />
                   </div>
                   <div>
-                    <h3 className="font-medium">Interview Format</h3>
+                    <h3 className="font-medium">Capture Format</h3>
                     <p className="text-xs text-muted-foreground">
                       How should knowledge capture sessions be conducted?
                     </p>
@@ -1328,7 +1165,7 @@ export function CampaignForm({
                       >
                         <input
                           type="radio"
-                          name="interview-format"
+                          name="capture-format-project"
                           value={option.id}
                           checked={formData.interviewFormat === option.id}
                           onChange={() => setFormData({ ...formData, interviewFormat: option.id })}
@@ -1357,80 +1194,6 @@ export function CampaignForm({
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Step 4: Focus Areas */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <div className="border rounded-lg bg-card">
-                <div className="p-4 border-b flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-secondary">
-                    <Target className="w-4 h-4 text-muted-foreground" weight="bold" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Focus Areas</h3>
-                    <p className="text-xs text-muted-foreground">
-                      AI-suggested areas to focus knowledge capture on
-                    </p>
-                  </div>
-                </div>
-                <div className="p-4 space-y-4">
-                  {isAnalyzing ? (
-                    <div className="flex items-center justify-center py-8">
-                      <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" weight="bold" />
-                      <span className="ml-2 text-sm text-muted-foreground">Analyzing documents...</span>
-                    </div>
-                  ) : aiSuggestions?.focusAreas && aiSuggestions.focusAreas.length > 0 ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">{aiSuggestions.summary}</p>
-                      <div className="space-y-2">
-                        {aiSuggestions.focusAreas.map((area, index) => (
-                          <div key={index} className="p-3 rounded-lg bg-secondary/50 border border-border">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium text-sm">{area.area}</span>
-                              <span className={cn(
-                                'text-xs px-2 py-0.5 rounded',
-                                area.priority === 'high' && 'bg-destructive/10 text-destructive',
-                                area.priority === 'medium' && 'bg-yellow-500/10 text-yellow-600',
-                                area.priority === 'low' && 'bg-secondary text-muted-foreground'
-                              )}>
-                                {area.priority}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">{area.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-6">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {formData.captureSchedule === 'cadence'
-                          ? 'For cadence-based capture, focus areas are discovered during interviews.'
-                          : 'Upload documents for AI-suggested focus areas, or define them manually below.'}
-                      </p>
-                      <Textarea
-                        label="Focus Areas"
-                        placeholder="One focus area per line (e.g., Architecture decisions, Deployment process)"
-                        value={formData.focusAreas?.join('\n') || ''}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          focusAreas: e.target.value.split('\n').filter(s => s.trim())
-                        })}
-                        rows={5}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <AISuggestions
-                campaignId={createdCampaignId || undefined}
-                extractedSkills={extractedSkills}
-                onAccept={() => createdCampaignId && onAcceptSuggestions?.(createdCampaignId)}
-                onEdit={() => createdCampaignId && onEditSuggestions?.(createdCampaignId)}
-              />
             </div>
           )}
         </>

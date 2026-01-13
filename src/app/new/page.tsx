@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/app-context';
 import { useToast } from '@/components/ui/toast';
 import { PrepareTab } from '@/components/tabs';
@@ -11,7 +10,6 @@ import { CircleNotch } from 'phosphor-react';
 function PreparePageContent() {
   const { addCampaign } = useApp();
   const { showToast } = useToast();
-  const router = useRouter();
 
   const handleCreateCampaign = useCallback(
     async (data: CampaignFormData) => {
@@ -58,27 +56,9 @@ function PreparePageContent() {
     [addCampaign, showToast]
   );
 
-  const handleAcceptSuggestions = useCallback(
-    (campaignId: string) => {
-      showToast('AI suggestions accepted! Redirecting to planner...');
-      router.push('/planner');
-    },
-    [showToast, router]
-  );
-
-  const handleEditSuggestions = useCallback(
-    (campaignId: string) => {
-      showToast('Opening planner to edit suggestions...', 'info');
-      router.push('/planner');
-    },
-    [showToast, router]
-  );
-
   return (
     <PrepareTab
       onCreateCampaign={handleCreateCampaign}
-      onAcceptSuggestions={handleAcceptSuggestions}
-      onEditSuggestions={handleEditSuggestions}
     />
   );
 }

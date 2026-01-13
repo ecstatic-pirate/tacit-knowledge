@@ -9,14 +9,10 @@ import { PageHeader } from '@/components/ui/page-header';
 
 interface PrepareTabProps {
   onCreateCampaign: (data: CampaignFormData) => Promise<Campaign>;
-  onAcceptSuggestions: (campaignId: string) => void;
-  onEditSuggestions: (campaignId: string) => void;
 }
 
 export function PrepareTab({
   onCreateCampaign,
-  onAcceptSuggestions,
-  onEditSuggestions,
 }: PrepareTabProps) {
   const { appUser } = useApp();
   const { showToast } = useToast();
@@ -52,8 +48,6 @@ export function PrepareTab({
         />
         <CampaignForm
           onSubmit={handleCreateCampaign}
-          onAcceptSuggestions={onAcceptSuggestions}
-          onEditSuggestions={onEditSuggestions}
         />
       </div>
     </div>
