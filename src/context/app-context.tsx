@@ -25,8 +25,8 @@ export interface Collaborator {
 // Campaign subject type (simplified to Expert and Project only)
 export type CampaignSubjectType = 'person' | 'project'
 
-// Project type for project campaigns
-export type ProjectType = 'product_feature' | 'team_process'
+// Project type for project campaigns (universal categories across industries)
+export type ProjectType = 'system_tool' | 'process_workflow' | 'client_relationship' | 'regulatory_compliance' | 'product_service'
 
 // Capture schedule options
 export type CaptureSchedule = 'cadence' | 'event_driven'

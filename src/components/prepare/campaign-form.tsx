@@ -25,8 +25,8 @@ export interface Collaborator {
   role: 'successor' | 'teammate' | 'partner' | 'manager' | 'report'
 }
 
-// Project type for classification
-export type ProjectType = 'product_feature' | 'team_process'
+// Project type for classification (universal categories across industries)
+export type ProjectType = 'system_tool' | 'process_workflow' | 'client_relationship' | 'regulatory_compliance' | 'product_service'
 
 // Capture schedule type
 export type CaptureSchedule = 'cadence' | 'event_driven'
@@ -69,14 +69,13 @@ const EXPERT_STEPS = [
   { id: 5, title: 'Capture', description: 'How to conduct sessions?' },
 ]
 
-// Steps for Project campaign flow
+// Steps for Project campaign flow (no Team step - projects are cross-functional)
 const PROJECT_STEPS = [
   { id: 0, title: 'Project', description: 'What project to document?' },
-  { id: 1, title: 'Team', description: 'Which team owns it?' },
-  { id: 2, title: 'Documents', description: 'Upload project artifacts' },
-  { id: 3, title: 'Contributors', description: 'Who to interview?' },
-  { id: 4, title: 'Capture', description: 'How to conduct sessions?' },
-  { id: 5, title: 'Focus', description: 'AI-suggested focus areas' },
+  { id: 1, title: 'Documents', description: 'Upload project artifacts' },
+  { id: 2, title: 'Contributors', description: 'Who to interview?' },
+  { id: 3, title: 'Capture', description: 'How to conduct sessions?' },
+  { id: 4, title: 'Focus', description: 'AI-suggested focus areas' },
 ]
 
 // Subject type selection (only Expert and Project now)
@@ -100,21 +99,36 @@ const subjectTypeOptions: Array<{
   },
 ]
 
-// Project type options
+// Project type options (universal categories across industries)
 const projectTypeOptions: Array<{
   id: ProjectType
   label: string
   description: string
 }> = [
   {
-    id: 'product_feature',
-    label: 'Product / Feature',
-    description: 'A product, feature, or system',
+    id: 'system_tool',
+    label: 'System / Tool',
+    description: 'Technical systems, software, platforms, equipment',
   },
   {
-    id: 'team_process',
-    label: 'Team Process',
-    description: 'A team process, workflow, or methodology',
+    id: 'process_workflow',
+    label: 'Process / Workflow',
+    description: 'Procedures, methodologies, how work gets done',
+  },
+  {
+    id: 'client_relationship',
+    label: 'Client / Relationship',
+    description: 'Client knowledge, vendor relationships, accounts',
+  },
+  {
+    id: 'regulatory_compliance',
+    label: 'Regulatory / Compliance',
+    description: 'Rules, regulations, policies, compliance procedures',
+  },
+  {
+    id: 'product_service',
+    label: 'Product / Service',
+    description: 'Products or services your organization offers',
   },
 ]
 
@@ -241,7 +255,7 @@ const EXPERT_SIDEBAR: Record<number, SidebarContent> = {
   },
 }
 
-// Sidebar content for Project flow steps
+// Sidebar content for Project flow steps (no Team step)
 const PROJECT_SIDEBAR: Record<number, SidebarContent> = {
   0: {
     title: 'Project Details',
@@ -251,40 +265,33 @@ const PROJECT_SIDEBAR: Record<number, SidebarContent> = {
     ],
   },
   1: {
-    title: 'Team Selection',
-    tips: [
-      { icon: Lightbulb, text: 'Select the team that owns this project' },
-      { icon: Info, text: 'Knowledge will be searchable by team' },
-    ],
-  },
-  2: {
     title: 'Project Artifacts',
     tips: [
       { icon: Lightbulb, text: 'Upload specs, architecture docs, or runbooks' },
       { icon: Info, text: 'AI will suggest focus areas based on content' },
-      { icon: CheckCircle, text: 'Even partial documentation helps' },
+      { icon: CheckCircle, text: 'No docs? Contributors will fill in the gaps' },
     ],
   },
-  3: {
+  2: {
     title: 'Contributors',
     tips: [
       { icon: Lightbulb, text: 'Add people with hands-on project knowledge' },
-      { icon: Info, text: 'Different roles provide unique perspectives' },
+      { icon: Info, text: 'They\'ll receive a survey to kickstart capture' },
       { icon: CheckCircle, text: 'Include both current and past contributors' },
     ],
   },
-  4: {
+  3: {
     title: 'Capture Schedule',
     tips: [
       { icon: Lightbulb, text: 'Cadence-based works well for ongoing projects' },
       { icon: Info, text: 'Event-driven is better for one-time documentation' },
     ],
   },
-  5: {
+  4: {
     title: 'Focus Areas',
     tips: [
       { icon: Lightbulb, text: 'Focus areas guide what knowledge to prioritize' },
-      { icon: Info, text: 'AI suggests areas based on uploaded documents' },
+      { icon: Info, text: 'AI suggests areas based on docs and contributor input' },
       { icon: CheckCircle, text: 'Start with 3-5 key areas' },
     ],
   },
@@ -356,7 +363,7 @@ export function CampaignForm({
     expertEmail: '',
     collaborators: [],
     subjectType: 'person',
-    projectType: 'product_feature',
+    projectType: 'system_tool',
     captureSchedule: 'event_driven',
     captureCadence: 'biweekly',
     interviewFormat: 'human_led',
@@ -424,7 +431,7 @@ export function CampaignForm({
           { name: 'Bob Smith', email: 'bob@example.com', role: 'teammate' },
         ],
         subjectType: 'project',
-        projectType: 'product_feature',
+        projectType: 'system_tool',
         captureSchedule: 'cadence',
         captureCadence: 'biweekly',
         interviewFormat: 'human_led',
@@ -476,12 +483,9 @@ export function CampaignForm({
         if (!formData.teamId) newErrors.teamId = 'Team is required'
       }
     } else {
-      // Project flow validation
+      // Project flow validation (no team required)
       if (step === 0) {
         if (!formData.name.trim()) newErrors.name = 'Project name is required'
-      }
-      if (step === 1) {
-        if (!formData.teamId) newErrors.teamId = 'Team is required'
       }
     }
 
@@ -494,16 +498,22 @@ export function CampaignForm({
     if (!validateStep(currentStep)) return
 
     // For Expert flow: Create campaign after Step 1 (Team selection) to enable document upload
-    // For Project flow: Create campaign after Step 1 (Team selection) to enable document upload
-    if (currentStep === 1 && !createdCampaignId) {
+    // For Project flow: Create campaign after Step 0 (Project details) to enable document upload
+    const shouldCreateCampaign = subjectType === 'person'
+      ? currentStep === 1
+      : currentStep === 0
+
+    if (shouldCreateCampaign && !createdCampaignId) {
       const result = await onSubmit(formData)
       if (result?.id) {
         setCreatedCampaignId(result.id)
       }
     }
 
-    // Trigger AI analysis after documents step (step 2)
-    if (currentStep === 2 && createdCampaignId) {
+    // Trigger AI analysis after documents step
+    // Expert: step 2, Project: step 1
+    const documentsStep = subjectType === 'person' ? 2 : 1
+    if (currentStep === documentsStep && createdCampaignId) {
       await analyzeDocuments()
     }
 
@@ -522,7 +532,11 @@ export function CampaignForm({
 
   const goToStep = async (step: number) => {
     // Create campaign before documents step if not created
-    if (step >= 2 && !createdCampaignId && validateStep(0) && validateStep(1)) {
+    // Expert: documents at step 2, Project: documents at step 1
+    const documentsStep = subjectType === 'person' ? 2 : 1
+    const preDocStep = subjectType === 'person' ? 1 : 0
+
+    if (step >= documentsStep && !createdCampaignId && validateStep(0) && (subjectType === 'project' || validateStep(1))) {
       const result = await onSubmit(formData)
       if (result?.id) {
         setCreatedCampaignId(result.id)
@@ -1053,7 +1067,7 @@ export function CampaignForm({
               <div className="p-4 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">Project Type</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {projectTypeOptions.map((option) => (
                       <label
                         key={option.id}
@@ -1105,34 +1119,8 @@ export function CampaignForm({
             </div>
           )}
 
-          {/* Step 1: Team Selection */}
+          {/* Step 1: Documents */}
           {currentStep === 1 && (
-            <div className="border rounded-lg bg-card">
-              <div className="p-4 border-b flex items-center gap-3">
-                <div className="p-2 rounded-md bg-secondary">
-                  <Users className="w-4 h-4 text-muted-foreground" weight="bold" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Team</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Which team owns this project?
-                  </p>
-                </div>
-              </div>
-              <div className="p-4">
-                <TeamSelector
-                  value={formData.teamId}
-                  onChange={(teamId) => setFormData({ ...formData, teamId })}
-                  error={errors.teamId}
-                  required
-                  hint="Teams help organize knowledge in your Knowledge Hub"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Documents */}
-          {currentStep === 2 && (
             <div className="space-y-6">
               <FileUpload
                 campaignId={createdCampaignId || undefined}
@@ -1144,8 +1132,8 @@ export function CampaignForm({
             </div>
           )}
 
-          {/* Step 3: Contributors */}
-          {currentStep === 3 && (
+          {/* Step 2: Contributors */}
+          {currentStep === 2 && (
             <div className="border rounded-lg bg-card">
               <div className="p-4 border-b flex items-center gap-3">
                 <div className="p-2 rounded-md bg-secondary">
@@ -1235,8 +1223,8 @@ export function CampaignForm({
             </div>
           )}
 
-          {/* Step 4: Capture Mode */}
-          {currentStep === 4 && (
+          {/* Step 3: Capture Mode */}
+          {currentStep === 3 && (
             <div className="space-y-6">
               {/* Capture Schedule */}
               <div className="border rounded-lg bg-card">
@@ -1372,8 +1360,8 @@ export function CampaignForm({
             </div>
           )}
 
-          {/* Step 5: Focus Areas */}
-          {currentStep === 5 && (
+          {/* Step 4: Focus Areas */}
+          {currentStep === 4 && (
             <div className="space-y-6">
               <div className="border rounded-lg bg-card">
                 <div className="p-4 border-b flex items-center gap-3">
@@ -1482,7 +1470,7 @@ export function CampaignForm({
                 <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" />
                 Creating...
               </>
-            ) : currentStep === 1 && !createdCampaignId ? (
+            ) : ((subjectType === 'person' ? currentStep === 1 : currentStep === 0) && !createdCampaignId) ? (
               <>
                 Create & Continue
                 <ArrowRight className="w-4 h-4 ml-2" weight="bold" />

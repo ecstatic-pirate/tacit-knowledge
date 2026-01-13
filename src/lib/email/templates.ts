@@ -263,6 +263,73 @@ export function expertReminderEmail(params: {
   return emailWrapper(content)
 }
 
+// Project contributor invitation email
+export function contributorInvitationEmail(params: {
+  contributorName: string
+  contributorRole?: string
+  projectName: string
+  projectDescription?: string
+  organizationName?: string
+  surveyUrl: string
+  expiresInDays: number
+}) {
+  const { contributorName, contributorRole, projectName, projectDescription, organizationName, surveyUrl, expiresInDays } = params
+
+  // Escape all user-provided content
+  const safeContribName = escapeHtml(contributorName)
+  const safeProjectName = escapeHtml(projectName)
+  const safeProjectDesc = escapeHtml(projectDescription)
+  const safeOrgName = escapeHtml(organizationName)
+  const safeRole = escapeHtml(contributorRole)
+
+  const content = `
+    <h1 style="font-family: ${fonts.heading}; font-size: 28px; font-weight: 600; color: ${colors.primary}; margin: 0 0 24px 0;">
+      Help us capture project knowledge
+    </h1>
+
+    <p style="margin: 0 0 20px 0; font-size: 16px;">
+      Hi ${safeContribName},
+    </p>
+
+    <p style="margin: 0 0 20px 0; font-size: 16px;">
+      ${safeOrgName ? `${safeOrgName} is` : "We're"} working to document the knowledge behind
+      <strong>${safeProjectName}</strong>${safeRole ? ` and you've been identified as a key contributor (${safeRole})` : ''}.
+      Your insights will help ensure critical knowledge is preserved.
+    </p>
+
+    ${safeProjectDesc ? `
+    <div style="background-color: ${colors.background}; border-radius: 8px; padding: 20px; margin: 24px 0; border-left: 4px solid ${colors.accent};">
+      <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: ${colors.muted}; text-transform: uppercase; letter-spacing: 0.5px;">
+        About the Project
+      </p>
+      <p style="margin: 0; font-size: 15px; color: ${colors.text};">
+        ${safeProjectDesc}
+      </p>
+    </div>
+    ` : ''}
+
+    <p style="margin: 0 0 24px 0; font-size: 16px;">
+      Please take a few minutes to share what you know about this project. Your input will help guide knowledge capture sessions and identify what's most important to document.
+    </p>
+
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 32px 0;">
+      <tr>
+        <td style="background-color: ${colors.primary}; border-radius: 8px;">
+          <a href="${surveyUrl}" target="_blank" style="display: inline-block; padding: 16px 32px; color: white; text-decoration: none; font-weight: 600; font-size: 16px;">
+            Share Your Knowledge
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: ${colors.muted};">
+      This link expires in ${expiresInDays} days. You can save your progress and return later.
+    </p>
+  `
+
+  return emailWrapper(content)
+}
+
 // Reminder email for collaborator
 export function collaboratorReminderEmail(params: {
   collaboratorName: string

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/client'
-import { expertInvitationEmail, collaboratorInvitationEmail } from '@/lib/email/templates'
+import { expertInvitationEmail, collaboratorInvitationEmail, contributorInvitationEmail } from '@/lib/email/templates'
 import type { Json } from '@/lib/supabase/database.types'
 
 interface Collaborator {
@@ -64,9 +64,9 @@ export async function POST(
   const emailResults: { type: string; email: string; success: boolean; error?: string }[] = []
   const orgName = (campaign.organizations as { name: string } | null)?.name
 
-  // Send expert invitation
+  // Send expert invitation (only for expert campaigns, not project campaigns)
   const expertToken = tokens.find(t => t.token_type === 'expert')
-  if (expertToken && campaign.expert_email) {
+  if (expertToken && campaign.expert_email && campaign.subject_type !== 'project') {
     const assessmentUrl = `${baseUrl}/assess/${expertToken.token}`
 
     try {
@@ -89,30 +89,62 @@ export async function POST(
     }
   }
 
-  // Send collaborator invitations
-  const collaboratorTokens = tokens.filter(t => t.token_type === 'collaborator')
-  for (const token of collaboratorTokens) {
-    const feedbackUrl = `${baseUrl}/feedback/${token.token}`
+  // Check if this is a project campaign
+  const isProjectCampaign = campaign.subject_type === 'project'
 
-    try {
-      await sendEmail({
-        to: token.email,
-        subject: `${orgName || 'Tacit Knowledge'}: Share your input about ${campaign.expert_name}`,
-        html: collaboratorInvitationEmail({
-          collaboratorName: token.name || 'there',
-          collaboratorRole: token.role || 'collaborator',
-          expertName: campaign.expert_name,
-          expertRole: campaign.expert_role,
-          organizationName: orgName,
-          campaignGoal: campaign.goal || undefined,
-          feedbackUrl,
-          expiresInDays: 30,
-        }),
-      })
-      emailResults.push({ type: 'collaborator', email: token.email, success: true })
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      emailResults.push({ type: 'collaborator', email: token.email, success: false, error: errorMessage })
+  if (isProjectCampaign) {
+    // For project campaigns, send contributor invitations
+    // Collaborators in project campaigns are treated as contributors
+    const contributorTokens = tokens.filter(t => t.token_type === 'collaborator' || t.token_type === 'contributor')
+    for (const token of contributorTokens) {
+      const surveyUrl = `${baseUrl}/project-survey/${token.token}`
+
+      try {
+        await sendEmail({
+          to: token.email,
+          subject: `${orgName || 'Tacit Knowledge'}: Share your knowledge about ${campaign.expert_name}`,
+          html: contributorInvitationEmail({
+            contributorName: token.name || 'there',
+            contributorRole: token.role || undefined,
+            projectName: campaign.expert_name, // expert_name holds project name for project campaigns
+            projectDescription: campaign.goal || undefined,
+            organizationName: orgName,
+            surveyUrl,
+            expiresInDays: 30,
+          }),
+        })
+        emailResults.push({ type: 'contributor', email: token.email, success: true })
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+        emailResults.push({ type: 'contributor', email: token.email, success: false, error: errorMessage })
+      }
+    }
+  } else {
+    // For expert campaigns, send collaborator invitations (original behavior)
+    const collaboratorTokens = tokens.filter(t => t.token_type === 'collaborator')
+    for (const token of collaboratorTokens) {
+      const feedbackUrl = `${baseUrl}/feedback/${token.token}`
+
+      try {
+        await sendEmail({
+          to: token.email,
+          subject: `${orgName || 'Tacit Knowledge'}: Share your input about ${campaign.expert_name}`,
+          html: collaboratorInvitationEmail({
+            collaboratorName: token.name || 'there',
+            collaboratorRole: token.role || 'collaborator',
+            expertName: campaign.expert_name,
+            expertRole: campaign.expert_role,
+            organizationName: orgName,
+            campaignGoal: campaign.goal || undefined,
+            feedbackUrl,
+            expiresInDays: 30,
+          }),
+        })
+        emailResults.push({ type: 'collaborator', email: token.email, success: true })
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+        emailResults.push({ type: 'collaborator', email: token.email, success: false, error: errorMessage })
+      }
     }
   }
 
