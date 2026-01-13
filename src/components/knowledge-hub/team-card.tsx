@@ -36,9 +36,6 @@ export function TeamCard({ team, onClick, className }: TeamCardProps) {
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-foreground truncate">{team.name}</h3>
-            {team.description && (
-              <p className="text-sm text-muted-foreground line-clamp-1">{team.description}</p>
-            )}
           </div>
         </div>
         <CaretRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" weight="bold" />

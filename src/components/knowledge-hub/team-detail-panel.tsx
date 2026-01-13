@@ -51,9 +51,6 @@ export function TeamDetailPanel({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-semibold">{team.name}</h3>
-            {team.description && (
-              <p className="text-muted-foreground">{team.description}</p>
-            )}
           </div>
         </div>
 

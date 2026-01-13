@@ -208,10 +208,7 @@ export default function TeamDetailPage() {
             <UsersFour className="w-10 h-10" style={{ color: team.color }} weight="fill" />
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold font-serif mb-1">{team.name}</h1>
-            {team.description && (
-              <p className="text-lg text-muted-foreground">{team.description}</p>
-            )}
+            <h1 className="text-3xl font-bold font-serif">{team.name}</h1>
           </div>
         </div>
 
