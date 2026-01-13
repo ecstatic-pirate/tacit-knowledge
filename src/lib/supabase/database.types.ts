@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
   public: {
     Tables: {
       calendar_connections: {
@@ -111,7 +116,10 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          ai_suggested_domains: Json | null
+          capture_cadence: string | null
           capture_mode: string | null
+          capture_schedule: string | null
           collaborators: Json | null
           completed_at: string | null
           completed_sessions: number | null
@@ -122,16 +130,19 @@ export type Database = {
           expert_email: string | null
           expert_name: string
           expert_role: string
+          focus_areas: Json | null
           goal: string | null
           id: string
+          interview_format: string | null
           interviewer_guide_token: string | null
           org_id: string
           progress: number | null
           project_id: string | null
+          project_type: string | null
           self_assessment: Json | null
           started_at: string | null
           status: string | null
-          subject_type: string
+          subject_type: string | null
           team_id: string | null
           total_sessions: number | null
           updated_at: string | null
@@ -139,7 +150,10 @@ export type Database = {
           years_experience: number | null
         }
         Insert: {
+          ai_suggested_domains?: Json | null
+          capture_cadence?: string | null
           capture_mode?: string | null
+          capture_schedule?: string | null
           collaborators?: Json | null
           completed_at?: string | null
           completed_sessions?: number | null
@@ -150,16 +164,19 @@ export type Database = {
           expert_email?: string | null
           expert_name: string
           expert_role: string
+          focus_areas?: Json | null
           goal?: string | null
           id?: string
+          interview_format?: string | null
           interviewer_guide_token?: string | null
           org_id: string
           progress?: number | null
           project_id?: string | null
+          project_type?: string | null
           self_assessment?: Json | null
           started_at?: string | null
           status?: string | null
-          subject_type?: string
+          subject_type?: string | null
           team_id?: string | null
           total_sessions?: number | null
           updated_at?: string | null
@@ -167,7 +184,10 @@ export type Database = {
           years_experience?: number | null
         }
         Update: {
+          ai_suggested_domains?: Json | null
+          capture_cadence?: string | null
           capture_mode?: string | null
+          capture_schedule?: string | null
           collaborators?: Json | null
           completed_at?: string | null
           completed_sessions?: number | null
@@ -178,16 +198,19 @@ export type Database = {
           expert_email?: string | null
           expert_name?: string
           expert_role?: string
+          focus_areas?: Json | null
           goal?: string | null
           id?: string
+          interview_format?: string | null
           interviewer_guide_token?: string | null
           org_id?: string
           progress?: number | null
           project_id?: string | null
+          project_type?: string | null
           self_assessment?: Json | null
           started_at?: string | null
           status?: string | null
-          subject_type?: string
+          subject_type?: string | null
           team_id?: string | null
           total_sessions?: number | null
           updated_at?: string | null
@@ -345,6 +368,86 @@ export type Database = {
             columns: ["token_id"]
             isOneToOne: false
             referencedRelation: "campaign_access_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concierge_conversations: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          org_id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          org_id: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          org_id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_conversations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concierge_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concierge_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+          sources: Json | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+          sources?: Json | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          sources?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "concierge_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -680,6 +783,63 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_embeddings: {
+        Row: {
+          campaign_id: string | null
+          chunk_index: number
+          chunk_text: string
+          content_id: string
+          content_type: string
+          created_at: string
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          org_id: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          chunk_index?: number
+          chunk_text: string
+          content_id: string
+          content_type: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          org_id: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          chunk_index?: number
+          chunk_text?: string
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          org_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_embeddings_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_embeddings_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1094,143 +1254,6 @@ export type Database = {
           },
         ]
       }
-      concierge_conversations: {
-        Row: {
-          id: string
-          user_id: string
-          org_id: string
-          title: string
-          created_at: string
-          updated_at: string
-          deleted_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          org_id: string
-          title?: string
-          created_at?: string
-          updated_at?: string
-          deleted_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          org_id?: string
-          title?: string
-          created_at?: string
-          updated_at?: string
-          deleted_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "concierge_conversations_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "concierge_conversations_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      concierge_messages: {
-        Row: {
-          id: string
-          conversation_id: string
-          role: string
-          content: string
-          sources: Json | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          conversation_id: string
-          role: string
-          content: string
-          sources?: Json | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          conversation_id?: string
-          role?: string
-          content?: string
-          sources?: Json | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "concierge_messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "concierge_conversations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      knowledge_embeddings: {
-        Row: {
-          id: string
-          org_id: string
-          content_type: string
-          content_id: string
-          campaign_id: string | null
-          chunk_text: string
-          chunk_index: number
-          metadata: Json
-          embedding: unknown | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          org_id: string
-          content_type: string
-          content_id: string
-          campaign_id?: string | null
-          chunk_text: string
-          chunk_index?: number
-          metadata?: Json
-          embedding?: unknown | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          org_id?: string
-          content_type?: string
-          content_id?: string
-          campaign_id?: string | null
-          chunk_text?: string
-          chunk_index?: number
-          metadata?: Json
-          embedding?: unknown | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "knowledge_embeddings_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "knowledge_embeddings_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       transcript_lines: {
         Row: {
           confidence: number | null
@@ -1343,29 +1366,35 @@ export type Database = {
           token_type: string
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "campaign_access_tokens"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
-      generate_secure_token: { Args: Record<PropertyKey, never>; Returns: string }
-      get_user_org_id: { Args: Record<PropertyKey, never>; Returns: string }
-      get_user_role: { Args: Record<PropertyKey, never>; Returns: string }
+      generate_secure_token: { Args: never; Returns: string }
+      get_user_org_id: { Args: never; Returns: string }
+      get_user_role: { Args: never; Returns: string }
       schedule_token_reminders: {
         Args: { p_token_id: string }
         Returns: undefined
       }
       search_knowledge: {
         Args: {
-          query_embedding: unknown
-          match_threshold?: number
-          match_count?: number
-          filter_org_id?: string
           filter_campaign_id?: string
           filter_content_types?: string[]
+          filter_org_id?: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
         }
         Returns: {
-          id: string
-          content_type: string
-          content_id: string
-          campaign_id: string | null
+          campaign_id: string
           chunk_text: string
+          content_id: string
+          content_type: string
+          id: string
           metadata: Json
           similarity: number
         }[]
@@ -1380,21 +1409,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -1412,14 +1445,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -1435,14 +1470,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -1458,14 +1495,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -1473,76 +1512,36 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
-// Convenience type aliases for common tables
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
+
+// Helper types for common use
 export type Campaign = Tables<'campaigns'>
 export type User = Tables<'users'>
 export type Organization = Tables<'organizations'>
+export type Task = Tables<'tasks'>
+export type Session = Tables<'sessions'>
+export type Skill = Tables<'skills'>
+export type Document = Tables<'documents'>
 export type Team = Tables<'teams'>
 export type Project = Tables<'projects'>
-export type Session = Tables<'sessions'>
-export type Task = Tables<'tasks'>
-export type Skill = Tables<'skills'>
 export type GraphNode = Tables<'graph_nodes'>
 export type GraphEdge = Tables<'graph_edges'>
-export type Document = Tables<'documents'>
-export type Report = Tables<'reports'>
-export type CapturedInsight = Tables<'captured_insights'>
-export type InterviewPlan = Tables<'interview_plans'>
-export type TranscriptLine = Tables<'transcript_lines'>
-export type CalendarConnection = Tables<'calendar_connections'>
-export type CampaignAccessToken = Tables<'campaign_access_tokens'>
-export type CollaboratorResponse = Tables<'collaborator_responses'>
-export type EmailReminder = Tables<'email_reminders'>
-export type ConciergeConversation = Tables<'concierge_conversations'>
-export type ConciergeMessage = Tables<'concierge_messages'>
-export type KnowledgeEmbedding = Tables<'knowledge_embeddings'>
-
-// SelfAssessment type for the JSONB field
-export type SelfAssessment = {
-  skills?: string[]
-  strengths?: string[]
-  knowledgeAreas?: string[]
-  // Keys used by AI interview plan generation
-  what_you_know?: string
-  questions_people_ask?: string[]
-  what_will_break?: string
-  topics_to_cover?: string[]
-  [key: string]: unknown
-}
-
-// DocumentAnalysis type for AI-processed document analysis
-export type DocumentAnalysis = {
-  summary?: string
-  topics?: string[]
-  gaps?: string[]
-  [key: string]: unknown
-}
-
-// InterviewQuestion type for AI-generated interview questions
-export type InterviewQuestion = {
-  question: string
-  priority: 'high' | 'medium' | 'low'
-  category?: string
-  relatedGap?: string
-}
-
-// CollaboratorSurveyData type for collaborator feedback
-export type CollaboratorSurveyData = {
-  what_they_ask_about?: string[]
-  what_will_be_hard?: string
-  wish_was_documented?: string
-  specific_questions?: string[]
-  additional_notes?: string
-}
+export type SelfAssessment = Json

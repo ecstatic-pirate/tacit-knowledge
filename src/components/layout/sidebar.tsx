@@ -73,24 +73,24 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 h-screen w-64 bg-background border-r border-border flex flex-col transition-transform duration-300 z-40 lg:translate-x-0',
+          'fixed left-0 top-0 h-screen w-64 bg-stone-50 dark:bg-stone-900/50 border-r border-stone-200 dark:border-stone-800 flex flex-col transition-transform duration-300 z-40 lg:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         role="navigation"
         aria-label="Main navigation"
       >
         {/* Header */}
-        <div className="p-6 border-b border-border">
+        <div className="p-6 border-b border-stone-200 dark:border-stone-800">
           <Link href="/dashboard" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
-            <div className="flex items-center justify-center w-8 h-8 rounded bg-primary text-primary-foreground">
+            <div className="flex items-center justify-center w-8 h-8 rounded bg-stone-900 dark:bg-stone-100 text-stone-50 dark:text-stone-900">
               <Sparkle className="w-5 h-5" weight="fill" />
             </div>
-            <span className="font-serif font-bold text-2xl">Tacit</span>
+            <span className="font-serif font-bold text-2xl text-stone-900 dark:text-stone-100">Tacit</span>
           </Link>
         </div>
 
         {/* New Campaign Button */}
-        <div className="px-4 py-4 border-b border-border">
+        <div className="px-4 py-4 border-b border-stone-200 dark:border-stone-800">
           <Link href="/new" onClick={() => setIsOpen(false)}>
             <Button className="w-full" size="sm">
               <Plus className="w-4 h-4 mr-2" weight="bold" />
@@ -140,9 +140,9 @@ export function Sidebar() {
         </nav>
 
         {/* User Profile Section */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-stone-200 dark:border-stone-800">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-stone-200 dark:bg-stone-700 flex items-center justify-center text-sm font-semibold text-stone-700 dark:text-stone-200 flex-shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">

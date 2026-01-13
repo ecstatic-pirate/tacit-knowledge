@@ -1,5 +1,17 @@
 // Re-export app-level types from context for backward compatibility
-export type { Campaign, Task, AppUser } from '@/context/app-context'
+export type {
+  Campaign,
+  Task,
+  AppUser,
+  CampaignSubjectType,
+  ProjectType,
+  CaptureSchedule,
+  CaptureCadence,
+  InterviewFormat,
+  SuggestedDomain,
+  FocusArea,
+  Collaborator,
+} from '@/context/app-context'
 
 // Additional UI types
 export type CampaignStatus = 'on-track' | 'keep-track' | 'danger'
@@ -70,8 +82,8 @@ export interface Document {
 
 export type TabName = 'dashboard' | 'prepare' | 'capture' | 'planner' | 'reports'
 
-// Campaign subject type for distinguishing what the campaign is about
-export type CampaignSubjectType = 'person' | 'project' | 'team'
+// Campaign subject type is now re-exported from app-context
+// Keeping the comment for documentation - valid values: 'person' | 'project'
 
 // Concierge types for AI chat interface
 export interface Conversation {

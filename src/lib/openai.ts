@@ -12,11 +12,11 @@ function getOpenAIClient(): OpenAI {
   return openaiClient
 }
 
-// Model constants
+// Model constants - Updated to GPT-5 family
 export const MODELS = {
-  FAST: 'gpt-4o-mini',      // Fast responses, lower cost
-  STANDARD: 'gpt-4o',       // Balanced
-  REASONING: 'gpt-4o',      // For complex analysis (will upgrade to gpt-5-mini when available)
+  FAST: 'gpt-5-mini',       // Fast responses, cost-optimized
+  STANDARD: 'gpt-5.2',      // Best for complex reasoning and broad world knowledge
+  REASONING: 'gpt-5.2',     // For complex analysis and multi-step tasks
 } as const
 
 export type ModelType = keyof typeof MODELS
@@ -360,6 +360,122 @@ Respond in JSON format:
       topicsMentioned: [],
       entitiesFound: [],
       suggestedFollowUp: null,
+    }
+  }
+}
+
+/**
+ * Analyze documents for campaign creation - suggests domains/skills or focus areas
+ * Used during the campaign creation flow after documents are uploaded
+ */
+export interface DocumentSuggestionResult {
+  // For Expert campaigns
+  suggestedDomains: { name: string; confidence: number; description: string }[]
+  suggestedSkills: string[]
+  // For Project campaigns
+  suggestedFocusAreas: { area: string; description: string; priority: 'high' | 'medium' | 'low' }[]
+  // Common
+  keyTopics: string[]
+  knowledgeGaps: string[]
+  summary: string
+}
+
+export async function analyzeDocumentsForCampaign(
+  documentContents: { filename: string; content: string }[],
+  campaignType: 'person' | 'project',
+  contextInfo?: {
+    expertName?: string
+    expertRole?: string
+    projectName?: string
+    projectDescription?: string
+  }
+): Promise<DocumentSuggestionResult> {
+  const openai = getOpenAIClient()
+
+  const documentsText = documentContents
+    .map(doc => `=== ${doc.filename} ===\n${doc.content.slice(0, 10000)}`)
+    .join('\n\n')
+    .slice(0, 50000) // Limit total content
+
+  const contextPrompt = campaignType === 'person'
+    ? `Expert Name: ${contextInfo?.expertName || 'Unknown'}
+Expert Role: ${contextInfo?.expertRole || 'Unknown'}`
+    : `Project Name: ${contextInfo?.projectName || 'Unknown'}
+Project Description: ${contextInfo?.projectDescription || 'Not provided'}`
+
+  const analysisPrompt = campaignType === 'person'
+    ? `Analyze these documents to understand an expert's knowledge domains and skills.
+
+${contextPrompt}
+
+Documents uploaded:
+${documentsText}
+
+Based on these documents, identify:
+1. Knowledge domains this expert owns (areas of expertise) - be specific
+2. Technical and soft skills evident from the documents
+3. Key topics covered in the documents
+4. Knowledge gaps (things mentioned but not fully explained)
+5. A brief summary of the expert's knowledge base
+
+Respond in JSON format:
+{
+  "suggestedDomains": [
+    {"name": "Domain Name", "confidence": 0.8, "description": "Why this domain"},
+    ...
+  ],
+  "suggestedSkills": ["Skill 1", "Skill 2", ...],
+  "suggestedFocusAreas": [],
+  "keyTopics": ["Topic 1", "Topic 2", ...],
+  "knowledgeGaps": ["Gap 1", "Gap 2", ...],
+  "summary": "Brief summary of knowledge base..."
+}`
+    : `Analyze these documents to understand a project and identify focus areas for knowledge capture.
+
+${contextPrompt}
+
+Documents uploaded:
+${documentsText}
+
+Based on these documents, identify:
+1. Focus areas for knowledge capture (what aspects of this project need documentation)
+2. Key topics covered in the documents
+3. Knowledge gaps (things mentioned but not fully explained, or missing documentation)
+4. A brief summary of the project context
+
+Respond in JSON format:
+{
+  "suggestedDomains": [],
+  "suggestedSkills": [],
+  "suggestedFocusAreas": [
+    {"area": "Focus Area Name", "description": "Why this needs capture", "priority": "high|medium|low"},
+    ...
+  ],
+  "keyTopics": ["Topic 1", "Topic 2", ...],
+  "knowledgeGaps": ["Gap 1", "Gap 2", ...],
+  "summary": "Brief summary of project context..."
+}`
+
+  const response = await openai.responses.create({
+    model: MODELS.STANDARD,
+    input: analysisPrompt,
+  })
+
+  try {
+    const text = response.output_text || ''
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]) as DocumentSuggestionResult
+    }
+    throw new Error('No JSON found in response')
+  } catch {
+    return {
+      suggestedDomains: [],
+      suggestedSkills: [],
+      suggestedFocusAreas: [],
+      keyTopics: [],
+      knowledgeGaps: ['Unable to analyze documents'],
+      summary: 'Document analysis failed. Please try again.',
     }
   }
 }

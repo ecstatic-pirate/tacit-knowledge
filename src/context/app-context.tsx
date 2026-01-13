@@ -22,8 +22,34 @@ export interface Collaborator {
   role: 'successor' | 'teammate' | 'partner' | 'manager' | 'report'
 }
 
-// Campaign subject type
-export type CampaignSubjectType = 'person' | 'project' | 'team'
+// Campaign subject type (simplified to Expert and Project only)
+export type CampaignSubjectType = 'person' | 'project'
+
+// Project type for project campaigns
+export type ProjectType = 'product_feature' | 'team_process'
+
+// Capture schedule options
+export type CaptureSchedule = 'cadence' | 'event_driven'
+
+// Capture cadence options
+export type CaptureCadence = 'weekly' | 'biweekly' | 'monthly'
+
+// Interview format options
+export type InterviewFormat = 'human_led' | 'ai_live' | 'ai_async'
+
+// AI-suggested domain
+export interface SuggestedDomain {
+  name: string
+  confidence: number
+  description: string
+}
+
+// Focus area for project campaigns
+export interface FocusArea {
+  area: string
+  description: string
+  priority: 'high' | 'medium' | 'low'
+}
 
 // App-level types that map database types to UI-friendly format
 export interface Campaign {
@@ -47,6 +73,13 @@ export interface Campaign {
   subjectType: CampaignSubjectType
   projectId?: string
   teamId?: string
+  // New fields for redesigned flow
+  projectType?: ProjectType
+  captureSchedule?: CaptureSchedule
+  captureCadence?: CaptureCadence
+  interviewFormat?: InterviewFormat
+  focusAreas?: FocusArea[]
+  suggestedDomains?: SuggestedDomain[]
 }
 
 export interface Task {
@@ -129,6 +162,13 @@ function mapDBCampaignToApp(dbCampaign: DBCampaign, skillsCount: number): Campai
     subjectType: (dbCampaign.subject_type as CampaignSubjectType) ?? 'person',
     projectId: dbCampaign.project_id ?? undefined,
     teamId: dbCampaign.team_id ?? undefined,
+    // New fields
+    projectType: (dbCampaign as Record<string, unknown>).project_type as ProjectType | undefined,
+    captureSchedule: (dbCampaign as Record<string, unknown>).capture_schedule as CaptureSchedule | undefined,
+    captureCadence: (dbCampaign as Record<string, unknown>).capture_cadence as CaptureCadence | undefined,
+    interviewFormat: (dbCampaign as Record<string, unknown>).interview_format as InterviewFormat | undefined,
+    focusAreas: (dbCampaign as Record<string, unknown>).focus_areas as FocusArea[] | undefined,
+    suggestedDomains: (dbCampaign as Record<string, unknown>).ai_suggested_domains as SuggestedDomain[] | undefined,
   }
 }
 
@@ -951,6 +991,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         subject_type: campaign.subjectType ?? 'person',
         project_id: campaign.projectId ?? null,
         team_id: campaign.teamId ?? null,
+        // New fields for redesigned flow
+        project_type: campaign.projectType ?? null,
+        capture_schedule: campaign.captureSchedule ?? null,
+        capture_cadence: campaign.captureCadence ?? null,
+        interview_format: campaign.interviewFormat ?? null,
+        focus_areas: campaign.focusAreas as unknown as Json ?? null,
+        ai_suggested_domains: campaign.suggestedDomains as unknown as Json ?? null,
       })
       .select()
       .single()
