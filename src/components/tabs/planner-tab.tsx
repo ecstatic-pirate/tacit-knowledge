@@ -3,13 +3,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { SessionList } from '@/components/sessions';
 import { useApp } from '@/context/app-context';
-import { cn } from '@/lib/utils';
-import { CaretDown, Calendar, Plus, ArrowClockwise } from 'phosphor-react';
+import { Calendar, Plus, ArrowClockwise } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SessionCardSkeleton } from '@/components/ui/skeleton';
+import { CampaignFilterDropdown } from '@/components/ui/campaign-filter-dropdown';
 import { containers } from '@/lib/design-system';
 import { createClient } from '@/lib/supabase/client';
 
@@ -43,13 +43,8 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
   const supabase = useMemo(() => createClient(), []);
 
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('all');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const selectedCampaign = selectedCampaignId === 'all'
-    ? null
-    : campaigns.find((c) => c.id === selectedCampaignId);
 
   // Fetch sessions for the selected campaign (or all campaigns)
   const fetchSessions = useCallback(async () => {
@@ -167,86 +162,19 @@ export function PlannerTab({ onUpdatePlan }: PlannerTabProps) {
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <PageHeader
-            title="Sessions"
-            subtitle="View and manage capture sessions."
+        <PageHeader
+          title="Sessions"
+          subtitle="View and manage capture sessions."
+          className="mb-6"
+        />
+
+        {/* Filter Row */}
+        <div className="flex items-center justify-end mb-6">
+          <CampaignFilterDropdown
+            campaigns={campaigns}
+            value={selectedCampaignId}
+            onChange={setSelectedCampaignId}
           />
-
-          {/* Campaign Selector */}
-          <div className="relative">
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className={cn(
-                'flex items-center gap-3 px-4 py-2 rounded-lg border bg-card hover:bg-secondary/50 transition-colors w-full md:min-w-[220px]',
-                isDropdownOpen && 'ring-2 ring-foreground/10'
-              )}
-            >
-              <div className="flex-1 text-left">
-                <div className="text-xs text-muted-foreground">Filter</div>
-                <div className="font-medium truncate">
-                  {selectedCampaignId === 'all' ? 'All Sessions' : selectedCampaign?.name || 'Select filter'}
-                </div>
-              </div>
-              <CaretDown
-                className={cn(
-                  'w-4 h-4 text-muted-foreground transition-transform',
-                  isDropdownOpen && 'rotate-180'
-                )}
-                weight="bold"
-              />
-            </button>
-
-            {isDropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsDropdownOpen(false)}
-                />
-                <div className="absolute right-0 md:right-0 left-0 md:left-auto mt-2 w-full md:w-auto bg-popover rounded-lg border shadow-md z-50 py-1">
-                  {/* All Sessions option */}
-                  <button
-                    onClick={() => {
-                      setSelectedCampaignId('all');
-                      setIsDropdownOpen(false);
-                    }}
-                    className={cn(
-                      'w-full px-4 py-2 text-left hover:bg-secondary/50 transition-colors',
-                      selectedCampaignId === 'all' && 'bg-secondary'
-                    )}
-                  >
-                    <div className="font-medium">All Sessions</div>
-                    <div className="text-xs text-muted-foreground">
-                      View sessions from all campaigns
-                    </div>
-                  </button>
-
-                  {/* Divider */}
-                  <div className="border-t border-border my-1" />
-
-                  {/* Campaign options */}
-                  {campaigns.map((campaign) => (
-                    <button
-                      key={campaign.id}
-                      onClick={() => {
-                        setSelectedCampaignId(campaign.id);
-                        setIsDropdownOpen(false);
-                      }}
-                      className={cn(
-                        'w-full px-4 py-2 text-left hover:bg-secondary/50 transition-colors',
-                        campaign.id === selectedCampaignId && 'bg-secondary'
-                      )}
-                    >
-                      <div className="font-medium">{campaign.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {campaign.role}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
         <div className="space-y-8">

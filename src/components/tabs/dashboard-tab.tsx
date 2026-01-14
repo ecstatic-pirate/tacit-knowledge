@@ -3,20 +3,24 @@
 import { Campaign, Task } from '@/types';
 import {
   Users,
-  Clock,
   CaretRight,
   Plus,
-  CheckCircle
+  CheckCircle,
+  User,
+  FolderSimple
 } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDashboardMetrics } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { ViewToggle } from '@/components/ui/view-toggle';
+import { ExpandableSearch } from '@/components/ui/expandable-search';
 import { containers, spacing, typography } from '@/lib/design-system';
+
+type CampaignFilter = 'all' | 'person' | 'project';
 
 interface DashboardTabProps {
   campaigns: Campaign[];
@@ -34,7 +38,43 @@ export function DashboardTab({
   onTaskToggle,
 }: DashboardTabProps) {
   const router = useRouter();
-  const { metrics, isLoading } = useDashboardMetrics();
+  const [filterType, setFilterType] = useState<CampaignFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Count campaigns by type
+  const { personCount, projectCount } = useMemo(() => ({
+    personCount: campaigns.filter(c => c.subjectType === 'person').length,
+    projectCount: campaigns.filter(c => c.subjectType === 'project').length,
+  }), [campaigns]);
+
+  // Filter options for ViewToggle
+  const filterOptions = useMemo(() => [
+    { value: 'all' as const, label: 'All', count: campaigns.length },
+    { value: 'person' as const, label: 'People', icon: <User className="w-4 h-4" weight="bold" />, count: personCount },
+    { value: 'project' as const, label: 'Projects', icon: <FolderSimple className="w-4 h-4" weight="bold" />, count: projectCount },
+  ], [campaigns.length, personCount, projectCount]);
+
+  // Filter and search campaigns
+  const filteredCampaigns = useMemo(() => {
+    let result = campaigns;
+
+    // Filter by type
+    if (filterType !== 'all') {
+      result = result.filter(c => c.subjectType === filterType);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.role?.toLowerCase().includes(query) ||
+        c.department?.toLowerCase().includes(query)
+      );
+    }
+
+    return result;
+  }, [campaigns, filterType, searchQuery]);
 
   return (
     <div className={containers.pageContainer}>
@@ -42,42 +82,25 @@ export function DashboardTab({
         <PageHeader
           title="Campaigns"
           subtitle="Track and manage your knowledge capture campaigns."
+          className="mb-6"
         />
 
-        {/* Stats Row */}
-        <div className={cn('grid grid-cols-1 sm:grid-cols-2 gap-4', spacing.marginBottomSection)}>
-          <div className="border rounded-lg bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-secondary">
-                <Users className="w-4 h-4 text-muted-foreground" weight="bold" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold">{metrics.activeCampaigns}</p>
-                <p className="text-xs text-muted-foreground">Active Campaigns</p>
-              </div>
-            </div>
-          </div>
-          <div className="border rounded-lg bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-secondary">
-                <Clock className="w-4 h-4 text-muted-foreground" weight="bold" />
-              </div>
-              <div>
-                <p className="text-2xl font-semibold">{metrics.upcomingSessions}</p>
-                <p className="text-xs text-muted-foreground">Upcoming Sessions</p>
-              </div>
-            </div>
-          </div>
+        {/* Filter Row */}
+        <div className={cn('flex items-center justify-between gap-4', spacing.marginBottomSection)}>
+          <ViewToggle
+            options={filterOptions}
+            value={filterType}
+            onChange={setFilterType}
+          />
+          <ExpandableSearch
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search campaigns..."
+          />
         </div>
 
         {/* Campaigns List */}
         <div className={spacing.marginBottomSection}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={typography.label}>
-              All Campaigns
-            </h2>
-          </div>
-
           {campaigns.length === 0 ? (
             <EmptyState
               icon={Users as unknown as React.ComponentType<{ className?: string }>}
@@ -90,9 +113,15 @@ export function DashboardTab({
                 </Button>
               }
             />
+          ) : filteredCampaigns.length === 0 ? (
+            <EmptyState
+              icon={Users as unknown as React.ComponentType<{ className?: string }>}
+              title="No campaigns found"
+              description={searchQuery ? "Try adjusting your search query" : "No campaigns match the selected filter"}
+            />
           ) : (
             <div className="border rounded-lg divide-y bg-card">
-            {campaigns.map((campaign) => (
+            {filteredCampaigns.map((campaign) => (
               <div
                 key={campaign.id}
                 className="flex items-center justify-between p-4 hover:bg-secondary/50 cursor-pointer transition-colors"

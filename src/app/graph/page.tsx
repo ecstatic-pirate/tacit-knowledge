@@ -2,12 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, FolderSimple, UsersFour, Lightbulb, Warning, MagnifyingGlass, Plus } from 'phosphor-react';
+import { User, FolderSimple, UsersFour, Lightbulb, Warning, Plus } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KnowledgeHubSkeleton } from '@/components/ui/skeleton';
 import { ViewToggle } from '@/components/ui/view-toggle';
+import { ExpandableSearch } from '@/components/ui/expandable-search';
+import { SortDropdown, type SortOption } from '@/components/ui/sort-dropdown';
 import { Button } from '@/components/ui/button';
 import { containers, spacing } from '@/lib/design-system';
 import {
@@ -26,51 +28,136 @@ export default function KnowledgeHubPage() {
   const { stats, experts, projects, teams, gaps, isLoading, error } = useKnowledgeHubData();
   const [viewType, setViewType] = useState<KnowledgeViewType>('person');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showCaptureMenu, setShowCaptureMenu] = useState(false);
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Handle capture knowledge - navigate to campaign creation with pre-filled subject type
   const handleCaptureKnowledge = (subjectType: 'person' | 'project' | 'team') => {
     router.push(`/new?subjectType=${subjectType}`);
-    setShowCaptureMenu(false);
   };
 
-  const viewOptions = [
-    { value: 'person' as const, label: 'People', icon: <User className="w-4 h-4" weight="bold" /> },
-    { value: 'project' as const, label: 'Projects', icon: <FolderSimple className="w-4 h-4" weight="bold" /> },
-    { value: 'team' as const, label: 'Teams', icon: <UsersFour className="w-4 h-4" weight="bold" /> },
-  ];
+  const viewOptions = useMemo(() => [
+    { value: 'person' as const, label: 'People', icon: <User className="w-4 h-4" weight="bold" />, count: stats.totalExperts },
+    { value: 'project' as const, label: 'Projects', icon: <FolderSimple className="w-4 h-4" weight="bold" />, count: stats.totalProjects },
+    { value: 'team' as const, label: 'Teams', icon: <UsersFour className="w-4 h-4" weight="bold" />, count: stats.totalTeams },
+  ], [stats.totalExperts, stats.totalProjects, stats.totalTeams]);
 
-  // Filter data based on search query
+  // Sort options for each view type
+  const sortOptions: Record<KnowledgeViewType, SortOption[]> = {
+    person: [
+      { value: 'name', label: 'Name' },
+      { value: 'insightCount', label: 'Insights' },
+      { value: 'coverage', label: 'Coverage' },
+    ],
+    project: [
+      { value: 'name', label: 'Name' },
+      { value: 'insightCount', label: 'Insights' },
+      { value: 'contributorCount', label: 'Contributors' },
+    ],
+    team: [
+      { value: 'name', label: 'Name' },
+      { value: 'memberCount', label: 'Members' },
+      { value: 'insightCount', label: 'Insights' },
+    ],
+  };
+
+  const handleSortChange = (field: string, direction: 'asc' | 'desc') => {
+    setSortField(field);
+    setSortDirection(direction);
+  };
+
+  // Reset sort when view type changes
+  const handleViewTypeChange = (newViewType: KnowledgeViewType) => {
+    setViewType(newViewType);
+    setSortField('name');
+    setSortDirection('desc');
+  };
+
+  // Filter and sort data
   const filteredExperts = useMemo(() => {
-    if (!searchQuery.trim()) return experts;
-    const query = searchQuery.toLowerCase();
-    return experts.filter(
-      (e) =>
-        e.name.toLowerCase().includes(query) ||
-        e.role.toLowerCase().includes(query) ||
-        e.teamName?.toLowerCase().includes(query)
-    );
-  }, [experts, searchQuery]);
+    let result = experts;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (e) =>
+          e.name.toLowerCase().includes(query) ||
+          e.role.toLowerCase().includes(query) ||
+          e.teamName?.toLowerCase().includes(query)
+      );
+    }
+    // Sort
+    return [...result].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'insightCount':
+          comparison = (a.totalInsights || 0) - (b.totalInsights || 0);
+          break;
+        case 'coverage':
+          comparison = (a.coverage || 0) - (b.coverage || 0);
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [experts, searchQuery, sortField, sortDirection]);
 
   const filteredProjects = useMemo(() => {
-    if (!searchQuery.trim()) return projects;
-    const query = searchQuery.toLowerCase();
-    return projects.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        p.description?.toLowerCase().includes(query)
-    );
-  }, [projects, searchQuery]);
+    let result = projects;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.description?.toLowerCase().includes(query)
+      );
+    }
+    // Sort
+    return [...result].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'insightCount':
+          comparison = (a.totalInsights || 0) - (b.totalInsights || 0);
+          break;
+        case 'contributorCount':
+          comparison = (a.contributors?.length || 0) - (b.contributors?.length || 0);
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [projects, searchQuery, sortField, sortDirection]);
 
   const filteredTeams = useMemo(() => {
-    if (!searchQuery.trim()) return teams;
-    const query = searchQuery.toLowerCase();
-    return teams.filter(
-      (t) =>
-        t.name.toLowerCase().includes(query) ||
-        t.description?.toLowerCase().includes(query)
-    );
-  }, [teams, searchQuery]);
+    let result = teams;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.name.toLowerCase().includes(query) ||
+          t.description?.toLowerCase().includes(query)
+      );
+    }
+    // Sort
+    return [...result].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'memberCount':
+          comparison = (a.memberCount || 0) - (b.memberCount || 0);
+          break;
+        case 'insightCount':
+          comparison = (a.totalInsights || 0) - (b.totalInsights || 0);
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [teams, searchQuery, sortField, sortDirection]);
 
   // Handlers - navigate to full page views
   const handleExpertClick = (expert: KnowledgeExpert) => {
@@ -115,85 +202,15 @@ export default function KnowledgeHubPage() {
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-8">
-          <PageHeader
-            title="Knowledge Hub"
-            subtitle={
-              hasContent
-                ? `Explore ${stats.totalInsights} insights from ${stats.totalExperts} experts across ${stats.totalProjects} projects`
-                : 'Your organization\'s captured knowledge will appear here'
-            }
-          />
-          <div className="flex items-center gap-3">
-            {/* Capture Knowledge CTA */}
-            <div className="relative">
-              <Button
-                onClick={() => setShowCaptureMenu(!showCaptureMenu)}
-                className="gap-2"
-              >
-                <Plus className="w-4 h-4" weight="bold" />
-                Capture Knowledge
-              </Button>
-              {showCaptureMenu && (
-                <>
-                  {/* Backdrop to close menu */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowCaptureMenu(false)}
-                  />
-                  {/* Dropdown menu */}
-                  <div className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
-                    <div className="p-2">
-                      <button
-                        onClick={() => handleCaptureKnowledge('person')}
-                        className="w-full flex items-center gap-3 p-3 rounded-md hover:bg-secondary transition-colors text-left"
-                      >
-                        <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <User className="w-5 h-5 text-primary" weight="bold" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">From a Person</p>
-                          <p className="text-xs text-muted-foreground">Capture expertise from an individual</p>
-                        </div>
-                      </button>
-                      <button
-                        onClick={() => handleCaptureKnowledge('project')}
-                        className="w-full flex items-center gap-3 p-3 rounded-md hover:bg-secondary transition-colors text-left"
-                      >
-                        <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-blue-50 flex items-center justify-center">
-                          <FolderSimple className="w-5 h-5 text-blue-600" weight="bold" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">About a Project</p>
-                          <p className="text-xs text-muted-foreground">Document knowledge about a project</p>
-                        </div>
-                      </button>
-                      <button
-                        onClick={() => handleCaptureKnowledge('team')}
-                        className="w-full flex items-center gap-3 p-3 rounded-md hover:bg-secondary transition-colors text-left"
-                      >
-                        <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-purple-50 flex items-center justify-center">
-                          <UsersFour className="w-5 h-5 text-purple-600" weight="bold" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">About a Team</p>
-                          <p className="text-xs text-muted-foreground">Capture team practices and processes</p>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            {hasContent && (
-              <ViewToggle
-                options={viewOptions}
-                value={viewType}
-                onChange={setViewType}
-              />
-            )}
-          </div>
-        </div>
+        <PageHeader
+          title="Knowledge Hub"
+          subtitle={
+            hasContent
+              ? `Explore ${stats.totalInsights} insights from ${stats.totalExperts} experts across ${stats.totalProjects} projects`
+              : 'Your organization\'s captured knowledge will appear here'
+          }
+          className="mb-8"
+        />
 
         {!hasContent ? (
           <div className="text-center py-12">
@@ -245,54 +262,6 @@ export default function KnowledgeHubPage() {
           </div>
         ) : (
           <>
-            {/* Stats Row */}
-            <div className={cn('grid grid-cols-4 gap-4', spacing.marginBottomSection)}>
-              <div className="border rounded-lg bg-card p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-primary/10">
-                    <User className="w-4 h-4 text-primary" weight="bold" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold font-serif">{stats.totalExperts}</p>
-                    <p className="text-xs text-muted-foreground">Experts</p>
-                  </div>
-                </div>
-              </div>
-              <div className="border rounded-lg bg-card p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-secondary">
-                    <FolderSimple className="w-4 h-4 text-muted-foreground" weight="bold" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold font-serif">{stats.totalProjects}</p>
-                    <p className="text-xs text-muted-foreground">Projects</p>
-                  </div>
-                </div>
-              </div>
-              <div className="border rounded-lg bg-card p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-secondary">
-                    <UsersFour className="w-4 h-4 text-muted-foreground" weight="bold" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold font-serif">{stats.totalTeams}</p>
-                    <p className="text-xs text-muted-foreground">Teams</p>
-                  </div>
-                </div>
-              </div>
-              <div className="border rounded-lg bg-card p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-amber-50">
-                    <Lightbulb className="w-4 h-4 text-amber-600" weight="bold" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold font-serif">{stats.totalInsights}</p>
-                    <p className="text-xs text-muted-foreground">Insights</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Knowledge Gaps Alert */}
             {gaps.length > 0 && gaps.some((g) => g.severity === 'high') && (
               <div className={cn('border border-amber-200 bg-amber-50/50 rounded-lg p-4', spacing.marginBottomSection)}>
@@ -310,16 +279,26 @@ export default function KnowledgeHubPage() {
               </div>
             )}
 
-            {/* Search */}
-            <div className={cn('relative', spacing.marginBottomSection)}>
-              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" weight="bold" />
-              <input
-                type="text"
-                placeholder={`Search ${viewType === 'person' ? 'experts' : viewType === 'project' ? 'projects' : 'teams'}...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+            {/* Filter and Search */}
+            <div className={cn('flex items-center justify-between gap-4', spacing.marginBottomSection)}>
+              <ViewToggle
+                options={viewOptions}
+                value={viewType}
+                onChange={handleViewTypeChange}
               />
+              <div className="flex items-center gap-2">
+                <SortDropdown
+                  options={sortOptions[viewType]}
+                  value={sortField}
+                  direction={sortDirection}
+                  onChange={handleSortChange}
+                />
+                <ExpandableSearch
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder={`Search ${viewType === 'person' ? 'experts' : viewType === 'project' ? 'projects' : 'teams'}...`}
+                />
+              </div>
             </div>
 
             {/* Content Grid */}

@@ -6,6 +6,7 @@ interface ViewOption<T extends string> {
   value: T;
   label: string;
   icon?: React.ReactNode;
+  count?: number;
 }
 
 interface ViewToggleProps<T extends string> {
@@ -36,6 +37,18 @@ export function ViewToggle<T extends string>({
         >
           {option.icon}
           {option.label}
+          {option.count !== undefined && (
+            <span
+              className={cn(
+                'inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-medium',
+                value === option.value
+                  ? 'bg-foreground/10 text-foreground'
+                  : 'bg-muted-foreground/20 text-muted-foreground'
+              )}
+            >
+              {option.count}
+            </span>
+          )}
         </button>
       ))}
     </div>
