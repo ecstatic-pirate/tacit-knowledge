@@ -373,15 +373,16 @@ export function CampaignForm({
     if (subjectType === 'person') {
       setFormData({
         ...formData,
-        name: 'James Morrison',
-        role: 'Billing Systems Lead',
-        goal: 'Capture institutional knowledge about legacy billing reconciliation processes.',
-        skills: 'SAP integration\nException handling\nMonth-end close procedures\nVendor dispute resolution',
+        name: 'Maria Santos',
+        role: 'Senior Customer Success Manager',
+        goal: 'Capture deep knowledge of enterprise client relationships, escalation processes, and renewal strategies before Maria transitions to a new role.',
+        skills: 'Enterprise account management\nCustomer escalation handling\nContract renewal negotiations\nStakeholder relationship mapping',
         captureMode: 'hybrid',
-        expertEmail: 'james.morrison@example.com',
+        expertEmail: 'maria.santos@example.com',
         collaborators: [
-          { name: 'Sarah Chen', email: 'sarah.chen@example.com', role: 'successor' },
-          { name: 'Mike Johnson', email: 'mike.johnson@example.com', role: 'teammate' },
+          { name: 'David Park', email: 'david.park@example.com', role: 'successor' },
+          { name: 'Lisa Thompson', email: 'lisa.thompson@example.com', role: 'teammate' },
+          { name: 'Robert Kim', email: 'robert.kim@example.com', role: 'manager' },
         ],
         subjectType: 'person',
         interviewFormat: 'human_led',
@@ -389,20 +390,20 @@ export function CampaignForm({
     } else {
       setFormData({
         ...formData,
-        name: 'Payment Gateway',
-        role: 'Core Infrastructure',
+        name: 'Customer Onboarding Process',
+        role: 'Operations',
         department: '',
-        goal: 'Document the payment processing system architecture and operational knowledge.',
+        goal: 'Document the end-to-end customer onboarding workflow, including key decision points, common pitfalls, and best practices for different customer segments.',
         captureMode: 'hybrid',
         collaborators: [
-          { name: 'Alice Chen', email: 'alice@example.com', role: 'teammate' },
-          { name: 'Bob Smith', email: 'bob@example.com', role: 'teammate' },
+          { name: 'Jennifer Wu', email: 'jennifer.wu@example.com', role: 'teammate' },
+          { name: 'Marcus Brown', email: 'marcus.brown@example.com', role: 'teammate' },
         ],
         subjectType: 'project',
-        projectType: 'system_tool',
-        captureSchedule: 'cadence',
+        projectType: 'process_workflow',
+        captureSchedule: 'event_driven',
         captureCadence: 'biweekly',
-        interviewFormat: 'human_led',
+        interviewFormat: 'ai_live',
       })
     }
   }

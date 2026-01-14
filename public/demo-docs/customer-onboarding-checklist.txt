@@ -1,0 +1,74 @@
+CUSTOMER ONBOARDING PROCESS
+===========================
+Standard Operating Procedure
+Version 3.2 | Last Updated: October 2024
+
+PHASE 1: WELCOME (Days 1-3)
+---------------------------
+[ ] Send welcome email with key contacts
+[ ] Schedule kickoff call
+[ ] Share onboarding timeline document
+[ ] Create customer Slack channel (Enterprise only)
+[ ] Assign implementation specialist
+
+PHASE 2: DISCOVERY (Days 4-10)
+------------------------------
+[ ] Complete technical requirements questionnaire
+[ ] Identify key stakeholders and decision makers
+[ ] Document current workflow and pain points
+[ ] Define success metrics and KPIs
+[ ] Map data migration requirements
+
+PHASE 3: CONFIGURATION (Days 11-20)
+-----------------------------------
+[ ] Set up customer environment
+[ ] Configure user roles and permissions
+[ ] Import historical data (if applicable)
+[ ] Set up integrations
+[ ] Configure custom fields and workflows
+
+PHASE 4: TRAINING (Days 21-28)
+------------------------------
+[ ] Admin training session (2 hours)
+[ ] End-user training sessions (1 hour each)
+[ ] Share training materials and documentation
+[ ] Set up office hours for questions
+
+PHASE 5: GO-LIVE (Days 29-30)
+-----------------------------
+[ ] Final data validation
+[ ] Go-live checklist review
+[ ] Cutover to production
+[ ] 24-hour intensive support period
+
+COMMON PITFALLS TO AVOID
+------------------------
+1. Skipping discovery phase leads to misaligned expectations
+2. Training only admins without end-user enablement
+3. Data migration without validation causes trust issues
+4. Lack of executive sponsor engagement
+5. Setting unrealistic timelines for complex integrations
+
+SEGMENT-SPECIFIC NOTES
+----------------------
+SMB Customers:
+- Streamlined process (14 days typical)
+- Self-service options available
+- Group training sessions
+
+Mid-Market:
+- Standard 30-day process
+- Dedicated implementation specialist
+- Custom configuration support
+
+Enterprise:
+- Extended timeline (60-90 days)
+- Technical Account Manager assigned
+- Custom integration development
+- Executive business reviews
+
+ESCALATION CONTACTS
+-------------------
+- Onboarding delays: ops-lead@company.com
+- Technical issues: support-escalation@company.com
+- Executive concerns: cs-leadership@company.com

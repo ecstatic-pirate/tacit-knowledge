@@ -1,0 +1,52 @@
+ENTERPRISE ACCOUNT MANAGEMENT PLAYBOOK
+======================================
+Last Updated: November 2024
+Owner: Customer Success Team
+
+OVERVIEW
+--------
+This document outlines the key processes and best practices for managing enterprise accounts with annual contract values exceeding $100K.
+
+ACCOUNT TIERS
+-------------
+- Tier 1: $500K+ ACV - Dedicated CSM, quarterly business reviews
+- Tier 2: $250K-$500K ACV - Shared CSM, bi-annual reviews
+- Tier 3: $100K-$250K ACV - Pooled support, annual reviews
+
+ESCALATION PROCEDURES
+---------------------
+Level 1: CSM handles directly
+- Response time: 4 business hours
+- Resolution target: 2 business days
+
+Level 2: CSM + Manager
+- Response time: 2 business hours
+- Resolution target: 1 business day
+- Trigger: Customer expresses dissatisfaction or threatens churn
+
+Level 3: VP involvement
+- Response time: 1 business hour
+- Trigger: C-suite complaint or contract at risk
+
+KEY RENEWAL MILESTONES
+----------------------
+- 120 days out: Review usage data and satisfaction scores
+- 90 days out: Schedule renewal discussion
+- 60 days out: Present renewal proposal
+- 30 days out: Finalize terms
+- 14 days out: Contract signing target
+
+COMMON CHALLENGES
+-----------------
+1. Stakeholder changes during contract term
+2. Integration issues with customer tech stack
+3. Feature requests outside product roadmap
+4. Budget constraints at renewal
+5. Competition offering lower pricing
+
+SUCCESS METRICS
+---------------
+- Net Revenue Retention: Target 115%+
+- Customer Health Score: Maintain above 75
+- Escalation Resolution Rate: 95%+
+- QBR Attendance: 90%+ stakeholder participation

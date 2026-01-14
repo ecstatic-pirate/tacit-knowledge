@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Lightbulb, FolderSimple, ArrowRight } from 'phosphor-react';
+import { ArrowLeft, Lightbulb, FolderSimple, ArrowRight, TreeStructure, GitBranch, Brain, Target, Sparkle } from 'phosphor-react';
 import { createClient } from '@/lib/supabase/client';
 import { useApp } from '@/context/app-context';
 import { useKnowledgeCoverageStats } from '@/lib/hooks/use-knowledge-coverage';
@@ -34,6 +34,22 @@ interface InsightData {
   createdAt: string;
 }
 
+interface InsightTypeCount {
+  type: string;
+  label: string;
+  count: number;
+  icon: React.ElementType;
+  color: string;
+}
+
+const INSIGHT_TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  concept: { label: 'Concepts', icon: Brain, color: '#8b5cf6' },
+  process: { label: 'Processes', icon: TreeStructure, color: '#3b82f6' },
+  decision: { label: 'Decisions', icon: GitBranch, color: '#f59e0b' },
+  lesson: { label: 'Lessons', icon: Sparkle, color: '#10b981' },
+  skill: { label: 'Skills', icon: Target, color: '#ef4444' },
+};
+
 export default function PersonDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -44,6 +60,10 @@ export default function PersonDetailPage() {
   const [expert, setExpert] = useState<ExpertData | null>(null);
   const [insights, setInsights] = useState<InsightData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filter state
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
 
   // Use the knowledge coverage hook for accurate coverage calculation
   const { coveragePercentage, coveredCount, totalCount, isLoading: coverageLoading } = useKnowledgeCoverageStats(personId);
@@ -140,16 +160,35 @@ export default function PersonDetailPage() {
     .toUpperCase()
     .substring(0, 2);
 
-  // Group insights by project
-  const insightsByProject = insights.reduce<Record<string, InsightData[]>>((acc, insight) => {
-    const key = insight.projectName || 'Unassigned';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(insight);
+  // Calculate type counts
+  const typeCounts = new Map<string, number>();
+  insights.forEach(insight => {
+    const type = insight.type || 'concept';
+    typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+  });
+
+  const insightTypeCounts: InsightTypeCount[] = Object.entries(INSIGHT_TYPE_CONFIG)
+    .map(([type, config]) => ({
+      type,
+      label: config.label,
+      count: typeCounts.get(type) || 0,
+      icon: config.icon,
+      color: config.color,
+    }))
+    .filter(tc => tc.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  // Get unique projects
+  const projectsWithCounts = insights.reduce<Record<string, { id: string; name: string; count: number }>>((acc, insight) => {
+    if (insight.projectId && insight.projectName) {
+      if (!acc[insight.projectId]) {
+        acc[insight.projectId] = { id: insight.projectId, name: insight.projectName, count: 0 };
+      }
+      acc[insight.projectId].count++;
+    }
     return acc;
   }, {});
-
-  // Get unique topics
-  const topics = [...new Set(insights.map(i => i.type))].slice(0, 8);
+  const projects = Object.values(projectsWithCounts).sort((a, b) => b.count - a.count);
 
   return (
     <div className={containers.pageContainer}>
@@ -205,7 +244,7 @@ export default function PersonDetailPage() {
               <FolderSimple className="w-5 h-5 text-muted-foreground" weight="fill" />
               <span className="text-sm text-muted-foreground">Projects Documented</span>
             </div>
-            <p className="text-3xl font-semibold font-serif">{Object.keys(insightsByProject).length}</p>
+            <p className="text-3xl font-semibold font-serif">{projects.length}</p>
           </div>
           <div className="border rounded-lg bg-card p-5">
             <div className="flex items-center justify-between mb-3">
@@ -233,46 +272,111 @@ export default function PersonDetailPage() {
           </div>
         </div>
 
-        {/* Topics */}
-        {topics.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4">Expertise Areas</h2>
-            <div className="flex flex-wrap gap-2">
-              {topics.map((topic, idx) => (
-                <span
-                  key={idx}
-                  className="px-4 py-2 bg-secondary text-sm text-muted-foreground rounded-full capitalize"
-                >
-                  {topic}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Insights with Filters */}
+        {insights.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Insights</h2>
 
-        {/* Insights by Project */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Knowledge by Project</h2>
-          <div className="space-y-6">
-            {Object.entries(insightsByProject).map(([projectName, projectInsights]) => (
-              <div key={projectName} className="border rounded-lg overflow-hidden bg-card">
-                <div className="bg-secondary/30 px-5 py-3 flex items-center justify-between border-b">
-                  <span className="font-semibold">{projectName}</span>
-                  <span className="text-sm text-muted-foreground">{projectInsights.length} insights</span>
+            {/* Filter Chips */}
+            <div className="space-y-3 mb-4">
+              {/* Type filters */}
+              {insightTypeCounts.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium min-w-[60px]">Type:</span>
+                  {insightTypeCounts.map(({ type, label, count, icon: Icon, color }) => {
+                    const isSelected = selectedTypes.includes(type);
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => setSelectedTypes(prev =>
+                          isSelected ? prev.filter(t => t !== type) : [...prev, type]
+                        )}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-foreground text-background'
+                            : 'bg-secondary hover:bg-secondary/80'
+                        }`}
+                      >
+                        <Icon className="w-3 h-3" style={{ color: isSelected ? 'currentColor' : color }} weight="fill" />
+                        {label} ({count})
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="divide-y">
-                  {projectInsights.map((insight) => (
+              )}
+
+              {/* Project filters */}
+              {projects.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium min-w-[60px]">Project:</span>
+                  {projects.map((project) => {
+                    const isSelected = selectedProjects.includes(project.id);
+                    return (
+                      <button
+                        key={project.id}
+                        onClick={() => setSelectedProjects(prev =>
+                          isSelected ? prev.filter(p => p !== project.id) : [...prev, project.id]
+                        )}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-foreground text-background'
+                            : 'bg-secondary hover:bg-secondary/80'
+                        }`}
+                      >
+                        <FolderSimple className="w-3 h-3" weight="fill" />
+                        {project.name} ({project.count})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Clear filters */}
+              {(selectedTypes.length > 0 || selectedProjects.length > 0) && (
+                <button
+                  onClick={() => {
+                    setSelectedTypes([]);
+                    setSelectedProjects([]);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+
+            {/* Filtered Insights List */}
+            {(() => {
+              const filteredInsights = insights.filter(insight => {
+                const typeMatch = selectedTypes.length === 0 || selectedTypes.includes(insight.type);
+                const projectMatch = selectedProjects.length === 0 ||
+                  (insight.projectId && selectedProjects.includes(insight.projectId));
+                return typeMatch && projectMatch;
+              });
+
+              if (filteredInsights.length === 0) {
+                return (
+                  <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                    No insights match the selected filters
+                  </div>
+                );
+              }
+
+              return (
+                <div className="border rounded-lg overflow-hidden bg-card divide-y">
+                  {filteredInsights.slice(0, 20).map((insight) => (
                     <div
                       key={insight.id}
                       className="px-5 py-4 hover:bg-secondary/20 transition-colors"
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" weight="fill" />
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Lightbulb className="w-4 h-4 text-amber-500" weight="fill" />
-                            <p className="font-medium">{insight.title}</p>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{insight.description}</p>
+                          <p className="font-medium mb-1">{insight.title}</p>
+                          <p className="text-sm text-muted-foreground mb-2">{insight.description}</p>
+                          {insight.projectName && (
+                            <p className="text-xs text-muted-foreground">{insight.projectName}</p>
+                          )}
                         </div>
                         <span className="text-xs px-2 py-1 bg-secondary rounded capitalize flex-shrink-0">
                           {insight.type}
@@ -281,10 +385,10 @@ export default function PersonDetailPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            ))}
+              );
+            })()}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -1544,4 +1544,37 @@ export type Team = Tables<'teams'>
 export type Project = Tables<'projects'>
 export type GraphNode = Tables<'graph_nodes'>
 export type GraphEdge = Tables<'graph_edges'>
-export type SelfAssessment = Json
+export interface SelfAssessment {
+  what_you_know?: string;
+  questions_people_ask?: string[];
+  what_will_break?: string;
+  topics_to_cover?: string[];
+  doc_links?: string[];
+}
+
+// Custom types for AI and collaborator features
+export type CampaignAccessToken = Tables<'campaign_access_tokens'>
+
+export type CollaboratorResponse = Tables<'collaborator_responses'>
+
+export interface CollaboratorSurveyData {
+  what_they_ask_about?: string[];
+  what_will_be_hard?: string;
+  wish_was_documented?: string;
+  specific_questions?: string[];
+  additional_notes?: string;
+}
+
+export interface DocumentAnalysis {
+  summary?: string;
+  topics?: string[];
+  gaps?: string[];
+}
+
+export interface InterviewQuestion {
+  question: string;
+  priority: 'high' | 'medium' | 'low';
+  topic?: string;
+  category?: string;
+  relatedGap?: string;
+}

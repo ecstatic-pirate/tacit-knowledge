@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateInterviewPlan } from '@/lib/openai'
-import type { SelfAssessment, DocumentAnalysis, Json } from '@/lib/supabase/database.types'
+import type { Json, DocumentAnalysis } from '@/lib/supabase/database.types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +50,12 @@ export async function POST(request: NextRequest) {
     })
 
     // Get self-assessment
-    const selfAssessment = (campaign.self_assessment as SelfAssessment) || {}
+    const selfAssessment = (campaign.self_assessment || {}) as {
+      what_you_know?: string;
+      questions_people_ask?: string[];
+      what_will_break?: string;
+      topics_to_cover?: string[];
+    }
 
     // Generate interview plan
     const plan = await generateInterviewPlan(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import type { Database, CollaboratorSurveyData, Json } from '@/lib/supabase/database.types'
+import type { Database, Json, CollaboratorSurveyData } from '@/lib/supabase/database.types'
 
 // HTML escape to prevent XSS
 function escapeHtml(text: string | undefined | null): string {

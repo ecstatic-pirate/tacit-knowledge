@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Lightbulb, FolderSimple, UsersFour, ArrowRight } from 'phosphor-react';
+import { ArrowLeft, Lightbulb, FolderSimple, UsersFour, ArrowRight, TreeStructure, GitBranch, Brain, Target, Sparkle } from 'phosphor-react';
 import { createClient } from '@/lib/supabase/client';
 import { useApp } from '@/context/app-context';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,22 @@ interface InsightData {
   createdAt: string;
 }
 
+interface InsightTypeCount {
+  type: string;
+  label: string;
+  count: number;
+  icon: React.ElementType;
+  color: string;
+}
+
+const INSIGHT_TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  concept: { label: 'Concepts', icon: Brain, color: '#8b5cf6' },
+  process: { label: 'Processes', icon: TreeStructure, color: '#3b82f6' },
+  decision: { label: 'Decisions', icon: GitBranch, color: '#f59e0b' },
+  lesson: { label: 'Lessons', icon: Sparkle, color: '#10b981' },
+  skill: { label: 'Skills', icon: Target, color: '#ef4444' },
+};
+
 export default function TeamDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -54,7 +70,13 @@ export default function TeamDetailPage() {
   const [members, setMembers] = useState<MemberData[]>([]);
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [insights, setInsights] = useState<InsightData[]>([]);
+  const [insightTypeCounts, setInsightTypeCounts] = useState<InsightTypeCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filter state
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [selectedExperts, setSelectedExperts] = useState<string[]>([]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -149,6 +171,25 @@ export default function TeamDetailPage() {
           };
         });
         setInsights(insightsList);
+
+        // Count insight types
+        const typeCounts = new Map<string, number>();
+        insightsList.forEach(insight => {
+          const type = insight.type || 'concept';
+          typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+        });
+
+        const typeCountsList: InsightTypeCount[] = Object.entries(INSIGHT_TYPE_CONFIG)
+          .map(([type, config]) => ({
+            type,
+            label: config.label,
+            count: typeCounts.get(type) || 0,
+            icon: config.icon,
+            color: config.color,
+          }))
+          .filter(tc => tc.count > 0)
+          .sort((a, b) => b.count - a.count);
+        setInsightTypeCounts(typeCountsList);
       }
 
       setIsLoading(false);
@@ -181,10 +222,6 @@ export default function TeamDetailPage() {
     );
   }
 
-  const avgCoverage = projects.length > 0
-    ? Math.round(projects.reduce((sum, p) => sum + p.coverage, 0) / projects.length)
-    : 0;
-
   return (
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
@@ -202,48 +239,27 @@ export default function TeamDetailPage() {
         {/* Header */}
         <div className="flex items-start gap-6 mb-8">
           <div
-            className="w-20 h-20 min-w-[5rem] rounded-lg flex items-center justify-center flex-shrink-0"
+            className="w-20 h-20 min-w-[5rem] rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${team.color}20` }}
           >
             <UsersFour className="w-10 h-10" style={{ color: team.color }} weight="fill" />
           </div>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold font-serif">{team.name}</h1>
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="border rounded-lg bg-card p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-sm text-muted-foreground">Team Members</span>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-3xl font-bold font-serif mb-2">{team.name}</h1>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <UsersFour className="w-4 h-4" weight="bold" />
+                {members.length} members
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Lightbulb className="w-4 h-4 text-amber-500" weight="fill" />
+                {insights.length} insights captured
+              </span>
+              <span className="flex items-center gap-1.5">
+                <FolderSimple className="w-4 h-4" weight="fill" />
+                {projects.length} projects
+              </span>
             </div>
-            <p className="text-3xl font-semibold font-serif">{members.length}</p>
-          </div>
-          <div className="border rounded-lg bg-card p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <FolderSimple className="w-5 h-5 text-muted-foreground" weight="fill" />
-              <span className="text-sm text-muted-foreground">Projects</span>
-            </div>
-            <p className="text-3xl font-semibold font-serif">{projects.length}</p>
-          </div>
-          <div className="border rounded-lg bg-card p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <Lightbulb className="w-5 h-5 text-amber-500" weight="fill" />
-              <span className="text-sm text-muted-foreground">Insights</span>
-            </div>
-            <p className="text-3xl font-semibold font-serif">{insights.length}</p>
-          </div>
-          <div className="border rounded-lg bg-card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">Avg. Coverage</span>
-              <span className="text-sm font-semibold">{avgCoverage}%</span>
-            </div>
-            <SimpleProgressBar
-              value={avgCoverage}
-              color={avgCoverage >= 70 ? 'bg-emerald-500' : avgCoverage >= 40 ? 'bg-amber-500' : 'bg-red-400'}
-              size="lg"
-            />
           </div>
         </div>
 
@@ -321,38 +337,152 @@ export default function TeamDetailPage() {
           </div>
         </div>
 
-        {/* Recent Insights */}
+        {/* Insights with Filters */}
         {insights.length > 0 && (
           <div className="mt-8">
-            <h2 className="text-lg font-semibold mb-4">Recent Insights</h2>
-            <div className="border rounded-lg overflow-hidden bg-card divide-y">
-              {insights.slice(0, 10).map((insight) => (
-                <div
-                  key={insight.id}
-                  className="px-5 py-4 hover:bg-secondary/20 transition-colors"
-                >
-                  <div className="flex items-start gap-3">
-                    <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" weight="fill" />
-                    <div className="flex-1">
-                      <p className="font-medium mb-1">{insight.title}</p>
-                      <p className="text-sm text-muted-foreground mb-2">{insight.description}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{insight.expertName}</span>
-                        {insight.projectName && (
-                          <>
-                            <span>·</span>
-                            <span>{insight.projectName}</span>
-                          </>
+            <h2 className="text-lg font-semibold mb-4">Insights</h2>
+
+            {/* Filter Chips */}
+            <div className="space-y-3 mb-4">
+              {/* Type filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground font-medium min-w-[60px]">Type:</span>
+                {insightTypeCounts.map(({ type, label, count, icon: Icon, color }) => {
+                  const isSelected = selectedTypes.includes(type);
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setSelectedTypes(prev =>
+                        isSelected ? prev.filter(t => t !== type) : [...prev, type]
+                      )}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-foreground text-background'
+                          : 'bg-secondary hover:bg-secondary/80'
+                      }`}
+                    >
+                      <Icon className="w-3 h-3" style={{ color: isSelected ? 'currentColor' : color }} weight="fill" />
+                      {label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Project filters */}
+              {projects.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium min-w-[60px]">Project:</span>
+                  {projects.map((project) => {
+                    const isSelected = selectedProjects.includes(project.id);
+                    return (
+                      <button
+                        key={project.id}
+                        onClick={() => setSelectedProjects(prev =>
+                          isSelected ? prev.filter(p => p !== project.id) : [...prev, project.id]
                         )}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-foreground text-background'
+                            : 'bg-secondary hover:bg-secondary/80'
+                        }`}
+                      >
+                        <FolderSimple className="w-3 h-3" weight="fill" />
+                        {project.name} ({project.insightCount})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Expert filters */}
+              {members.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-medium min-w-[60px]">Expert:</span>
+                  {members.filter(m => m.insightCount > 0).map((member) => {
+                    const isSelected = selectedExperts.includes(member.name);
+                    return (
+                      <button
+                        key={member.id}
+                        onClick={() => setSelectedExperts(prev =>
+                          isSelected ? prev.filter(e => e !== member.name) : [...prev, member.name]
+                        )}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-foreground text-background'
+                            : 'bg-secondary hover:bg-secondary/80'
+                        }`}
+                      >
+                        {member.name} ({member.insightCount})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Clear filters */}
+              {(selectedTypes.length > 0 || selectedProjects.length > 0 || selectedExperts.length > 0) && (
+                <button
+                  onClick={() => {
+                    setSelectedTypes([]);
+                    setSelectedProjects([]);
+                    setSelectedExperts([]);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+
+            {/* Filtered Insights List */}
+            {(() => {
+              const filteredInsights = insights.filter(insight => {
+                const typeMatch = selectedTypes.length === 0 || selectedTypes.includes(insight.type);
+                const projectMatch = selectedProjects.length === 0 ||
+                  (insight.projectName && projects.some(p => selectedProjects.includes(p.id) && p.name === insight.projectName));
+                const expertMatch = selectedExperts.length === 0 || selectedExperts.includes(insight.expertName);
+                return typeMatch && projectMatch && expertMatch;
+              });
+
+              if (filteredInsights.length === 0) {
+                return (
+                  <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                    No insights match the selected filters
+                  </div>
+                );
+              }
+
+              return (
+                <div className="border rounded-lg overflow-hidden bg-card divide-y">
+                  {filteredInsights.slice(0, 20).map((insight) => (
+                    <div
+                      key={insight.id}
+                      className="px-5 py-4 hover:bg-secondary/20 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" weight="fill" />
+                        <div className="flex-1">
+                          <p className="font-medium mb-1">{insight.title}</p>
+                          <p className="text-sm text-muted-foreground mb-2">{insight.description}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{insight.expertName}</span>
+                            {insight.projectName && (
+                              <>
+                                <span>·</span>
+                                <span>{insight.projectName}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-xs px-2 py-1 bg-secondary rounded capitalize flex-shrink-0">
+                          {insight.type}
+                        </span>
                       </div>
                     </div>
-                    <span className="text-xs px-2 py-1 bg-secondary rounded capitalize flex-shrink-0">
-                      {insight.type}
-                    </span>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
         )}
       </div>

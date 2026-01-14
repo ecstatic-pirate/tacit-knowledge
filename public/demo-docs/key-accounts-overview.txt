@@ -1,0 +1,54 @@
+KEY ENTERPRISE ACCOUNTS OVERVIEW
+================================
+Confidential - Internal Use Only
+Q4 2024
+
+ACCOUNT: ACME Corporation
+-------------------------
+Contract Value: $450K ARR
+Renewal Date: March 2025
+Health Score: 82/100
+Primary Contact: John Smith (VP Operations)
+Executive Sponsor: Sarah Johnson (CTO)
+
+Key Notes:
+- Strong product champion in operations team
+- Expanding to EMEA region next year
+- Integration with Salesforce completed successfully
+- Risk: Budget constraints due to company restructuring
+
+ACCOUNT: GlobalTech Industries
+------------------------------
+Contract Value: $320K ARR
+Renewal Date: June 2025
+Health Score: 68/100
+Primary Contact: Michael Chen (Director, IT)
+Executive Sponsor: Lisa Wang (COO)
+
+Key Notes:
+- Recent stakeholder changes creating uncertainty
+- Feature request for advanced reporting pending
+- Competitor actively pursuing this account
+- Action needed: Schedule executive alignment meeting
+
+ACCOUNT: Stellar Innovations
+----------------------------
+Contract Value: $280K ARR
+Renewal Date: April 2025
+Health Score: 91/100
+Primary Contact: Amanda Foster (Head of Product)
+Executive Sponsor: David Miller (CEO)
+
+Key Notes:
+- Expansion opportunity to add 3 new departments
+- Excellent NPS score, potential case study candidate
+- Using 85% of licensed features
+- Strong advocate, invited to advisory board
+
+RELATIONSHIP MAPPING BEST PRACTICES
+-----------------------------------
+1. Identify 3+ contacts per enterprise account
+2. Build relationships at multiple levels (user, manager, exec)
+3. Document informal influencers, not just formal titles
+4. Update stakeholder map quarterly
+5. Track contact changes proactively via LinkedIn
