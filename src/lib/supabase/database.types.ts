@@ -127,6 +127,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           department: string | null
+          departure_date: string | null
           expert_email: string | null
           expert_name: string
           expert_role: string
@@ -140,10 +141,17 @@ export type Database = {
           project_id: string | null
           project_type: string | null
           self_assessment: Json | null
+          session_duration: number | null
+          sessions_generation_error: string | null
+          sessions_generation_started_at: string | null
+          sessions_generation_status: string | null
           started_at: string | null
           status: string | null
           subject_type: string | null
           team_id: string | null
+          topics_generation_error: string | null
+          topics_generation_started_at: string | null
+          topics_generation_status: string | null
           total_sessions: number | null
           updated_at: string | null
           updated_by: string | null
@@ -161,6 +169,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           department?: string | null
+          departure_date?: string | null
           expert_email?: string | null
           expert_name: string
           expert_role: string
@@ -174,10 +183,17 @@ export type Database = {
           project_id?: string | null
           project_type?: string | null
           self_assessment?: Json | null
+          session_duration?: number | null
+          sessions_generation_error?: string | null
+          sessions_generation_started_at?: string | null
+          sessions_generation_status?: string | null
           started_at?: string | null
           status?: string | null
           subject_type?: string | null
           team_id?: string | null
+          topics_generation_error?: string | null
+          topics_generation_started_at?: string | null
+          topics_generation_status?: string | null
           total_sessions?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -195,6 +211,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           department?: string | null
+          departure_date?: string | null
           expert_email?: string | null
           expert_name?: string
           expert_role?: string
@@ -208,10 +225,17 @@ export type Database = {
           project_id?: string | null
           project_type?: string | null
           self_assessment?: Json | null
+          session_duration?: number | null
+          sessions_generation_error?: string | null
+          sessions_generation_started_at?: string | null
+          sessions_generation_status?: string | null
           started_at?: string | null
           status?: string | null
           subject_type?: string | null
           team_id?: string | null
+          topics_generation_error?: string | null
+          topics_generation_started_at?: string | null
+          topics_generation_status?: string | null
           total_sessions?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -460,7 +484,7 @@ export type Database = {
           campaign_id: string | null
           created_at: string | null
           deleted_at: string | null
-          extracted_skills: Json | null
+          extracted_topics: Json | null
           extracted_text: string | null
           file_size: number | null
           file_type: string | null
@@ -476,7 +500,7 @@ export type Database = {
           campaign_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          extracted_skills?: Json | null
+          extracted_topics?: Json | null
           extracted_text?: string | null
           file_size?: number | null
           file_type?: string | null
@@ -492,7 +516,7 @@ export type Database = {
           campaign_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          extracted_skills?: Json | null
+          extracted_topics?: Json | null
           extracted_text?: string | null
           file_size?: number | null
           file_type?: string | null
@@ -655,7 +679,9 @@ export type Database = {
           position_y: number | null
           project_id: string | null
           session_id: string | null
-          skill_id: string | null
+          source_excerpt: string | null
+          source_transcript_line_ids: string[] | null
+          topic_id: string | null
           team_id: string | null
           type: string
           updated_at: string | null
@@ -674,7 +700,9 @@ export type Database = {
           position_y?: number | null
           project_id?: string | null
           session_id?: string | null
-          skill_id?: string | null
+          source_excerpt?: string | null
+          source_transcript_line_ids?: string[] | null
+          topic_id?: string | null
           team_id?: string | null
           type: string
           updated_at?: string | null
@@ -693,7 +721,9 @@ export type Database = {
           position_y?: number | null
           project_id?: string | null
           session_id?: string | null
-          skill_id?: string | null
+          source_excerpt?: string | null
+          source_transcript_line_ids?: string[] | null
+          topic_id?: string | null
           team_id?: string | null
           type?: string
           updated_at?: string | null
@@ -728,10 +758,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "graph_nodes_skill_id_fkey"
-            columns: ["skill_id"]
+            foreignKeyName: "graph_nodes_topic_id_fkey"
+            columns: ["topic_id"]
             isOneToOne: false
-            referencedRelation: "skills"
+            referencedRelation: "topics"
             referencedColumns: ["id"]
           },
           {
@@ -871,6 +901,123 @@ export type Database = {
         }
         Relationships: []
       }
+      participants: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          deleted_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          role: string | null
+          status: string
+          survey_token: string | null
+          team: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          deleted_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          role?: string | null
+          status?: string
+          survey_token?: string | null
+          team?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          deleted_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          role?: string | null
+          status?: string
+          survey_token?: string | null
+          team?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participants_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      participant_survey_responses: {
+        Row: {
+          id: string
+          campaign_id: string
+          participant_id: string
+          token_id: string
+          areas_of_expertise: string[] | null
+          knowledge_to_capture: string | null
+          questions_for_others: string[] | null
+          additional_notes: string | null
+          submitted_at: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          participant_id: string
+          token_id: string
+          areas_of_expertise?: string[] | null
+          knowledge_to_capture?: string | null
+          questions_for_others?: string[] | null
+          additional_notes?: string | null
+          submitted_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          participant_id?: string
+          token_id?: string
+          areas_of_expertise?: string[] | null
+          knowledge_to_capture?: string | null
+          questions_for_others?: string[] | null
+          additional_notes?: string | null
+          submitted_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_survey_responses_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_survey_responses_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participant_survey_responses_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_access_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string | null
@@ -992,6 +1139,7 @@ export type Database = {
           ended_at: string | null
           id: string
           notes: string | null
+          participant_id: string | null
           recording_url: string | null
           room_url: string | null
           scheduled_at: string | null
@@ -1016,6 +1164,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           notes?: string | null
+          participant_id?: string | null
           recording_url?: string | null
           room_url?: string | null
           scheduled_at?: string | null
@@ -1040,6 +1189,7 @@ export type Database = {
           ended_at?: string | null
           id?: string
           notes?: string | null
+          participant_id?: string | null
           recording_url?: string | null
           room_url?: string | null
           scheduled_at?: string | null
@@ -1076,7 +1226,56 @@ export type Database = {
           },
         ]
       }
-      skills: {
+      knowledge_topic_coverage: {
+        Row: {
+          id: string
+          knowledge_node_id: string
+          topic_id: string
+          coverage_level: string | null
+          session_id: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          knowledge_node_id: string
+          topic_id: string
+          coverage_level?: string | null
+          session_id?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          knowledge_node_id?: string
+          topic_id?: string
+          coverage_level?: string | null
+          session_id?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_topic_coverage_knowledge_node_id_fkey"
+            columns: ["knowledge_node_id"]
+            isOneToOne: false
+            referencedRelation: "graph_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_topic_coverage_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_topic_coverage_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topics: {
         Row: {
           campaign_id: string
           captured: boolean | null
@@ -1090,6 +1289,7 @@ export type Database = {
           name: string
           session_id: string | null
           source: string | null
+          suggested_by: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1105,6 +1305,7 @@ export type Database = {
           name: string
           session_id?: string | null
           source?: string | null
+          suggested_by?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1120,25 +1321,26 @@ export type Database = {
           name?: string
           session_id?: string | null
           source?: string | null
+          suggested_by?: string | null
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "skills_campaign_id_fkey"
+            foreignKeyName: "topics_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "skills_created_by_fkey"
+            foreignKeyName: "topics_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "skills_session_id_fkey"
+            foreignKeyName: "topics_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
@@ -1538,12 +1740,29 @@ export type User = Tables<'users'>
 export type Organization = Tables<'organizations'>
 export type Task = Tables<'tasks'>
 export type Session = Tables<'sessions'>
-export type Skill = Tables<'skills'>
+export type Topic = Tables<'topics'>
+/** @deprecated Use Topic instead */
+export type Skill = Tables<'topics'>
 export type Document = Tables<'documents'>
 export type Team = Tables<'teams'>
 export type Project = Tables<'projects'>
 export type GraphNode = Tables<'graph_nodes'>
 export type GraphEdge = Tables<'graph_edges'>
+export type Participant = Tables<'participants'>
+export type KnowledgeTopicCoverage = Tables<'knowledge_topic_coverage'>
+export type Question = Tables<'questions'>
+
+// Coverage level type for knowledge-topic links
+export type CoverageLevel = 'mentioned' | 'partial' | 'full'
+
+// Participant status type
+export type ParticipantStatus = 'not_interviewed' | 'in_progress' | 'complete'
+
+// Participant role type - includes 'manager' role for managers who suggest topics but may not be interviewed
+export type ParticipantRole = 'expert' | 'collaborator' | 'manager' | 'stakeholder' | string
+
+// Topic suggested_by type - who suggested the topic
+export type TopicSuggestedBy = 'creator' | 'collaborator' | 'ai' | 'expert' | 'manager' | string
 export interface SelfAssessment {
   what_you_know?: string;
   questions_people_ask?: string[];
@@ -1557,11 +1776,33 @@ export type CampaignAccessToken = Tables<'campaign_access_tokens'>
 
 export type CollaboratorResponse = Tables<'collaborator_responses'>
 
+export type ParticipantSurveyResponse = Tables<'participant_survey_responses'>
+
+export interface ParticipantSurveyData {
+  areas_of_expertise?: string[];
+  knowledge_to_capture?: string;
+  questions_for_others?: string[];
+  additional_notes?: string;
+}
+
 export interface CollaboratorSurveyData {
   what_they_ask_about?: string[];
   what_will_be_hard?: string;
   wish_was_documented?: string;
   specific_questions?: string[];
+  additional_notes?: string;
+}
+
+// Manager survey data - managers can suggest topics for their team
+export interface ManagerSurveyData {
+  suggested_topics?: Array<{
+    name: string;
+    category?: string;
+    priority?: 'high' | 'medium' | 'low';
+    reason?: string;
+  }>;
+  team_context?: string;
+  key_concerns?: string;
   additional_notes?: string;
 }
 

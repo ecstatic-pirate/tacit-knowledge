@@ -68,8 +68,7 @@ export function DashboardTab({
       const query = searchQuery.toLowerCase();
       result = result.filter(c =>
         c.name.toLowerCase().includes(query) ||
-        c.role?.toLowerCase().includes(query) ||
-        c.department?.toLowerCase().includes(query)
+        c.role?.toLowerCase().includes(query)
       );
     }
 
@@ -135,7 +134,6 @@ export function DashboardTab({
                     <p className="font-medium">{campaign.name}</p>
                     <p className="text-sm text-muted-foreground">
                       {campaign.role}
-                      {campaign.department && ` · ${campaign.department}`}
                     </p>
                   </div>
                 </div>

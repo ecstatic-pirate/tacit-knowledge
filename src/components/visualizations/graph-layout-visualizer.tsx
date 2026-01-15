@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 export interface GraphNode {
   id: string;
   label: string;
-  type: 'core' | 'system' | 'process' | 'skill' | 'concept';
+  type: 'core' | 'system' | 'process' | 'topic' | 'concept';
   description?: string;
 }
 
@@ -32,7 +32,7 @@ const nodeColors: Record<GraphNode['type'], string> = {
   core: '#ef4444',      // red
   system: '#f59e0b',    // amber
   process: '#8b5cf6',   // violet
-  skill: '#3b82f6',     // blue
+  topic: '#3b82f6',     // blue
   concept: '#10b981',   // emerald
 };
 
@@ -40,7 +40,7 @@ const nodeLabels: Record<GraphNode['type'], string> = {
   core: 'Core',
   system: 'System',
   process: 'Process',
-  skill: 'Skill',
+  topic: 'Topic',
   concept: 'Concept',
 };
 
@@ -194,12 +194,12 @@ export function GraphLayoutVisualizer({
 
       case 'swimlane': {
         // Group by type in horizontal lanes
-        const typeOrder: GraphNode['type'][] = ['system', 'process', 'skill', 'concept', 'core'];
+        const typeOrder: GraphNode['type'][] = ['system', 'process', 'topic', 'concept', 'core'];
         const nodesByType: Record<GraphNode['type'], GraphNode[]> = {
           core: [],
           system: [],
           process: [],
-          skill: [],
+          topic: [],
           concept: [],
         };
 
@@ -329,8 +329,8 @@ export function GraphLayoutVisualizer({
         return (
           <div className="space-y-4 text-sm font-mono p-4 bg-card border border-border rounded-lg overflow-x-auto">
             <div>Customer Loyalty Program (CORE)</div>
-            <div className="ml-4">├─ Barista Training (SKILL)</div>
-            <div className="ml-4">├─ Single-Origin Sourcing (SKILL)</div>
+            <div className="ml-4">├─ Barista Training (TOPIC)</div>
+            <div className="ml-4">├─ Single-Origin Sourcing (TOPIC)</div>
             <div className="ml-8">└─ Seasonal Menu Planning (PROCESS)</div>
             <div className="ml-4">└─ Preventive Maintenance (PROCESS)</div>
             <div className="ml-8">└─ Espresso Machine (SYSTEM)</div>
@@ -374,7 +374,7 @@ export function GraphLayoutVisualizer({
               <div>Preventive Maintenance, Seasonal Menu Planning</div>
             </div>
             <div className="border-t-2 border-blue-500 pt-2">
-              <div className="font-semibold mb-2 text-blue-600">Skill</div>
+              <div className="font-semibold mb-2 text-blue-600">Topic</div>
               <div>Barista Training, Single-Origin Sourcing</div>
             </div>
             <div className="border-t-2 border-red-500 pt-2">

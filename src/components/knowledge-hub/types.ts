@@ -4,7 +4,6 @@ export interface KnowledgeExpert {
   id: string;
   name: string;
   role: string;
-  department?: string;
   teamId?: string;
   teamName?: string;
   teamColor?: string;
@@ -71,7 +70,7 @@ export interface KnowledgeInsight {
   id: string;
   title: string;
   description: string;
-  type: 'concept' | 'process' | 'decision' | 'lesson' | 'skill';
+  type: 'concept' | 'process' | 'decision' | 'lesson' | 'topic';
   expertId: string;
   expertName: string;
   projectId?: string;

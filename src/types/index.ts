@@ -16,14 +16,18 @@ export type {
 // Additional UI types
 export type CampaignStatus = 'on-track' | 'keep-track' | 'danger'
 
-export interface Skill {
+export interface Topic {
   id: string
   name: string
   category: string
   captured: boolean
   confidence?: number
   source?: 'manual' | 'ai_detected'
+  suggestedBy?: 'creator' | 'collaborator' | 'ai' | 'expert' | string
 }
+
+/** @deprecated Use Topic instead */
+export type Skill = Topic
 
 export interface Session {
   id: string
@@ -41,7 +45,7 @@ export interface Session {
 export interface Report {
   id: string
   title: string
-  type: 'summary' | 'skills' | 'transcript' | 'graph' | 'export'
+  type: 'summary' | 'topics' | 'transcript' | 'graph' | 'export'
   status: 'processing' | 'ready' | 'failed'
   campaignId?: string
   sessionId?: string
@@ -54,7 +58,7 @@ export interface GraphNode {
   id: string
   campaignId: string
   label: string
-  type: 'core' | 'skill' | 'concept' | 'system' | 'process'
+  type: 'core' | 'topic' | 'concept' | 'system' | 'process'
   description?: string
   positionX?: number
   positionY?: number
@@ -77,7 +81,7 @@ export interface Document {
   fileSize?: number
   storagePath: string
   aiProcessed: boolean
-  extractedSkills?: unknown[]
+  extractedTopics?: unknown[]
 }
 
 export type TabName = 'dashboard' | 'prepare' | 'capture' | 'planner' | 'reports'

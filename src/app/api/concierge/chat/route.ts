@@ -79,6 +79,24 @@ export async function POST(request: NextRequest) {
     content: msg.content,
   }))
 
+  // Fetch campaign details if campaignId is provided
+  let campaignContext: { name: string; type: 'person' | 'project'; role?: string } | undefined
+  if (campaignId) {
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('expert_name, expert_role, subject_type')
+      .eq('id', campaignId)
+      .single()
+
+    if (campaign) {
+      campaignContext = {
+        name: campaign.expert_name,
+        type: (campaign.subject_type as 'person' | 'project') || 'person',
+        role: campaign.expert_role || undefined,
+      }
+    }
+  }
+
   // Save user message
   const { data: userMessage, error: userMsgError } = await supabase
     .from('concierge_messages')
@@ -111,7 +129,7 @@ export async function POST(request: NextRequest) {
           message,
           conversation.org_id,
           conversationHistory,
-          { campaignId, contentTypes }
+          { campaignId, campaignContext, contentTypes }
         )
 
         for await (const chunk of responseStream) {

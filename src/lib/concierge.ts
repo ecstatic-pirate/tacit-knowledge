@@ -124,12 +124,29 @@ function getDefaultTitle(contentType: string): string {
 function buildRAGPrompt(
   userQuery: string,
   searchResults: SearchResult[],
-  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  campaignContext?: { name: string; type: 'person' | 'project'; role?: string }
 ): string {
   const contextChunks = searchResults
     .map((result, index) => {
       const sourceType = result.contentType.replace('_', ' ')
-      return `[Source ${index + 1} - ${sourceType}]\n${result.chunkText}`
+      const metadata = result.metadata || {}
+
+      // Build source header with more context
+      let sourceHeader = `[Source ${index + 1} - ${sourceType}]`
+
+      // Add session/expert info if available
+      if (metadata.sessionTitle || metadata.sessionNumber) {
+        sourceHeader += ` (Session: ${metadata.sessionTitle || `#${metadata.sessionNumber}`})`
+      }
+      if (metadata.expertName) {
+        sourceHeader += ` - Expert: ${metadata.expertName}`
+      }
+      if (metadata.title) {
+        sourceHeader += ` - ${metadata.title}`
+      }
+
+      return `${sourceHeader}\n${result.chunkText}`
     })
     .join('\n\n')
 
@@ -138,8 +155,13 @@ function buildRAGPrompt(
     .map((msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
     .join('\n')
 
-  return `You are a knowledge concierge assistant helping users explore captured organizational knowledge.
+  // Build campaign context string if provided
+  const campaignContextStr = campaignContext
+    ? `\nContext: You are answering questions specifically about the "${campaignContext.name}" campaign (${campaignContext.type === 'person' ? 'Expert' : 'Project'} campaign${campaignContext.role ? `, role: ${campaignContext.role}` : ''}).\n`
+    : ''
 
+  return `You are a knowledge concierge assistant helping users explore captured organizational knowledge.
+${campaignContextStr}
 Based on the following retrieved knowledge sources:
 
 ${contextChunks || 'No specific sources found for this query.'}
@@ -149,11 +171,13 @@ User question: ${userQuery}
 
 Instructions:
 - Answer the user's question based on the retrieved knowledge sources
-- If the sources contain relevant information, cite them using [Source N] notation
+- ALWAYS cite your sources using [Source N] notation when referencing specific information
+- Include the session or expert name in your citations when available (e.g., "According to [Source 1] from Session #3...")
 - If the sources don't contain relevant information, say so honestly
 - Be concise but thorough
 - If you make inferences or connections between sources, note that
-- Maintain a helpful, professional tone`
+- Maintain a helpful, professional tone
+- When listing multiple insights, cite the specific source for each one`
 }
 
 /**
@@ -165,6 +189,7 @@ export async function generateRAGResponse(
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
   options: {
     campaignId?: string
+    campaignContext?: { name: string; type: 'person' | 'project'; role?: string }
     contentTypes?: ('transcript' | 'insight' | 'graph_node' | 'document')[]
     matchCount?: number
     useFastModel?: boolean
@@ -173,7 +198,7 @@ export async function generateRAGResponse(
   response: string
   sources: MessageSource[]
 }> {
-  const { campaignId, contentTypes, matchCount = 8, useFastModel = false } = options
+  const { campaignId, campaignContext, contentTypes, matchCount = 8, useFastModel = false } = options
 
   // Search for relevant knowledge
   const searchResults = await searchKnowledge(userQuery, orgId, {
@@ -182,8 +207,8 @@ export async function generateRAGResponse(
     matchCount,
   })
 
-  // Build the RAG prompt
-  const prompt = buildRAGPrompt(userQuery, searchResults, conversationHistory)
+  // Build the RAG prompt with campaign context
+  const prompt = buildRAGPrompt(userQuery, searchResults, conversationHistory, campaignContext)
 
   // Generate response
   const openai = getOpenAIClient()
@@ -216,11 +241,12 @@ export async function* generateRAGResponseStream(
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
   options: {
     campaignId?: string
+    campaignContext?: { name: string; type: 'person' | 'project'; role?: string }
     contentTypes?: ('transcript' | 'insight' | 'graph_node' | 'document')[]
     matchCount?: number
   } = {}
 ): AsyncGenerator<{ type: 'sources' | 'delta' | 'done'; data: unknown }> {
-  const { campaignId, contentTypes, matchCount = 8 } = options
+  const { campaignId, campaignContext, contentTypes, matchCount = 8 } = options
 
   // Search for relevant knowledge first
   const searchResults = await searchKnowledge(userQuery, orgId, {
@@ -235,8 +261,8 @@ export async function* generateRAGResponseStream(
     data: searchResultsToSources(searchResults),
   }
 
-  // Build the RAG prompt
-  const prompt = buildRAGPrompt(userQuery, searchResults, conversationHistory)
+  // Build the RAG prompt with campaign context
+  const prompt = buildRAGPrompt(userQuery, searchResults, conversationHistory, campaignContext)
 
   // Generate streaming response
   const openai = getOpenAIClient()

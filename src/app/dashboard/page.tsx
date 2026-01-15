@@ -17,7 +17,7 @@ interface AISuggestion {
   id: string;
   expertName: string;
   message: string;
-  type: 'sessions' | 'attention' | 'skill';
+  type: 'sessions' | 'attention' | 'topic';
   campaignId?: string;
 }
 
@@ -101,22 +101,22 @@ export default function DashboardPage() {
         }
       }
 
-      const { data: uncapturedSkills } = await supabase
-        .from('skills')
+      const { data: uncapturedTopics } = await supabase
+        .from('topics')
         .select('name, campaigns(expert_name)')
         .eq('captured', false)
         .is('deleted_at', null)
         .limit(3);
 
-      if (uncapturedSkills) {
-        for (const skill of uncapturedSkills) {
-          const campaign = skill.campaigns as { expert_name: string } | null;
+      if (uncapturedTopics) {
+        for (const topic of uncapturedTopics) {
+          const campaign = topic.campaigns as { expert_name: string } | null;
           if (campaign) {
             suggestions.push({
-              id: `skill-${skill.name}`,
+              id: `topic-${topic.name}`,
               expertName: campaign.expert_name,
-              message: `Focus on capturing "${skill.name}" skill in the next session.`,
-              type: 'skill',
+              message: `Focus on capturing "${topic.name}" topic in the next session.`,
+              type: 'topic',
             });
           }
         }

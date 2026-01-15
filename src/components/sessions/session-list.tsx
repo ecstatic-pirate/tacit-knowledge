@@ -10,6 +10,7 @@ import {
   CaretUp,
   Sparkle,
   ListBullets,
+  CalendarPlus,
 } from 'phosphor-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -17,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { useCalendar } from '@/lib/hooks/use-calendar'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
+import { ScheduleSessionModal } from './schedule-session-modal'
 
 interface Session {
   id: string
@@ -36,6 +38,36 @@ interface Session {
   campaignId?: string
   campaignName?: string
   expertName?: string
+}
+
+interface Question {
+  id: string
+  text: string
+  topic_id: string
+}
+
+// Transform ai_suggested_topics from DB format to UI format
+function transformAiSuggestedTopics(
+  data: unknown,
+  questionsMap: Map<string, string[]>
+): Session['aiSuggestedTopics'] {
+  if (!data) return []
+
+  // Handle the database format: { topics: [{ id, name }] }
+  if (typeof data === 'object' && data !== null && 'topics' in data) {
+    const dbFormat = data as { topics: Array<{ id: string | null; name: string }> }
+    return dbFormat.topics.map(t => ({
+      topic: t.name,
+      questions: t.id ? questionsMap.get(t.id) || [] : [],
+    }))
+  }
+
+  // Handle if already in array format
+  if (Array.isArray(data)) {
+    return data as Session['aiSuggestedTopics']
+  }
+
+  return []
 }
 
 interface SessionListProps {
@@ -63,6 +95,7 @@ export function SessionList({
 
   const { isConnected, deleteEvent } = useCalendar()
   const supabase = useMemo(() => createClient(), [])
+  const [scheduleModalSession, setScheduleModalSession] = useState<Session | null>(null)
 
   const toggleSession = (sessionId: string) => {
     setExpandedSessions(prev => {
@@ -106,25 +139,48 @@ export function SessionList({
 
     if (error) {
       console.error('Error fetching sessions:', error)
-    } else {
-      setSessions(
-        (data || []).map((s) => ({
-          id: s.id,
-          sessionNumber: s.session_number,
-          title: s.title || undefined,
-          scheduledAt: s.scheduled_at || '',
-          durationMinutes: s.duration_minutes || 60,
-          status: s.status || 'scheduled',
-          topics: s.topics || [],
-          aiSuggestedTopics: (s.ai_suggested_topics as Session['aiSuggestedTopics']) || [],
-          calendarEventId: s.calendar_event_id || undefined,
-          calendarProvider: s.calendar_provider || undefined,
-          campaignId: s.campaign_id,
-          campaignName: s.campaigns?.expert_name,
-          expertName: s.campaigns?.expert_name,
-        }))
-      )
+      setIsLoading(false)
+      return
     }
+
+    // Fetch questions for the campaign to match with topics
+    let questionsMap = new Map<string, string[]>()
+    if (campaignId && data && data.length > 0) {
+      const { data: questions } = await supabase
+        .from('questions')
+        .select('id, text, topic_id')
+        .eq('campaign_id', campaignId)
+        .is('deleted_at', null)
+
+      if (questions) {
+        // Build a map of topic_id -> question texts
+        questions.forEach((q: Question) => {
+          if (q.topic_id) {
+            const existing = questionsMap.get(q.topic_id) || []
+            existing.push(q.text)
+            questionsMap.set(q.topic_id, existing)
+          }
+        })
+      }
+    }
+
+    setSessions(
+      (data || []).map((s) => ({
+        id: s.id,
+        sessionNumber: s.session_number,
+        title: s.title || undefined,
+        scheduledAt: s.scheduled_at || '',
+        durationMinutes: s.duration_minutes || 60,
+        status: s.status || 'scheduled',
+        topics: s.topics || [],
+        aiSuggestedTopics: transformAiSuggestedTopics(s.ai_suggested_topics, questionsMap),
+        calendarEventId: s.calendar_event_id || undefined,
+        calendarProvider: s.calendar_provider || undefined,
+        campaignId: s.campaign_id,
+        campaignName: s.campaigns?.expert_name,
+        expertName: s.campaigns?.expert_name,
+      }))
+    )
     setIsLoading(false)
   }, [supabase, campaignId, propSessions])
 
@@ -216,6 +272,7 @@ export function SessionList({
   }
 
   return (
+    <>
     <div className="space-y-3">
       {sessions.map((session) => {
         const isExpanded = expandedSessions.has(session.id)
@@ -320,6 +377,21 @@ export function SessionList({
 
                 {/* Actions */}
                 <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-wrap items-center gap-2">
+                  {/* Schedule button - for pending sessions */}
+                  {(session.status === 'pending' || !session.scheduledAt) && session.status !== 'completed' && session.status !== 'cancelled' && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setScheduleModalSession(session)
+                      }}
+                      className="gap-1.5"
+                    >
+                      <CalendarPlus className="w-3.5 h-3.5" weight="bold" />
+                      Schedule
+                    </Button>
+                  )}
+
                   {/* Link copy buttons */}
                   {showLinks && session.status !== 'completed' && session.status !== 'cancelled' && (
                     <>
@@ -351,7 +423,7 @@ export function SessionList({
                   )}
 
                   {/* Delete button */}
-                  {session.status === 'scheduled' && (
+                  {(session.status === 'scheduled' || session.status === 'pending') && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -369,5 +441,16 @@ export function SessionList({
         )
       })}
     </div>
+
+    {/* Schedule Modal */}
+    {scheduleModalSession && (
+      <ScheduleSessionModal
+        isOpen={!!scheduleModalSession}
+        onClose={() => setScheduleModalSession(null)}
+        session={scheduleModalSession}
+        onScheduled={fetchSessions}
+      />
+    )}
+    </>
   )
 }

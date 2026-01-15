@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 
 export interface DashboardMetrics {
   activeCampaigns: number
-  totalSkillsCaptured: number
+  totalTopicsCaptured: number
   upcomingSessions: number
   graphNodesCount: number
 }
@@ -20,7 +20,7 @@ export interface UseDashboardMetricsReturn {
 export function useDashboardMetrics(): UseDashboardMetricsReturn {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     activeCampaigns: 0,
-    totalSkillsCaptured: 0,
+    totalTopicsCaptured: 0,
     upcomingSessions: 0,
     graphNodesCount: 0,
   })
@@ -40,14 +40,14 @@ export function useDashboardMetrics(): UseDashboardMetricsReturn {
 
     try {
       // Simplified: fetch counts in parallel with minimal queries
-      const [campaignsResult, skillsResult, sessionsResult, nodesResult] = await Promise.all([
+      const [campaignsResult, topicsResult, sessionsResult, nodesResult] = await Promise.all([
         supabase
           .from('campaigns')
           .select('id', { count: 'exact', head: true })
           .is('deleted_at', null)
           .is('completed_at', null),
         supabase
-          .from('skills')
+          .from('topics')
           .select('id', { count: 'exact', head: true })
           .eq('captured', true)
           .is('deleted_at', null),
@@ -64,7 +64,7 @@ export function useDashboardMetrics(): UseDashboardMetricsReturn {
 
       setMetrics({
         activeCampaigns: campaignsResult.count ?? 0,
-        totalSkillsCaptured: skillsResult.count ?? 0,
+        totalTopicsCaptured: topicsResult.count ?? 0,
         upcomingSessions: sessionsResult.count ?? 0,
         graphNodesCount: nodesResult.count ?? 0,
       })

@@ -26,7 +26,7 @@ export default function CaptureSessionPage() {
     showToast('Session paused', 'warning');
   }, [showToast]);
 
-  const handleEndSession = useCallback((duration: number, capturedSkillsCount: number) => {
+  const handleEndSession = useCallback((duration: number, capturedTopicsCount: number) => {
     const minutes = Math.floor(duration / 60);
 
     setModalState({
@@ -49,8 +49,8 @@ export default function CaptureSessionPage() {
               <div className="text-lg font-bold">{minutes}m</div>
             </div>
             <div className="bg-secondary/50 p-3 rounded-lg border">
-              <div className="text-xs text-muted-foreground font-semibold uppercase">Skills</div>
-              <div className="text-lg font-bold">{capturedSkillsCount}</div>
+              <div className="text-xs text-muted-foreground font-semibold uppercase">Topics</div>
+              <div className="text-lg font-bold">{capturedTopicsCount}</div>
             </div>
           </div>
 
@@ -60,7 +60,7 @@ export default function CaptureSessionPage() {
               AI Processing Started
             </div>
             <ul className="space-y-2">
-              {['Extracting key insights', 'Mapping skills to knowledge graph', 'Generating session report'].map((item) => (
+              {['Extracting key insights', 'Mapping topics to knowledge graph', 'Generating session report'].map((item) => (
                 <li key={item} className="flex items-center gap-2 text-sm text-foreground/80">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   {item}

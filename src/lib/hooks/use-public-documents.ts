@@ -8,7 +8,7 @@ export interface PublicDocument {
   fileSize: number
   fileType: string
   aiProcessed: boolean
-  extractedSkills: string[]
+  extractedTopics: string[]
   createdAt: string
 }
 
@@ -48,7 +48,7 @@ export function usePublicDocuments({ token }: UsePublicDocumentsOptions) {
           file_size: number
           file_type: string
           ai_processed: boolean
-          extracted_skills: string[]
+          extracted_topics: string[]
           created_at: string
         }) => ({
           id: doc.id,
@@ -56,7 +56,7 @@ export function usePublicDocuments({ token }: UsePublicDocumentsOptions) {
           fileSize: doc.file_size || 0,
           fileType: doc.file_type || 'unknown',
           aiProcessed: doc.ai_processed || false,
-          extractedSkills: Array.isArray(doc.extracted_skills) ? doc.extracted_skills : [],
+          extractedTopics: Array.isArray(doc.extracted_topics) ? doc.extracted_topics : [],
           createdAt: doc.created_at || '',
         }))
       )
@@ -138,7 +138,7 @@ export function usePublicDocuments({ token }: UsePublicDocumentsOptions) {
         fileSize: data.document.fileSize || 0,
         fileType: data.document.fileType || 'unknown',
         aiProcessed: false,
-        extractedSkills: [],
+        extractedTopics: [],
         createdAt: data.document.createdAt || '',
       }
 

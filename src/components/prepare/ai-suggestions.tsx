@@ -22,7 +22,7 @@ import type { InterviewQuestion } from '@/lib/supabase/database.types';
 
 interface AISuggestionsProps {
   campaignId?: string;
-  extractedSkills?: string[];
+  extractedTopics?: string[];
   onAccept: () => void;
   onEdit: () => void;
 }
@@ -37,7 +37,7 @@ interface InterviewPlanResult {
 interface SessionPlan {
   sessionNumber: number;
   topic: string;
-  skills: string[];
+  topics: string[];
 }
 
 interface CampaignPlan {
@@ -56,7 +56,7 @@ const priorityStyles = {
 
 export function AISuggestions({
   campaignId,
-  extractedSkills = [],
+  extractedTopics = [],
   onAccept,
   onEdit,
 }: AISuggestionsProps) {
@@ -101,7 +101,7 @@ export function AISuggestions({
         sessionPlan.push({
           sessionNumber: i + 1,
           topic: questionsForSession[0]?.category || `Session ${i + 1}`,
-          skills: questionsForSession.map((q) => q.question.slice(0, 50) + '...'),
+          topics: questionsForSession.map((q) => q.question.slice(0, 50) + '...'),
         });
       }
 
@@ -143,7 +143,7 @@ export function AISuggestions({
             sessionPlan.push({
               sessionNumber: i + 1,
               topic: questionsForSession[0]?.category || `Session ${i + 1}`,
-              skills: questionsForSession.map((q) => q.question.slice(0, 50) + '...'),
+              topics: questionsForSession.map((q) => q.question.slice(0, 50) + '...'),
             });
           }
 
@@ -166,10 +166,10 @@ export function AISuggestions({
   }, [campaignId]);
 
   useEffect(() => {
-    if (campaignId && (extractedSkills.length > 0 || !hasFetched)) {
+    if (campaignId && (extractedTopics.length > 0 || !hasFetched)) {
       fetchSuggestions();
     }
-  }, [campaignId, extractedSkills.length, hasFetched, fetchSuggestions]);
+  }, [campaignId, extractedTopics.length, hasFetched, fetchSuggestions]);
 
   // Placeholder state
   if (!campaignId) {

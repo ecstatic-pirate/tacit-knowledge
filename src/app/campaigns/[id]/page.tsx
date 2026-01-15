@@ -10,6 +10,7 @@ import {
   Clock,
   User,
   Users,
+  UsersThree,
   EnvelopeSimple,
   PaperPlaneTilt,
   Copy,
@@ -19,7 +20,6 @@ import {
   Trash,
   CaretDown,
   CaretUp,
-  Briefcase,
   Target,
   ChatCircleText,
   Lightbulb,
@@ -31,18 +31,23 @@ import {
   ArrowSquareOut,
   ChartBar,
   Clipboard,
+  FolderSimple,
+  Briefcase,
+  Sparkle,
 } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import { Modal } from '@/components/ui/modal'
-import type { CampaignAccessToken, CollaboratorResponse, Campaign, SelfAssessment, Json } from '@/lib/supabase/database.types'
+import type { CampaignAccessToken, CollaboratorResponse, Campaign, SelfAssessment, Json, Participant, ParticipantStatus } from '@/lib/supabase/database.types'
 import { containers } from '@/lib/design-system'
 import { SessionForm, SessionList } from '@/components/sessions'
 import { useKnowledgeCoverageStats } from '@/lib/hooks/use-knowledge-coverage'
 import { CoverageBar } from '@/components/ui/coverage-bar'
+import { ParticipantModal, ParticipantsList } from '@/components/participants'
+import { TopicModal, TopicsList } from '@/components/topics'
 
-type TabId = 'overview' | 'interviews' | 'preparation' | 'feedback'
+type TabId = 'overview' | 'participants' | 'topics' | 'sessions' | 'context'
 
 interface CampaignWithDetails extends Campaign {
   organizations?: { name: string } | null
@@ -58,11 +63,22 @@ interface Collaborator {
   role: string
 }
 
-interface Skill {
+interface Question {
+  id: string
+  text: string
+  priority: 'high' | 'medium' | 'low' | null
+  category: string | null
+  asked: boolean
+  topic_id: string | null
+}
+
+interface Topic {
   id: string
   name: string
   category: string | null
   captured: boolean
+  suggested_by: string | null
+  questions?: Question[]
 }
 
 interface Document {
@@ -70,7 +86,7 @@ interface Document {
   filename: string
   file_type: string | null
   ai_processed: boolean
-  extracted_skills: unknown
+  extracted_topics: unknown
 }
 
 interface Session {
@@ -88,6 +104,30 @@ interface Session {
   }>
   calendarEventId?: string
   calendarProvider?: string
+}
+
+// Transform ai_suggested_topics from DB format to UI format
+function transformAiSuggestedTopics(
+  data: unknown,
+  questionsMap: Map<string, string[]>
+): Session['aiSuggestedTopics'] {
+  if (!data) return []
+
+  // Handle the database format: { topics: [{ id, name }] }
+  if (typeof data === 'object' && data !== null && 'topics' in data) {
+    const dbFormat = data as { topics: Array<{ id: string | null; name: string }> }
+    return dbFormat.topics.map(t => ({
+      topic: t.name,
+      questions: t.id ? questionsMap.get(t.id) || [] : [],
+    }))
+  }
+
+  // Handle if already in array format
+  if (Array.isArray(data)) {
+    return data as Session['aiSuggestedTopics']
+  }
+
+  return []
 }
 
 type SubmissionStatus = 'pending' | 'submitted' | 'expired'
@@ -156,10 +196,28 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [collaboratorForm, setCollaboratorForm] = useState<Collaborator>({ name: '', email: '', role: 'teammate' })
   const [savingCollaborator, setSavingCollaborator] = useState(false)
 
-  // Skills, documents, and sessions
-  const [skills, setSkills] = useState<Skill[]>([])
+  // Topics, documents, and sessions
+  const [topics, setTopics] = useState<Topic[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
+
+  // Participants state (for project campaigns)
+  const [participants, setParticipants] = useState<Participant[]>([])
+  const [participantModalOpen, setParticipantModalOpen] = useState(false)
+  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null)
+
+  // Topics modal state
+  const [topicModalOpen, setTopicModalOpen] = useState(false)
+  const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
+
+  // Generation status (from database for persistence)
+  const topicsGenerationStatus = campaign?.topics_generation_status as string | null
+  const topicsGenerationStartedAt = campaign?.topics_generation_started_at as string | null
+  const sessionsGenerationStatus = campaign?.sessions_generation_status as string | null
+  const sessionsGenerationStartedAt = campaign?.sessions_generation_started_at as string | null
+
+  const isGeneratingTopics = topicsGenerationStatus === 'generating'
+  const isGeneratingSessions = sessionsGenerationStatus === 'generating'
 
   // Tab state
   const [activeTab, setActiveTab] = useState<TabId>('overview')
@@ -223,28 +281,61 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       setTokens(tokensWithResponses)
     }
 
-    // Fetch skills
-    const { data: skillsData } = await supabase
-      .from('skills')
-      .select('id, name, category, captured')
+    // Fetch topics
+    const { data: topicsData } = await supabase
+      .from('topics')
+      .select('id, name, category, captured, suggested_by')
       .eq('campaign_id', campaignId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
 
-    if (skillsData) {
-      setSkills(skillsData.map(s => ({ ...s, captured: s.captured ?? false })))
+    // Fetch questions
+    const { data: questionsData } = await supabase
+      .from('questions')
+      .select('id, text, priority, category, asked, topic_id')
+      .eq('campaign_id', campaignId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true })
+
+    if (topicsData) {
+      // Associate questions with topics
+      const questionsMap = new Map<string, Question[]>()
+      if (questionsData) {
+        questionsData.forEach(q => {
+          if (q.topic_id) {
+            if (!questionsMap.has(q.topic_id)) {
+              questionsMap.set(q.topic_id, [])
+            }
+            questionsMap.get(q.topic_id)!.push({
+              id: q.id,
+              text: q.text,
+              priority: q.priority as 'high' | 'medium' | 'low' | null,
+              category: q.category,
+              asked: q.asked ?? false,
+              topic_id: q.topic_id,
+            })
+          }
+        })
+      }
+
+      setTopics(topicsData.map(t => ({
+        ...t,
+        captured: t.captured ?? false,
+        suggested_by: t.suggested_by ?? null,
+        questions: questionsMap.get(t.id) || [],
+      })))
     }
 
     // Fetch documents
     const { data: documentsData } = await supabase
       .from('documents')
-      .select('id, filename, file_type, ai_processed, extracted_skills')
+      .select('id, filename, file_type, ai_processed, extracted_topics')
       .eq('campaign_id', campaignId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
 
     if (documentsData) {
-      setDocuments(documentsData.map(d => ({ ...d, ai_processed: d.ai_processed ?? false })))
+      setDocuments(documentsData.map(d => ({ ...d, ai_processed: d.ai_processed ?? false, extracted_topics: d.extracted_topics })))
     }
 
     // Fetch sessions
@@ -256,6 +347,18 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       .order('session_number', { ascending: true })
 
     if (sessionsData) {
+      // Build a map of topic_id -> question texts for sessions
+      const sessionQuestionsMap = new Map<string, string[]>()
+      if (questionsData) {
+        questionsData.forEach(q => {
+          if (q.topic_id) {
+            const existing = sessionQuestionsMap.get(q.topic_id) || []
+            existing.push(q.text)
+            sessionQuestionsMap.set(q.topic_id, existing)
+          }
+        })
+      }
+
       setSessions(sessionsData.map(s => ({
         id: s.id,
         sessionNumber: s.session_number,
@@ -264,10 +367,22 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         durationMinutes: s.duration_minutes || 60,
         status: s.status || 'scheduled',
         topics: s.topics || [],
-        aiSuggestedTopics: (s.ai_suggested_topics as Session['aiSuggestedTopics']) || [],
+        aiSuggestedTopics: transformAiSuggestedTopics(s.ai_suggested_topics, sessionQuestionsMap),
         calendarEventId: s.calendar_event_id || undefined,
         calendarProvider: s.calendar_provider || undefined,
       })))
+    }
+
+    // Fetch participants (for project campaigns)
+    const { data: participantsData } = await supabase
+      .from('participants')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true })
+
+    if (participantsData) {
+      setParticipants(participantsData)
     }
 
     setLoading(false)
@@ -299,11 +414,29 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `campaign_id=eq.${campaignId}` }, () => fetchData())
       .subscribe()
 
+    const participantsSubscription = supabase
+      .channel('campaign-participants')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants', filter: `campaign_id=eq.${campaignId}` }, () => fetchData())
+      .subscribe()
+
+    const topicsSubscription = supabase
+      .channel('campaign-topics')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'topics', filter: `campaign_id=eq.${campaignId}` }, () => fetchData())
+      .subscribe()
+
+    const questionsSubscription = supabase
+      .channel('campaign-questions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'questions', filter: `campaign_id=eq.${campaignId}` }, () => fetchData())
+      .subscribe()
+
     return () => {
       tokenSubscription.unsubscribe()
       responseSubscription.unsubscribe()
       campaignSubscription.unsubscribe()
       sessionsSubscription.unsubscribe()
+      participantsSubscription.unsubscribe()
+      topicsSubscription.unsubscribe()
+      questionsSubscription.unsubscribe()
     }
   }, [supabase, campaignId, fetchData])
 
@@ -343,6 +476,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   // Generate a shareable link without sending email
   const [generatingLink, setGeneratingLink] = useState<string | null>(null)
   const [generatingGuideLink, setGeneratingGuideLink] = useState(false)
+  const [generatingManagerLink, setGeneratingManagerLink] = useState(false)
+
+  // Manager modal state
+  const [managerModalOpen, setManagerModalOpen] = useState(false)
+  const [managerForm, setManagerForm] = useState({ name: '', email: '' })
 
   const generateLink = async (
     type: 'expert' | 'collaborator',
@@ -435,6 +573,61 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     }
   }
 
+  // Generate manager survey link
+  const generateManagerSurveyLink = async (name: string, email: string) => {
+    setGeneratingManagerLink(true)
+
+    try {
+      // Generate cryptographic token
+      const tokenBytes = new Uint8Array(32)
+      crypto.getRandomValues(tokenBytes)
+      const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+
+      // Insert token into database with token_type 'manager'
+      const { error } = await supabase
+        .from('campaign_access_tokens')
+        .insert({
+          campaign_id: campaignId,
+          token,
+          token_type: 'manager',
+          email,
+          name,
+          role: 'manager',
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+        })
+
+      if (error) {
+        console.error('Error creating manager token:', error)
+        showToast('Failed to generate manager link', 'error')
+        return
+      }
+
+      // Copy to clipboard
+      const baseUrl = window.location.origin
+      const url = `${baseUrl}/manager-survey/${token}`
+      await navigator.clipboard.writeText(url)
+      showToast('Manager survey link generated and copied to clipboard!')
+
+      // Close modal and refresh data
+      setManagerModalOpen(false)
+      setManagerForm({ name: '', email: '' })
+      fetchData()
+    } catch (error) {
+      console.error('Error generating manager link:', error)
+      showToast('Failed to generate manager link', 'error')
+    } finally {
+      setGeneratingManagerLink(false)
+    }
+  }
+
+  // Copy existing manager survey link
+  const copyManagerSurveyLink = (token: string) => {
+    const baseUrl = window.location.origin
+    const url = `${baseUrl}/manager-survey/${token}`
+    navigator.clipboard.writeText(url)
+    showToast('Manager survey link copied to clipboard')
+  }
+
   // Collaborator management
   const openAddCollaborator = () => {
     setEditingCollaborator(null)
@@ -495,6 +688,306 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     }
   }
 
+  // Participant handlers (for project campaigns)
+  const openAddParticipant = () => {
+    setEditingParticipant(null)
+    setParticipantModalOpen(true)
+  }
+
+  const openEditParticipant = (participant: Participant) => {
+    setEditingParticipant(participant)
+    setParticipantModalOpen(true)
+  }
+
+  const saveParticipant = async (data: {
+    name: string
+    email: string
+    role: string
+    team: string
+    status: ParticipantStatus
+    notes: string
+  }) => {
+    if (editingParticipant) {
+      // Update existing participant
+      const { error } = await supabase
+        .from('participants')
+        .update({
+          name: data.name,
+          email: data.email || null,
+          role: data.role || null,
+          team: data.team || null,
+          status: data.status,
+          notes: data.notes || null,
+        })
+        .eq('id', editingParticipant.id)
+
+      if (error) {
+        showToast('Failed to update participant', 'error')
+        throw error
+      }
+      showToast('Participant updated')
+    } else {
+      // Create new participant
+      const { error } = await supabase
+        .from('participants')
+        .insert({
+          campaign_id: campaignId,
+          name: data.name,
+          email: data.email || null,
+          role: data.role || null,
+          team: data.team || null,
+          status: data.status,
+          notes: data.notes || null,
+        })
+
+      if (error) {
+        showToast('Failed to add participant', 'error')
+        throw error
+      }
+      showToast('Participant added')
+    }
+    fetchData()
+  }
+
+  const deleteParticipant = async (participantId: string) => {
+    const { error } = await supabase
+      .from('participants')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', participantId)
+
+    if (error) {
+      showToast('Failed to remove participant', 'error')
+      throw error
+    }
+    showToast('Participant removed')
+    fetchData()
+  }
+
+  const updateParticipantStatus = async (participantId: string, status: ParticipantStatus) => {
+    const { error } = await supabase
+      .from('participants')
+      .update({ status })
+      .eq('id', participantId)
+
+    if (error) {
+      showToast('Failed to update status', 'error')
+      throw error
+    }
+    showToast('Status updated')
+    fetchData()
+  }
+
+  // Generate participant survey link
+  const generateParticipantSurveyLink = async (participant: Participant) => {
+    if (!participant.email) {
+      showToast('Participant needs an email to generate a survey link', 'error')
+      return
+    }
+
+    try {
+      // Check if participant already has a survey token
+      if (participant.survey_token) {
+        // Copy existing link
+        const baseUrl = window.location.origin
+        const url = `${baseUrl}/participant-survey/${participant.survey_token}`
+        await navigator.clipboard.writeText(url)
+        showToast('Survey link copied to clipboard!')
+        return
+      }
+
+      // Generate cryptographic token
+      const tokenBytes = new Uint8Array(32)
+      crypto.getRandomValues(tokenBytes)
+      const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
+
+      // Insert token into campaign_access_tokens
+      const { error: tokenError } = await supabase
+        .from('campaign_access_tokens')
+        .insert({
+          campaign_id: campaignId,
+          token,
+          token_type: 'participant',
+          email: participant.email,
+          name: participant.name,
+          role: participant.role,
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+        })
+
+      if (tokenError) {
+        console.error('Error creating token:', tokenError)
+        showToast('Failed to generate survey link', 'error')
+        return
+      }
+
+      // Update participant with survey token
+      const { error: updateError } = await supabase
+        .from('participants')
+        .update({ survey_token: token })
+        .eq('id', participant.id)
+
+      if (updateError) {
+        console.error('Error updating participant:', updateError)
+        // Don't show error, token was created successfully
+      }
+
+      // Copy to clipboard
+      const baseUrl = window.location.origin
+      const url = `${baseUrl}/participant-survey/${token}`
+      await navigator.clipboard.writeText(url)
+      showToast('Survey link generated and copied to clipboard!')
+
+      // Refresh data
+      fetchData()
+    } catch (error) {
+      console.error('Error generating survey link:', error)
+      showToast('Failed to generate survey link', 'error')
+    }
+  }
+
+  // Topic handlers
+  const openAddTopic = () => {
+    setEditingTopic(null)
+    setTopicModalOpen(true)
+  }
+
+  const openEditTopic = (topic: Topic) => {
+    setEditingTopic(topic)
+    setTopicModalOpen(true)
+  }
+
+  const saveTopic = async (data: {
+    name: string
+    category: string
+    suggested_by: string
+  }) => {
+    if (editingTopic) {
+      // Update existing topic
+      const { error } = await supabase
+        .from('topics')
+        .update({
+          name: data.name,
+          category: data.category || null,
+          suggested_by: data.suggested_by || null,
+        })
+        .eq('id', editingTopic.id)
+
+      if (error) {
+        showToast('Failed to update topic', 'error')
+        throw error
+      }
+      showToast('Topic updated')
+    } else {
+      // Create new topic
+      const { error } = await supabase
+        .from('topics')
+        .insert({
+          campaign_id: campaignId,
+          name: data.name,
+          category: data.category || null,
+          suggested_by: data.suggested_by || null,
+          captured: false,
+        })
+
+      if (error) {
+        showToast('Failed to add topic', 'error')
+        throw error
+      }
+      showToast('Topic added')
+    }
+    fetchData()
+  }
+
+  const deleteTopic = async (topicId: string) => {
+    const { error } = await supabase
+      .from('topics')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', topicId)
+
+    if (error) {
+      showToast('Failed to remove topic', 'error')
+      throw error
+    }
+    showToast('Topic removed')
+    fetchData()
+  }
+
+  const toggleTopicCaptured = async (topicId: string, captured: boolean) => {
+    const { error } = await supabase
+      .from('topics')
+      .update({
+        captured,
+        captured_at: captured ? new Date().toISOString() : null,
+      })
+      .eq('id', topicId)
+
+    if (error) {
+      showToast('Failed to update topic', 'error')
+      throw error
+    }
+    showToast(captured ? 'Topic marked as captured' : 'Topic marked as not captured')
+    fetchData()
+  }
+
+  // Generate topics using AI
+  const generateTopics = async () => {
+    try {
+      // Optimistically update UI to show generating state
+      setCampaign(prev => prev ? { ...prev, topics_generation_status: 'generating', topics_generation_started_at: new Date().toISOString() } : null)
+
+      const response = await fetch(`/api/campaigns/${campaignId}/generate-topics`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type')
+        if (contentType?.includes('application/json')) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to generate topics')
+        }
+        throw new Error('Failed to generate topics')
+      }
+
+      const result = await response.json()
+      showToast(`Generated ${result.topicsCreated || 0} topics and ${result.questionsCreated || 0} questions`)
+      fetchData()
+    } catch (error) {
+      console.error('Error generating topics:', error)
+      showToast(error instanceof Error ? error.message : 'Failed to generate topics', 'error')
+      // Refresh to get actual status
+      fetchData()
+    }
+  }
+
+  // Generate sessions using AI
+  const generateSessions = async () => {
+    try {
+      // Optimistically update UI to show generating state
+      setCampaign(prev => prev ? { ...prev, sessions_generation_status: 'generating', sessions_generation_started_at: new Date().toISOString() } : null)
+
+      const response = await fetch(`/api/campaigns/${campaignId}/generate-sessions`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type')
+        if (contentType?.includes('application/json')) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to generate sessions')
+        }
+        throw new Error('Failed to generate sessions')
+      }
+
+      const result = await response.json()
+      showToast(`Generated ${result.sessionsCreated || 0} sessions`)
+      fetchData()
+    } catch (error) {
+      console.error('Error generating sessions:', error)
+      showToast(error instanceof Error ? error.message : 'Failed to generate sessions', 'error')
+      // Refresh to get actual status
+      fetchData()
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -527,6 +1020,13 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const submittedCount = tokens.filter(t => t.submitted_at).length
   const totalCount = noTokensYet ? (hasExpertEmail ? 1 : 0) + campaignCollaborators.length : tokens.length
 
+  // Campaign type helpers
+  const isProjectCampaign = campaign.subject_type === 'project'
+  const projectTypeLabels: Record<string, string> = {
+    'product_feature': 'Product Feature',
+    'team_process': 'Team Process',
+  }
+
   return (
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
@@ -541,22 +1041,47 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </button>
 
           <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold">{campaign.expert_name}</h1>
-              <p className="text-muted-foreground">
-                {campaign.expert_role}
-                {campaign.department && ` · ${campaign.department}`}
-              </p>
+            <div className="flex items-start gap-4">
+              {isProjectCampaign && (
+                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+                  <FolderSimple className="w-6 h-6 text-primary-foreground" weight="bold" />
+                </div>
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-semibold">{campaign.expert_name}</h1>
+                  {isProjectCampaign && campaign.project_type && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground">
+                      {projectTypeLabels[campaign.project_type] || campaign.project_type}
+                    </span>
+                  )}
+                </div>
+                <p className="text-muted-foreground">
+                  {isProjectCampaign ? (
+                    campaign.goal || 'Project campaign'
+                  ) : (
+                    campaign.expert_role
+                  )}
+                </p>
+              </div>
             </div>
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">Campaign Progress</p>
-              <p className="text-lg font-semibold">{submittedCount}/{totalCount} submissions</p>
+              <p className="text-sm text-muted-foreground">
+                {isProjectCampaign ? 'Sessions' : 'Campaign Progress'}
+              </p>
+              <p className="text-lg font-semibold">
+                {isProjectCampaign ? (
+                  `${sessions.filter(s => s.status === 'completed').length}/${sessions.length}`
+                ) : (
+                  `${submittedCount}/${totalCount} submissions`
+                )}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Send Invitations Banner */}
-        {needsInvitations && (
+        {/* Send Invitations Banner - Only show for expert campaigns */}
+        {!isProjectCampaign && needsInvitations && (
           <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <EnvelopeSimple className="w-5 h-5 text-amber-600" weight="bold" />
@@ -580,9 +1105,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         <div className="flex border-b mb-6">
           {[
             { id: 'overview' as TabId, label: 'Overview', icon: Target },
-            { id: 'interviews' as TabId, label: 'Interviews', icon: Calendar },
-            { id: 'preparation' as TabId, label: 'Preparation', icon: Clipboard },
-            { id: 'feedback' as TabId, label: 'Feedback', icon: ChatCircleText },
+            // Project: Overview, Participants, Topics, Sessions
+            ...(isProjectCampaign ? [{ id: 'participants' as TabId, label: 'Participants', icon: UsersThree }] : []),
+            // Expert: Overview, Context, Topics, Sessions
+            ...(!isProjectCampaign ? [{ id: 'context' as TabId, label: 'Context', icon: Clipboard }] : []),
+            { id: 'topics' as TabId, label: 'Topics', icon: Lightning },
+            { id: 'sessions' as TabId, label: 'Sessions', icon: Calendar },
           ].map(tab => (
             <button
               key={tab.id}
@@ -655,65 +1183,140 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Target className="w-5 h-5" weight="bold" />
-            Campaign Details
+            {isProjectCampaign ? 'Project Details' : 'Campaign Details'}
           </h2>
           <div className="border rounded-lg bg-card p-5 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Expert</p>
-                <p className="font-medium">{campaign.expert_name}</p>
-                <p className="text-sm text-muted-foreground">{campaign.expert_email}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Role & Department</p>
-                <p className="font-medium">{campaign.expert_role}</p>
-                <p className="text-sm text-muted-foreground">{campaign.department || 'No department'}</p>
-              </div>
-            </div>
-            {campaign.years_experience && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Experience</p>
-                <p className="flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-muted-foreground" />
-                  {campaign.years_experience} years
-                </p>
-              </div>
-            )}
-            {campaign.goal && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Campaign Goal</p>
-                <p className="text-muted-foreground">{campaign.goal}</p>
-              </div>
-            )}
-            {campaign.capture_mode && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Capture Mode</p>
-                <p className="capitalize">{campaign.capture_mode}</p>
-              </div>
+            {isProjectCampaign ? (
+              // Project campaign details
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Project Name</p>
+                    <p className="font-medium">{campaign.expert_name}</p>
+                  </div>
+                  {campaign.project_type && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Project Type</p>
+                      <p className="font-medium">{projectTypeLabels[campaign.project_type] || campaign.project_type}</p>
+                    </div>
+                  )}
+                </div>
+                {campaign.goal && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Description</p>
+                    <p className="text-muted-foreground">{campaign.goal}</p>
+                  </div>
+                )}
+                {campaign.capture_mode && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Capture Mode</p>
+                    <p className="capitalize">{campaign.capture_mode}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              // Expert campaign details
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Expert</p>
+                    <p className="font-medium">{campaign.expert_name}</p>
+                    <p className="text-sm text-muted-foreground">{campaign.expert_email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Role</p>
+                    <p className="font-medium">{campaign.expert_role}</p>
+                  </div>
+                </div>
+                {campaign.departure_date && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Departure Date</p>
+                    <p className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      {new Date(campaign.departure_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+                {campaign.goal && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Campaign Goal</p>
+                    <p className="text-muted-foreground">{campaign.goal}</p>
+                  </div>
+                )}
+                {campaign.capture_mode && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Capture Mode</p>
+                    <p className="capitalize">{campaign.capture_mode}</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>
           </>
         )}
 
-        {/* Interviews Tab */}
-        {activeTab === 'interviews' && (
+        {/* Sessions Tab */}
+        {activeTab === 'sessions' && (
           <>
             {/* Interview Plan Section */}
             <section className="mb-8">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Calendar className="w-5 h-5" weight="bold" />
-                Interview Plan
-                <span className="text-sm font-normal text-muted-foreground">
-                  ({sessions.filter(s => s.status === 'completed').length}/{sessions.length} completed)
-                </span>
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Calendar className="w-5 h-5" weight="bold" />
+                  {isProjectCampaign ? 'Session Plan' : 'Interview Plan'}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({sessions.filter(s => s.status === 'completed').length}/{sessions.length} completed)
+                  </span>
+                </h2>
+                <Button
+                  onClick={generateSessions}
+                  disabled={isGeneratingSessions || topics.filter(t => !t.captured).length === 0}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  {isGeneratingSessions ? (
+                    <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
+                  ) : (
+                    <Sparkle className="w-4 h-4" weight="bold" />
+                  )}
+                  {isGeneratingSessions ? 'Planning...' : 'Plan with AI'}
+                </Button>
+              </div>
+
+              {/* Generating state UI */}
+              {isGeneratingSessions && (
+                <div className="border rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 p-6 mb-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Sparkle className="w-6 h-6 text-blue-600 animate-pulse" weight="fill" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-blue-900 mb-1">AI is planning your sessions...</h3>
+                      <p className="text-sm text-blue-700 mb-3">
+                        Organizing topics into logical sessions based on category and estimated discussion time.
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-blue-600">
+                        <CircleNotch className="w-3.5 h-3.5 animate-spin" weight="bold" />
+                        {sessionsGenerationStartedAt && (
+                          <span>Started {new Date(sessionsGenerationStartedAt).toLocaleTimeString()}</span>
+                        )}
+                        <span className="text-blue-400">•</span>
+                        <span>You can leave this page and come back</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="border rounded-lg bg-card overflow-hidden">
                 {/* Add session form */}
                 <div className="p-5 border-b bg-neutral-50/50 relative">
                   <SessionForm
                     campaignId={campaignId}
+                    campaignType={isProjectCampaign ? 'project' : 'person'}
                     nextSessionNumber={sessions.length > 0 ? Math.max(...sessions.map(s => s.sessionNumber)) + 1 : 1}
+                    participants={participants}
                     onSessionCreated={fetchData}
                   />
                 </div>
@@ -732,43 +1335,160 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </>
         )}
 
-        {/* Preparation Tab */}
-        {activeTab === 'preparation' && (
+        {/* Participants Tab - Only for project campaigns */}
+        {activeTab === 'participants' && isProjectCampaign && (
           <>
-            {/* Skills Section */}
-        {skills.length > 0 && (
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Lightning className="w-5 h-5" weight="bold" />
-              Skills to Capture
-              <span className="text-sm font-normal text-muted-foreground">
-                ({skills.filter(s => s.captured).length}/{skills.length} captured)
-              </span>
-            </h2>
-            <div className="border rounded-lg bg-card p-5">
-              <div className="flex flex-wrap gap-2">
-                {skills.map(skill => (
-                  <div
-                    key={skill.id}
-                    className={cn(
-                      'px-3 py-1.5 rounded-full text-sm flex items-center gap-2',
-                      skill.captured
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-secondary text-foreground'
-                    )}
-                  >
-                    {skill.captured && <CheckCircle className="w-3.5 h-3.5" weight="fill" />}
-                    {skill.name}
-                    {skill.category && (
-                      <span className="text-xs text-muted-foreground">({skill.category})</span>
-                    )}
-                  </div>
-                ))}
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <UsersThree className="w-5 h-5" weight="bold" />
+                Project Participants
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({participants.filter(p => p.status === 'complete').length}/{participants.length} interviewed)
+                </span>
+              </h2>
+              <div className="border rounded-lg bg-card p-5">
+                <ParticipantsList
+                  participants={participants}
+                  onAdd={openAddParticipant}
+                  onEdit={openEditParticipant}
+                  onDelete={deleteParticipant}
+                  onStatusChange={updateParticipantStatus}
+                  onGenerateSurveyLink={generateParticipantSurveyLink}
+                />
               </div>
+            </section>
+
+            {/* Manager Survey Section */}
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Briefcase className="w-5 h-5" weight="bold" />
+                Manager Input
+              </h2>
+              <div className="border rounded-lg bg-card p-5">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <Briefcase className="w-6 h-6 text-amber-600" weight="bold" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium mb-1">Get Input from Managers</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Managers can suggest topics they think should be covered during knowledge capture sessions.
+                      Their suggestions will be added to your topics list.
+                    </p>
+                    <Button variant="outline" onClick={() => setManagerModalOpen(true)}>
+                      <Plus className="w-4 h-4 mr-1.5" />
+                      Invite Manager
+                    </Button>
+                  </div>
+                </div>
+
+                {/* List of manager tokens */}
+                {tokens.filter(t => t.token_type === 'manager').length > 0 && (
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="text-sm font-medium text-muted-foreground mb-3">Invited Managers</h4>
+                    <div className="space-y-2">
+                      {tokens.filter(t => t.token_type === 'manager').map(token => {
+                        const status = getSubmissionStatus(token)
+                        return (
+                          <div key={token.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                                <Briefcase className="w-4 h-4 text-amber-600" weight="bold" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">{token.name || 'Manager'}</p>
+                                <p className="text-xs text-muted-foreground">{token.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={status} />
+                              {token.submitted_at && (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Check className="w-3 h-3 text-emerald-500" weight="bold" />
+                                  {new Date(token.submitted_at).toLocaleDateString()}
+                                </span>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => copyManagerSurveyLink(token.token)}>
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Topics Tab */}
+        {activeTab === 'topics' && (
+          <section className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Lightning className="w-5 h-5" weight="bold" />
+                Topics to Capture
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({topics.filter(t => t.captured).length}/{topics.length} captured)
+                </span>
+              </h2>
+              <Button
+                onClick={generateTopics}
+                disabled={isGeneratingTopics}
+                variant="outline"
+                className="gap-2"
+              >
+                {isGeneratingTopics ? (
+                  <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
+                ) : (
+                  <Sparkle className="w-4 h-4" weight="bold" />
+                )}
+                {isGeneratingTopics ? 'Generating...' : 'Generate with AI'}
+              </Button>
+            </div>
+
+            {/* Generating state UI */}
+            {isGeneratingTopics && (
+              <div className="border rounded-lg bg-gradient-to-br from-violet-50 to-indigo-50 p-6 mb-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
+                    <Sparkle className="w-6 h-6 text-violet-600 animate-pulse" weight="fill" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-violet-900 mb-1">AI is analyzing your campaign...</h3>
+                    <p className="text-sm text-violet-700 mb-3">
+                      Generating topics and interview questions based on expert assessment, collaborator feedback, and uploaded documents.
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-violet-600">
+                      <CircleNotch className="w-3.5 h-3.5 animate-spin" weight="bold" />
+                      {topicsGenerationStartedAt && (
+                        <span>Started {new Date(topicsGenerationStartedAt).toLocaleTimeString()}</span>
+                      )}
+                      <span className="text-violet-400">•</span>
+                      <span>You can leave this page and come back</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="border rounded-lg bg-card p-5">
+              <TopicsList
+                topics={topics}
+                onAdd={openAddTopic}
+                onEdit={openEditTopic}
+                onDelete={deleteTopic}
+                onToggleCaptured={toggleTopicCaptured}
+              />
             </div>
           </section>
         )}
 
+        {/* Context Tab - Only for expert campaigns */}
+        {activeTab === 'context' && !isProjectCampaign && (
+          <>
         {/* Documents Section */}
         {documents.length > 0 && (
           <section className="mb-8">
@@ -815,7 +1535,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Book className="w-5 h-5" weight="bold" />
-            Interviewer Guide
+            {isProjectCampaign ? 'Session Guide' : 'Interviewer Guide'}
           </h2>
           <div className="border rounded-lg bg-card p-5">
             <div className="flex items-start gap-4">
@@ -823,44 +1543,45 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 <Book className="w-6 h-6 text-primary-foreground" weight="bold" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium mb-1">Share Interview Preparation Guide</h3>
+                <h3 className="font-medium mb-1">{isProjectCampaign ? 'Session' : 'Interview'} Preparation Guide</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Generate a shareable link that gives interviewers access to all the context they need - expert background,
-                  session topics, skills to capture, and collaborator insights - all in one place without requiring login.
+                  {isProjectCampaign ? (
+                    <>A shareable link that gives team members access to all the context they need - project background, session topics, and knowledge areas to capture - all in one place without requiring login.</>
+                  ) : (
+                    <>A shareable link that gives interviewers access to all the context they need - expert background, session topics, skills to capture, and collaborator insights - all in one place without requiring login. This guide auto-updates as more context is collected.</>
+                  )}
                 </p>
                 <div className="flex items-center gap-3">
                   <Button
                     onClick={generateGuideLink}
                     disabled={generatingGuideLink}
+                    variant="outline"
                     className="gap-2"
                   >
                     {generatingGuideLink ? (
                       <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
-                    ) : campaign?.interviewer_guide_token ? (
-                      <Copy className="w-4 h-4" />
                     ) : (
-                      <ArrowSquareOut className="w-4 h-4" />
+                      <Copy className="w-4 h-4" />
                     )}
-                    {campaign?.interviewer_guide_token ? 'Copy Guide Link' : 'Generate Guide Link'}
+                    Copy Link
                   </Button>
-                  {campaign?.interviewer_guide_token && (
-                    <a
-                      href={`/guide/${campaign.interviewer_guide_token}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline flex items-center gap-1"
-                    >
-                      Open Guide
-                      <ArrowSquareOut className="w-3.5 h-3.5" />
-                    </a>
-                  )}
+                  <a
+                    href={`/guide/${campaign?.interviewer_guide_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Open Guide
+                    <ArrowSquareOut className="w-4 h-4" />
+                  </a>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Expert Self-Assessment Section */}
+        {/* Expert Self-Assessment Section - Only show for expert campaigns */}
+        {!isProjectCampaign && (
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <User className="w-5 h-5" weight="bold" />
@@ -989,14 +1710,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             </div>
           )}
         </section>
-          </>
         )}
 
-        {/* Feedback Tab */}
-        {activeTab === 'feedback' && (
-          <>
-            {/* Collaborators Section */}
-            <section className="mb-8">
+        {/* Collaborator Feedback Section */}
+        <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Users className="w-5 h-5" weight="bold" />
@@ -1172,7 +1889,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               </Button>
             </div>
           )}
-            </section>
+        </section>
           </>
         )}
       </div>
@@ -1221,6 +1938,66 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <Button onClick={saveCollaborator} disabled={savingCollaborator}>
               {savingCollaborator ? <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" /> : null}
               {editingCollaborator ? 'Save Changes' : 'Add Collaborator'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Participant Modal - for project campaigns */}
+      <ParticipantModal
+        isOpen={participantModalOpen}
+        onClose={() => setParticipantModalOpen(false)}
+        onSave={saveParticipant}
+        participant={editingParticipant}
+      />
+
+      {/* Topic Modal */}
+      <TopicModal
+        isOpen={topicModalOpen}
+        onClose={() => setTopicModalOpen(false)}
+        onSave={saveTopic}
+        topic={editingTopic}
+      />
+
+      {/* Manager Survey Modal */}
+      <Modal
+        isOpen={managerModalOpen}
+        onClose={() => setManagerModalOpen(false)}
+        title="Invite Manager"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Generate a survey link for a manager to suggest topics. They&apos;ll be able to recommend
+            what knowledge should be captured without being interviewed themselves.
+          </p>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Name</label>
+            <input
+              type="text"
+              value={managerForm.name}
+              onChange={e => setManagerForm(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              placeholder="Manager's full name"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">Email</label>
+            <input
+              type="email"
+              value={managerForm.email}
+              onChange={e => setManagerForm(prev => ({ ...prev, email: e.target.value }))}
+              className="w-full px-3 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+              placeholder="manager@example.com"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setManagerModalOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => generateManagerSurveyLink(managerForm.name, managerForm.email)}
+              disabled={generatingManagerLink || !managerForm.name.trim() || !managerForm.email.trim()}
+            >
+              {generatingManagerLink ? <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" /> : null}
+              Generate Link
             </Button>
           </div>
         </div>

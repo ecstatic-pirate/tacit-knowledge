@@ -8,7 +8,7 @@ interface AutomatedReportsProps {
 
 const reportTypes = [
   { id: 'weekly', label: 'Weekly Progress Summary', schedule: 'Auto-send every Friday', checked: false, icon: '📊' },
-  { id: 'skills', label: 'Skills Extraction Report', schedule: 'After each session', checked: false, icon: '🎯' },
+  { id: 'topics', label: 'Topics Extraction Report', schedule: 'After each session', checked: false, icon: '🎯' },
   { id: 'gap', label: 'Knowledge Gap Analysis', schedule: 'Bi-weekly coverage check', checked: false, icon: '🔍' },
   { id: 'export', label: 'Knowledge Graph Export', schedule: 'Monthly to AI systems', checked: true, icon: '🧠' },
 ];

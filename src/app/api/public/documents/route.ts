@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
 
   const { data: documents, error } = await supabase
     .from('documents')
-    .select('id, filename, file_type, file_size, ai_processed, extracted_skills, created_at')
+    .select('id, filename, file_type, file_size, ai_processed, extracted_topics, created_at')
     .eq('campaign_id', tokenData.campaign_id)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
         file_size: file.size,
         storage_path: storagePath,
         ai_processed: false,
-        extracted_skills: [],
+        extracted_topics: [],
       })
       .select()
       .single()
@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
         fileType: docData.file_type,
         fileSize: docData.file_size,
         aiProcessed: false,
-        extractedSkills: [],
+        extractedTopics: [],
         createdAt: docData.created_at,
       }
     })

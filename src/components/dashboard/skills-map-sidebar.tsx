@@ -1,22 +1,22 @@
 import { MapPin, Compass, CaretRight } from 'phosphor-react';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 
-interface SkillCategory {
+interface TopicCategory {
   name: string;
-  skills: string[];
+  topics: string[];
 }
 
-interface SkillsMapSidebarProps {
-  categories: SkillCategory[];
+interface TopicsMapSidebarProps {
+  categories: TopicCategory[];
 }
 
-export function SkillsMapSidebar({ categories }: SkillsMapSidebarProps) {
+export function TopicsMapSidebar({ categories }: TopicsMapSidebarProps) {
   return (
     <Card className="h-fit sticky top-24">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
           <MapPin className="w-4 h-4" weight="bold" />
-          Skills Map
+          Topics Map
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -27,13 +27,13 @@ export function SkillsMapSidebar({ categories }: SkillsMapSidebarProps) {
               {category.name}
             </div>
             <div className="ml-[9px] border-l pl-4 space-y-2">
-              {category.skills.map((skill) => (
+              {category.topics.map((topic) => (
                 <div
-                  key={skill}
+                  key={topic}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center gap-1"
                 >
                   <CaretRight className="w-3 h-3 text-muted-foreground/50 group-hover:text-foreground transition-colors" weight="bold" />
-                  {skill}
+                  {topic}
                 </div>
               ))}
             </div>
@@ -48,3 +48,6 @@ export function SkillsMapSidebar({ categories }: SkillsMapSidebarProps) {
     </Card>
   );
 }
+
+/** @deprecated Use TopicsMapSidebar instead */
+export const SkillsMapSidebar = TopicsMapSidebar;

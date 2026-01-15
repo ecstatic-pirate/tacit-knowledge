@@ -9,7 +9,7 @@ export type CoverageStatus = 'not_discussed' | 'mentioned' | 'covered'
 export interface LiveGraphNode {
   id: string
   label: string
-  type: 'core' | 'skill' | 'concept' | 'system' | 'process'
+  type: 'core' | 'topic' | 'concept' | 'system' | 'process'
   description: string | null
   coverageStatus: CoverageStatus
   sessionId: string | null

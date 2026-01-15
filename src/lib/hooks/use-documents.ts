@@ -11,7 +11,7 @@ export interface UploadedDocument {
   fileType: string
   storagePath: string
   aiProcessed: boolean
-  extractedSkills: string[]
+  extractedTopics: string[]
   createdAt: string
 }
 
@@ -54,8 +54,8 @@ export function useDocuments({ campaignId, orgId }: UseDocumentsOptions) {
         fileType: doc.file_type || 'unknown',
         storagePath: doc.storage_path,
         aiProcessed: doc.ai_processed || false,
-        extractedSkills: Array.isArray(doc.extracted_skills)
-          ? (doc.extracted_skills as string[])
+        extractedTopics: Array.isArray(doc.extracted_topics)
+          ? (doc.extracted_topics as string[])
           : [],
         createdAt: doc.created_at || '',
       }))
@@ -103,7 +103,7 @@ export function useDocuments({ campaignId, orgId }: UseDocumentsOptions) {
           file_size: file.size,
           storage_path: storagePath,
           ai_processed: false,
-          extracted_skills: [],
+          extracted_topics: [],
         })
         .select()
         .single()
@@ -123,7 +123,7 @@ export function useDocuments({ campaignId, orgId }: UseDocumentsOptions) {
         fileType: docData.file_type || extension,
         storagePath: docData.storage_path,
         aiProcessed: false,
-        extractedSkills: [],
+        extractedTopics: [],
         createdAt: docData.created_at || '',
       }
 
@@ -205,7 +205,7 @@ export function useDocuments({ campaignId, orgId }: UseDocumentsOptions) {
         throw new Error(fnError.message)
       }
 
-      const extractedSkills = data?.skills || []
+      const extractedTopics = data?.topics || []
 
       // Update document record
       await supabase
@@ -213,7 +213,7 @@ export function useDocuments({ campaignId, orgId }: UseDocumentsOptions) {
         .update({
           ai_processed: true,
           ai_processed_at: new Date().toISOString(),
-          extracted_skills: extractedSkills,
+          extracted_topics: extractedTopics,
         })
         .eq('id', documentId)
 
@@ -221,12 +221,12 @@ export function useDocuments({ campaignId, orgId }: UseDocumentsOptions) {
       setDocuments((prev) =>
         prev.map((d) =>
           d.id === documentId
-            ? { ...d, aiProcessed: true, extractedSkills }
+            ? { ...d, aiProcessed: true, extractedTopics }
             : d
         )
       )
 
-      return extractedSkills
+      return extractedTopics
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Processing failed'
       setError(message)

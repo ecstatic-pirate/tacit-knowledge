@@ -15,7 +15,7 @@ import { components, spacing } from '@/lib/design-system';
 interface CaptureTabProps {
   sessionId: string | null;
   onPauseSession: () => void;
-  onEndSession: (duration: number, capturedSkillsCount: number) => void;
+  onEndSession: (duration: number, capturedTopicsCount: number) => void;
 }
 
 interface CapturedInsight {
@@ -200,9 +200,9 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
     stopTranscription();
     stopMedia();
     await endSession();
-    const capturedCount = session?.skills.filter(s => s.captured).length || 0;
+    const capturedCount = session?.campaignTopics.filter(s => s.captured).length || 0;
     onEndSession(elapsedSeconds, capturedCount);
-  }, [stopTranscription, stopMedia, endSession, session?.skills, elapsedSeconds, onEndSession]);
+  }, [stopTranscription, stopMedia, endSession, session?.campaignTopics, elapsedSeconds, onEndSession]);
 
   // Handle pause/resume
   const handlePauseResume = useCallback(async () => {

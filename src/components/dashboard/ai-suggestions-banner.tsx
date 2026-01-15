@@ -37,9 +37,9 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
           .is('deleted_at', null)
           .is('completed_at', null);
 
-        // Fetch skills that are not captured
-        const { data: uncapturedSkills } = await supabase
-          .from('skills')
+        // Fetch topics that are not captured
+        const { data: uncapturedTopics } = await supabase
+          .from('topics')
           .select('name, campaign_id, campaigns(expert_name)')
           .eq('captured', false)
           .is('deleted_at', null)
@@ -84,20 +84,20 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
           }
         }
 
-        // Skill gap suggestions
-        if (uncapturedSkills && uncapturedSkills.length > 0) {
-          const skillsByExpert = uncapturedSkills.reduce((acc, skill) => {
-            const expertName = (skill.campaigns as { expert_name: string } | null)?.expert_name || 'Unknown';
+        // Topic gap suggestions
+        if (uncapturedTopics && uncapturedTopics.length > 0) {
+          const topicsByExpert = uncapturedTopics.reduce((acc, topic) => {
+            const expertName = (topic.campaigns as { expert_name: string } | null)?.expert_name || 'Unknown';
             if (!acc[expertName]) acc[expertName] = [];
-            acc[expertName].push(skill.name);
+            acc[expertName].push(topic.name);
             return acc;
           }, {} as Record<string, string[]>);
 
-          for (const [expert, skills] of Object.entries(skillsByExpert)) {
-            if (skills.length > 0) {
+          for (const [expert, topics] of Object.entries(topicsByExpert)) {
+            if (topics.length > 0) {
               generatedSuggestions.push({
-                text: `Focus on "${skills[0]}" skill gap for ${expert}`,
-                highlight: `"${skills[0]}"`,
+                text: `Focus on "${topics[0]}" topic gap for ${expert}`,
+                highlight: `"${topics[0]}"`,
                 priority: 'medium',
               });
             }
@@ -143,7 +143,7 @@ export function AISuggestionsBanner({ onReviewAll }: AISuggestionsBannerProps) {
             <div className="space-y-1">
               <CardTitle className="text-base">AI Suggested Actions</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Based on campaign progress and skill coverage
+                Based on campaign progress and topic coverage
               </p>
             </div>
           </div>

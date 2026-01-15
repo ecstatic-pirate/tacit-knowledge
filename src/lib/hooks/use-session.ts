@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Session as DBSession, Campaign, Skill } from '@/lib/supabase/database.types'
+import type { Session as DBSession, Campaign, Topic } from '@/lib/supabase/database.types'
 
 export type SessionStatus = 'scheduled' | 'in_progress' | 'paused' | 'completed' | 'cancelled'
 
@@ -16,7 +16,7 @@ export interface SessionData {
   endedAt: string | null
   durationMinutes: number
   notes: string
-  topics: string[]
+  sessionTopics: string[]
   recordingUrl: string | null
   transcriptUrl: string | null
   // Related data
@@ -25,7 +25,7 @@ export interface SessionData {
     expertRole: string
     goal: string | null
   } | null
-  skills: {
+  campaignTopics: {
     id: string
     name: string
     captured: boolean
@@ -45,7 +45,7 @@ export interface UseSessionReturn {
   // Data actions
   updateNotes: (notes: string) => Promise<void>
   addTopic: (topic: string) => Promise<void>
-  markSkillCaptured: (skillId: string) => Promise<void>
+  markTopicCaptured: (topicId: string) => Promise<void>
   refresh: () => Promise<void>
 }
 
@@ -57,7 +57,7 @@ export function useSession(sessionId: string | null): UseSessionReturn {
 
   const supabase = useMemo(() => createClient(), [])
 
-  // Fetch session data with related campaign and skills
+  // Fetch session data with related campaign and topics
   const fetchSession = useCallback(async () => {
     if (!sessionId) {
       setSession(null)
@@ -85,9 +85,9 @@ export function useSession(sessionId: string | null): UseSessionReturn {
 
       if (sessionError) throw sessionError
 
-      // Fetch skills for this campaign
-      const { data: skillsData } = await supabase
-        .from('skills')
+      // Fetch topics for this campaign
+      const { data: topicsData } = await supabase
+        .from('topics')
         .select('id, name, captured, confidence')
         .eq('campaign_id', sessionData.campaign_id)
         .is('deleted_at', null)
@@ -105,7 +105,7 @@ export function useSession(sessionId: string | null): UseSessionReturn {
         endedAt: sessionData.ended_at,
         durationMinutes: sessionData.duration_minutes || 0,
         notes: sessionData.notes || '',
-        topics: sessionData.topics || [],
+        sessionTopics: sessionData.topics || [],
         recordingUrl: sessionData.recording_url,
         transcriptUrl: sessionData.transcript_url,
         campaign: campaign ? {
@@ -113,7 +113,7 @@ export function useSession(sessionId: string | null): UseSessionReturn {
           expertRole: campaign.expert_role,
           goal: campaign.goal,
         } : null,
-        skills: (skillsData || []).map(s => ({
+        campaignTopics: (topicsData || []).map(s => ({
           id: s.id,
           name: s.name,
           captured: s.captured || false,
@@ -280,12 +280,12 @@ export function useSession(sessionId: string | null): UseSessionReturn {
     }, 1000) // Save after 1 second of no typing
   }, [sessionId, supabase])
 
-  // Add topic
-  const addTopic = useCallback(async (topic: string) => {
+  // Add session topic (topic discussed in this session)
+  const addSessionTopic = useCallback(async (topic: string) => {
     if (!sessionId || !session) return
 
-    const newTopics = [...session.topics, topic]
-    setSession(prev => prev ? { ...prev, topics: newTopics } : null)
+    const newTopics = [...session.sessionTopics, topic]
+    setSession(prev => prev ? { ...prev, sessionTopics: newTopics } : null)
 
     const { error } = await supabase
       .from('sessions')
@@ -296,35 +296,35 @@ export function useSession(sessionId: string | null): UseSessionReturn {
       .eq('id', sessionId)
 
     if (error) {
-      console.error('Error adding topic:', error)
+      console.error('Error adding session topic:', error)
       fetchSession()
     }
   }, [sessionId, session, supabase, fetchSession])
 
-  // Mark skill as captured
-  const markSkillCaptured = useCallback(async (skillId: string) => {
+  // Mark campaign topic as captured
+  const markTopicCaptured = useCallback(async (topicId: string) => {
     if (!session) return
 
     // Optimistic update
     setSession(prev => prev ? {
       ...prev,
-      skills: prev.skills.map(s =>
-        s.id === skillId ? { ...s, captured: true } : s
+      campaignTopics: prev.campaignTopics.map(t =>
+        t.id === topicId ? { ...t, captured: true } : t
       ),
     } : null)
 
     const { error } = await supabase
-      .from('skills')
+      .from('topics')
       .update({
         captured: true,
         captured_at: new Date().toISOString(),
         session_id: sessionId,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', skillId)
+      .eq('id', topicId)
 
     if (error) {
-      console.error('Error marking skill captured:', error)
+      console.error('Error marking topic captured:', error)
       fetchSession()
     }
   }, [session, sessionId, supabase, fetchSession])
@@ -352,8 +352,8 @@ export function useSession(sessionId: string | null): UseSessionReturn {
     resumeSession,
     endSession,
     updateNotes,
-    addTopic,
-    markSkillCaptured,
+    addTopic: addSessionTopic,
+    markTopicCaptured,
     refresh: fetchSession,
   }
 }

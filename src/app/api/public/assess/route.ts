@@ -188,6 +188,25 @@ export async function POST(request: NextRequest) {
       console.error('Error updating campaign:', campaignError)
       return NextResponse.json({ error: 'Failed to save assessment' }, { status: 500 })
     }
+
+    // Create topics from topics_to_cover
+    if (data.topics_to_cover && data.topics_to_cover.length > 0) {
+      const topicsToInsert = data.topics_to_cover.map(topicName => ({
+        campaign_id: tokenData.campaign_id,
+        name: topicName,
+        suggested_by: 'expert_self_assessment',
+        captured: false,
+      }))
+
+      const { error: topicsError } = await supabase
+        .from('topics')
+        .insert(topicsToInsert)
+
+      if (topicsError) {
+        console.error('Error creating topics from self-assessment:', topicsError)
+        // Don't fail the request, topics are supplementary
+      }
+    }
   }
 
   return NextResponse.json({

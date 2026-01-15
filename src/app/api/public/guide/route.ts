@@ -42,9 +42,8 @@ export async function GET(request: NextRequest) {
       id,
       expert_name,
       expert_role,
-      department,
       goal,
-      years_experience,
+      departure_date,
       self_assessment
     `)
     .eq('interviewer_guide_token', token)
@@ -56,9 +55,9 @@ export async function GET(request: NextRequest) {
 
   const campaignId = campaignData.id
 
-  // Fetch skills
-  const { data: skillsData } = await supabase
-    .from('skills')
+  // Fetch topics
+  const { data: topicsData } = await supabase
+    .from('topics')
     .select('id, name, category, captured')
     .eq('campaign_id', campaignId)
     .is('deleted_at', null)
@@ -115,12 +114,12 @@ export async function GET(request: NextRequest) {
     aiSuggestedTopics: (s.ai_suggested_topics as SessionAiTopic[] | null) || [],
   }))
 
-  // Format skills
-  const skills = (skillsData || []).map(s => ({
-    id: s.id,
-    name: s.name,
-    category: s.category,
-    captured: s.captured ?? false,
+  // Format topics
+  const topics = (topicsData || []).map(t => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    captured: t.captured ?? false,
   }))
 
   return NextResponse.json({
@@ -128,11 +127,10 @@ export async function GET(request: NextRequest) {
       id: campaignData.id,
       expert_name: campaignData.expert_name,
       expert_role: campaignData.expert_role,
-      department: campaignData.department || undefined,
       goal: campaignData.goal || undefined,
-      years_experience: campaignData.years_experience || undefined,
+      departure_date: campaignData.departure_date || undefined,
     },
-    skills,
+    topics,
     sessions,
     selfAssessment: (campaignData.self_assessment as SelfAssessment) || null,
     collaboratorInsights,

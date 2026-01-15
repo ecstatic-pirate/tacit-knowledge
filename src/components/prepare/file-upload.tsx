@@ -45,7 +45,7 @@ interface FileUploadProps {
   token?: string
   // Callbacks
   onDocumentsChange?: (documents: DisplayDocument[]) => void
-  onSkillsExtracted?: (skills: string[]) => void
+  onTopicsExtracted?: (topics: string[]) => void
   // UI options
   compact?: boolean
   showAnalyzeButton?: boolean
@@ -64,7 +64,7 @@ export function FileUpload({
   orgId,
   token,
   onDocumentsChange,
-  onSkillsExtracted,
+  onTopicsExtracted,
   compact = false,
   showAnalyzeButton = true,
 }: FileUploadProps) {
@@ -269,12 +269,12 @@ export function FileUpload({
   const handleProcess = useCallback(
     async (docId: string) => {
       if (!processDocument) return
-      const skills = await processDocument(docId)
-      if (skills && onSkillsExtracted) {
-        onSkillsExtracted(skills)
+      const topics = await processDocument(docId)
+      if (topics && onTopicsExtracted) {
+        onTopicsExtracted(topics)
       }
     },
-    [processDocument, onSkillsExtracted]
+    [processDocument, onTopicsExtracted]
   )
 
   return (
@@ -437,7 +437,7 @@ export function FileUpload({
                     <p className="text-xs text-muted-foreground">
                       {doc.aiProcessed ? (
                         <span className="text-emerald-600">
-                          {doc.extractedSkills.length} skills extracted
+                          {doc.extractedTopics.length} topics extracted
                         </span>
                       ) : (
                         'Ready for analysis'

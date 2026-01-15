@@ -330,6 +330,256 @@ export function contributorInvitationEmail(params: {
   return emailWrapper(content)
 }
 
+// Session invite email with ICS calendar attachment
+export function sessionInviteEmail(params: {
+  recipientName: string
+  recipientRole: 'expert' | 'interviewer'
+  sessionTitle: string
+  sessionNumber: number
+  expertName: string
+  expertRole?: string
+  scheduledAt: Date
+  durationMinutes: number
+  topicsWithQuestions: Array<{ topic: string; questions: string[] }>
+  sessionUrl: string
+  organizationName?: string
+  calendarLinks?: { google: string; outlook: string; office365: string }
+}) {
+  const {
+    recipientName,
+    recipientRole,
+    sessionTitle,
+    sessionNumber,
+    expertName,
+    expertRole,
+    scheduledAt,
+    durationMinutes,
+    topicsWithQuestions,
+    sessionUrl,
+    organizationName,
+    calendarLinks,
+  } = params
+
+  // Escape all user-provided content
+  const safeRecipientName = escapeHtml(recipientName)
+  const safeSessionTitle = escapeHtml(sessionTitle)
+  const safeExpertName = escapeHtml(expertName)
+  const safeExpertRole = escapeHtml(expertRole)
+  const safeOrgName = escapeHtml(organizationName)
+
+  const formattedDate = scheduledAt.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  const formattedTime = scheduledAt.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+
+  const isExpert = recipientRole === 'expert'
+  const headline = isExpert
+    ? 'Your knowledge capture session is scheduled'
+    : 'You have a knowledge capture session scheduled'
+
+  const intro = isExpert
+    ? `We've scheduled a knowledge capture session to document your expertise${safeExpertRole ? ` as ${safeExpertRole}` : ''}.`
+    : `You're scheduled to conduct a knowledge capture session with <strong>${safeExpertName}</strong>${safeExpertRole ? ` (${safeExpertRole})` : ''}.`
+
+  // Build topics and questions HTML
+  const topicsHtml = topicsWithQuestions.length > 0 ? `
+    <div style="margin-top: 24px;">
+      <h3 style="font-family: ${fonts.heading}; font-size: 16px; font-weight: 600; color: ${colors.primary}; margin: 0 0 16px 0;">
+        Topics & Questions to Cover
+      </h3>
+      ${topicsWithQuestions.map(({ topic, questions }) => `
+        <div style="margin-bottom: 16px; padding: 16px; background-color: white; border-radius: 8px; border: 1px solid ${colors.border};">
+          <div style="font-weight: 600; color: ${colors.text}; margin-bottom: 8px;">
+            ${escapeHtml(topic)}
+          </div>
+          ${questions.length > 0 ? `
+            <ul style="margin: 0; padding-left: 20px; color: ${colors.muted};">
+              ${questions.map(q => `<li style="margin-bottom: 4px; font-size: 14px;">${escapeHtml(q)}</li>`).join('')}
+            </ul>
+          ` : ''}
+        </div>
+      `).join('')}
+    </div>
+  ` : ''
+
+  const content = `
+    <h1 style="font-family: ${fonts.heading}; font-size: 28px; font-weight: 600; color: ${colors.primary}; margin: 0 0 24px 0;">
+      ${headline}
+    </h1>
+
+    <p style="margin: 0 0 20px 0; font-size: 16px;">
+      Hi ${safeRecipientName},
+    </p>
+
+    <p style="margin: 0 0 24px 0; font-size: 16px;">
+      ${intro}
+    </p>
+
+    <div style="background-color: ${colors.background}; border-radius: 8px; padding: 24px; margin: 24px 0; border: 1px solid ${colors.border};">
+      <h2 style="font-family: ${fonts.heading}; font-size: 18px; font-weight: 600; color: ${colors.primary}; margin: 0 0 16px 0;">
+        Session ${sessionNumber}: ${safeSessionTitle}
+      </h2>
+
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%;">
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top; width: 100px;">
+            <span style="font-size: 13px; font-weight: 600; color: ${colors.muted};">DATE</span>
+          </td>
+          <td style="padding: 8px 0; font-size: 15px; color: ${colors.text};">
+            ${formattedDate}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; vertical-align: top;">
+            <span style="font-size: 13px; font-weight: 600; color: ${colors.muted};">TIME</span>
+          </td>
+          <td style="padding: 8px 0; font-size: 15px; color: ${colors.text};">
+            ${formattedTime} (${durationMinutes} minutes)
+          </td>
+        </tr>
+      </table>
+
+      ${topicsHtml}
+    </div>
+
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 32px 0;">
+      <tr>
+        <td style="background-color: ${colors.primary}; border-radius: 8px;">
+          <a href="${sessionUrl}" target="_blank" style="display: inline-block; padding: 16px 32px; color: white; text-decoration: none; font-weight: 600; font-size: 16px;">
+            ${isExpert ? 'View Session Details' : 'Open Session Guide'}
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    ${calendarLinks ? `
+    <div style="margin: 24px 0 0 0; padding-top: 20px; border-top: 1px solid ${colors.border};">
+      <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: ${colors.text};">
+        Add to your calendar:
+      </p>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td style="padding-right: 8px;">
+            <a href="${calendarLinks.google}" target="_blank" style="display: inline-block; padding: 8px 16px; background-color: #4285f4; color: white; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 4px;">
+              Google
+            </a>
+          </td>
+          <td style="padding-right: 8px;">
+            <a href="${calendarLinks.office365}" target="_blank" style="display: inline-block; padding: 8px 16px; background-color: #0078d4; color: white; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 4px;">
+              Outlook
+            </a>
+          </td>
+          <td>
+            <a href="${calendarLinks.outlook}" target="_blank" style="display: inline-block; padding: 8px 16px; background-color: #6c757d; color: white; text-decoration: none; font-size: 13px; font-weight: 500; border-radius: 4px;">
+              Outlook.com
+            </a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin: 12px 0 0 0; font-size: 12px; color: ${colors.muted};">
+        Or use the attached .ics file
+      </p>
+    </div>
+    ` : `
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: ${colors.muted};">
+      A calendar invite is attached to this email. Add it to your calendar to get a reminder.
+    </p>
+    `}
+  `
+
+  return emailWrapper(content)
+}
+
+// Generate "Add to Calendar" links for different providers
+export function generateCalendarLinks(params: {
+  title: string
+  description: string
+  startDate: Date
+  durationMinutes: number
+  location?: string
+}): { google: string; outlook: string; office365: string } {
+  const { title, description, startDate, durationMinutes, location } = params
+
+  const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
+
+  // Format for Google Calendar (YYYYMMDDTHHmmssZ)
+  const formatGoogleDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+
+  // Format for Outlook/Office365 (ISO format)
+  const formatOutlookDate = (date: Date) => date.toISOString()
+
+  const encodedTitle = encodeURIComponent(title)
+  const encodedDesc = encodeURIComponent(description)
+  const encodedLocation = encodeURIComponent(location || '')
+
+  // Google Calendar
+  const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodedTitle}&dates=${formatGoogleDate(startDate)}/${formatGoogleDate(endDate)}&details=${encodedDesc}&location=${encodedLocation}`
+
+  // Outlook.com (personal)
+  const outlookUrl = `https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodedTitle}&startdt=${formatOutlookDate(startDate)}&enddt=${formatOutlookDate(endDate)}&body=${encodedDesc}&location=${encodedLocation}`
+
+  // Office 365 (work)
+  const office365Url = `https://outlook.office.com/calendar/0/deeplink/compose?subject=${encodedTitle}&startdt=${formatOutlookDate(startDate)}&enddt=${formatOutlookDate(endDate)}&body=${encodedDesc}&location=${encodedLocation}`
+
+  return {
+    google: googleUrl,
+    outlook: outlookUrl,
+    office365: office365Url,
+  }
+}
+
+// Generate ICS calendar file content
+export function generateICSContent(params: {
+  title: string
+  description: string
+  startDate: Date
+  durationMinutes: number
+  location?: string
+  organizerEmail?: string
+  attendees?: Array<{ name: string; email: string }>
+}): string {
+  const { title, description, startDate, durationMinutes, location, organizerEmail, attendees } = params
+
+  const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000)
+
+  // Format date as YYYYMMDDTHHMMSSZ
+  const formatICSDate = (date: Date) => {
+    return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  }
+
+  const uid = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}@tacitknowledge.app`
+  const now = formatICSDate(new Date())
+
+  let icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Tacit Knowledge//Session Invite//EN
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${now}
+DTSTART:${formatICSDate(startDate)}
+DTEND:${formatICSDate(endDate)}
+SUMMARY:${title}
+DESCRIPTION:${description.replace(/\n/g, '\\n')}
+${location ? `LOCATION:${location}` : ''}
+${organizerEmail ? `ORGANIZER;CN=Tacit Knowledge:mailto:${organizerEmail}` : ''}
+${attendees?.map(a => `ATTENDEE;CN=${a.name};RSVP=TRUE:mailto:${a.email}`).join('\n') || ''}
+STATUS:CONFIRMED
+SEQUENCE:0
+END:VEVENT
+END:VCALENDAR`
+
+  return icsContent
+}
+
 // Reminder email for collaborator
 export function collaboratorReminderEmail(params: {
   collaboratorName: string

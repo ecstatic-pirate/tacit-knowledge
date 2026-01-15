@@ -18,7 +18,6 @@ interface ExpertData {
   id: string;
   name: string;
   role: string;
-  department?: string;
   teamId?: string;
   teamName?: string;
   teamColor?: string;
@@ -47,7 +46,7 @@ const INSIGHT_TYPE_CONFIG: Record<string, { label: string; icon: React.ElementTy
   process: { label: 'Processes', icon: TreeStructure, color: '#3b82f6' },
   decision: { label: 'Decisions', icon: GitBranch, color: '#f59e0b' },
   lesson: { label: 'Lessons', icon: Sparkle, color: '#10b981' },
-  skill: { label: 'Skills', icon: Target, color: '#ef4444' },
+  topic: { label: 'Topics', icon: Target, color: '#ef4444' },
 };
 
 export default function PersonDetailPage() {
@@ -90,7 +89,6 @@ export default function PersonDetailPage() {
           id: campaign.id,
           name: campaign.expert_name,
           role: campaign.expert_role,
-          department: campaign.department || undefined,
           teamId: campaign.team_id || undefined,
           teamName: team?.name,
           teamColor: team?.color,

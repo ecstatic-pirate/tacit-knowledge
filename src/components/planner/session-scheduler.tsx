@@ -21,10 +21,19 @@ import { Input } from '@/components/ui/input'
 import { useCalendar } from '@/lib/hooks/use-calendar'
 import { createClient } from '@/lib/supabase/client'
 
+interface Participant {
+  id: string
+  name: string
+  email: string | null
+  role: string | null
+}
+
 interface SessionSchedulerProps {
   campaignId: string
+  campaignType: 'person' | 'project'
   expertName: string
   expertEmail?: string
+  participants?: Participant[]
   onSessionCreated?: () => void
 }
 
@@ -37,12 +46,16 @@ interface ScheduledSession {
   topics: string[]
   calendarEventId?: string
   calendarProvider?: string
+  participantId?: string
+  participantName?: string
 }
 
 export function SessionScheduler({
   campaignId,
+  campaignType,
   expertName,
   expertEmail,
+  participants = [],
   onSessionCreated,
 }: SessionSchedulerProps) {
   const router = useRouter()
@@ -55,6 +68,7 @@ export function SessionScheduler({
     duration: 60,
     topics: '',
     createCalendarEvent: true,
+    participantId: '',
   })
   const [error, setError] = useState<string | null>(null)
 
@@ -84,20 +98,28 @@ export function SessionScheduler({
       setError(fetchError.message)
     } else {
       setSessions(
-        (data || []).map((s) => ({
-          id: s.id,
-          sessionNumber: s.session_number,
-          scheduledAt: s.scheduled_at || '',
-          durationMinutes: s.duration_minutes || 60,
-          status: s.status || 'scheduled',
-          topics: s.topics || [],
-          calendarEventId: s.calendar_event_id || undefined,
-          calendarProvider: s.calendar_provider || undefined,
-        }))
+        (data || []).map((s) => {
+          // Look up participant name from props
+          const participant = s.participant_id
+            ? participants.find(p => p.id === s.participant_id)
+            : undefined
+          return {
+            id: s.id,
+            sessionNumber: s.session_number,
+            scheduledAt: s.scheduled_at || '',
+            durationMinutes: s.duration_minutes || 60,
+            status: s.status || 'scheduled',
+            topics: s.topics || [],
+            calendarEventId: s.calendar_event_id || undefined,
+            calendarProvider: s.calendar_provider || undefined,
+            participantId: s.participant_id || undefined,
+            participantName: participant?.name,
+          }
+        })
       )
     }
     setIsLoading(false)
-  }, [supabase, campaignId])
+  }, [supabase, campaignId, participants])
 
   useEffect(() => {
     fetchSessions()
@@ -136,6 +158,7 @@ export function SessionScheduler({
           status: 'scheduled',
           topics: newSession.topics ? newSession.topics.split(',').map((t) => t.trim()) : [],
           created_by: user?.id,
+          participant_id: newSession.participantId || null,
         })
         .select()
         .single()
@@ -144,11 +167,17 @@ export function SessionScheduler({
         throw new Error(createError.message)
       }
 
+      // Get participant info for calendar event
+      const selectedParticipant = participants.find(p => p.id === newSession.participantId)
+      const sessionWithName = campaignType === 'project' && selectedParticipant
+        ? selectedParticipant.name
+        : expertName
+
       // Create calendar event if connected and requested
       if (isConnected && newSession.createCalendarEvent) {
         const eventResult = await createEvent(
           {
-            title: `Knowledge Capture: ${expertName} - Session ${nextSessionNumber}`,
+            title: `Knowledge Capture: ${sessionWithName} - Session ${nextSessionNumber}`,
             startTime: startDateTime.toISOString(),
             endTime: endDateTime.toISOString(),
             description: `<p>Knowledge capture session with <strong>${expertName}</strong></p>
@@ -178,6 +207,7 @@ export function SessionScheduler({
         duration: 60,
         topics: '',
         createCalendarEvent: true,
+        participantId: '',
       })
 
       // Refresh sessions
@@ -278,6 +308,25 @@ export function SessionScheduler({
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {campaignType === 'project' && participants.length > 0 && (
+            <div className="lg:col-span-4 md:col-span-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Participant
+              </label>
+              <select
+                value={newSession.participantId}
+                onChange={(e) => setNewSession({ ...newSession, participantId: e.target.value })}
+                className="w-full h-10 px-3 rounded-lg border border-neutral-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              >
+                <option value="">Select a participant...</option>
+                {participants.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.role ? ` (${p.role})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">
               Date
@@ -410,6 +459,9 @@ export function SessionScheduler({
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-neutral-900">
                       Session {session.sessionNumber}
+                      {session.participantName && (
+                        <span className="font-normal text-neutral-600"> with {session.participantName}</span>
+                      )}
                     </div>
                     <div className="text-sm text-neutral-500 flex items-center gap-3 mt-0.5">
                       <span className="flex items-center gap-1">

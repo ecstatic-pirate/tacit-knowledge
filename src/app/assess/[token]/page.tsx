@@ -306,8 +306,7 @@ export default function ExpertAssessmentPage({ params }: { params: Promise<{ tok
             Hi {tokenInfo?.name || tokenInfo?.campaign?.expert_name || 'there'},
           </h1>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            We&apos;re preparing to capture your expertise as <strong className="text-foreground">{tokenInfo?.campaign?.expert_role || 'a specialist'}</strong>
-            {tokenInfo?.campaign?.department && <> in {tokenInfo.campaign.department}</>}.
+            We&apos;re preparing to capture your expertise as <strong className="text-foreground">{tokenInfo?.campaign?.expert_role || 'a specialist'}</strong>.
             Your self-reflection helps us ask better questions and focus on what matters most.
           </p>
           {tokenInfo?.campaign?.goal && (

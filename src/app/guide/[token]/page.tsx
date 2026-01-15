@@ -19,7 +19,7 @@ import {
 } from 'phosphor-react'
 import { cn } from '@/lib/utils'
 
-interface Skill {
+interface Topic {
   id: string
   name: string
   category: string | null
@@ -62,11 +62,10 @@ interface GuideData {
     id: string
     expert_name: string
     expert_role: string
-    department?: string
     goal?: string
-    years_experience?: number
+    departure_date?: string
   }
-  skills: Skill[]
+  topics: Topic[]
   sessions: Session[]
   selfAssessment: SelfAssessment | null
   collaboratorInsights: CollaboratorInsight[]
@@ -181,7 +180,7 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
 
   if (!guideData) return null
 
-  const { campaign, skills, sessions, selfAssessment, collaboratorInsights } = guideData
+  const { campaign, topics, sessions, selfAssessment, collaboratorInsights } = guideData
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -212,11 +211,11 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
               <p className="text-lg text-muted-foreground flex items-center gap-2">
                 <Briefcase className="w-5 h-5" />
                 {campaign.expert_role}
-                {campaign.department && <span>· {campaign.department}</span>}
               </p>
-              {campaign.years_experience && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  {campaign.years_experience} years of experience
+              {campaign.departure_date && (
+                <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  Departing: {new Date(campaign.departure_date).toLocaleDateString()}
                 </p>
               )}
             </div>
@@ -233,29 +232,29 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
           )}
         </section>
 
-        {/* Skills to Capture */}
-        {skills.length > 0 && (
+        {/* Topics to Capture */}
+        {topics.length > 0 && (
           <section className="mb-10">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Lightning className="w-5 h-5" weight="bold" />
-              Skills to Capture
+              Topics to Capture
             </h2>
             <div className="p-5 bg-card rounded-xl border border-border/40">
               <div className="flex flex-wrap gap-2">
-                {skills.map(skill => (
+                {topics.map(topic => (
                   <div
-                    key={skill.id}
+                    key={topic.id}
                     className={cn(
                       'px-3 py-1.5 rounded-full text-sm flex items-center gap-2',
-                      skill.captured
+                      topic.captured
                         ? 'bg-emerald-100 text-emerald-800'
                         : 'bg-secondary text-foreground'
                     )}
                   >
-                    {skill.captured && <CheckCircle className="w-3.5 h-3.5" weight="fill" />}
-                    {skill.name}
-                    {skill.category && (
-                      <span className="text-xs text-muted-foreground">({skill.category})</span>
+                    {topic.captured && <CheckCircle className="w-3.5 h-3.5" weight="fill" />}
+                    {topic.name}
+                    {topic.category && (
+                      <span className="text-xs text-muted-foreground">({topic.category})</span>
                     )}
                   </div>
                 ))}
@@ -509,7 +508,7 @@ export default function InterviewerGuidePage({ params }: { params: Promise<{ tok
         )}
 
         {/* No content message */}
-        {!selfAssessment && collaboratorInsights.length === 0 && sessions.length === 0 && skills.length === 0 && (
+        {!selfAssessment && collaboratorInsights.length === 0 && sessions.length === 0 && topics.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
             <p>No additional information has been gathered yet.</p>
             <p className="text-sm mt-2">Check back later as the campaign progresses.</p>

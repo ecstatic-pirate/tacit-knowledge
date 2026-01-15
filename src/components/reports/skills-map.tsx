@@ -1,22 +1,22 @@
 import { MapPin, Compass, Tag } from 'phosphor-react';
 
-interface SkillCategory {
+interface TopicCategory {
   name: string;
-  skills: string[];
+  topics: string[];
 }
 
-interface SkillsMapProps {
+interface TopicsMapProps {
   personName: string;
-  categories: SkillCategory[];
+  categories: TopicCategory[];
 }
 
-export function SkillsMap({ personName, categories }: SkillsMapProps) {
+export function TopicsMap({ personName, categories }: TopicsMapProps) {
   return (
     <div className="mb-12">
       <div className="flex items-center gap-2 mb-6">
         <MapPin className="w-5 h-5 text-primary" weight="bold" />
         <h3 className="text-lg font-bold text-neutral-900">
-          Skills Map - {personName}
+          Topics Map - {personName}
         </h3>
       </div>
 
@@ -32,13 +32,13 @@ export function SkillsMap({ personName, categories }: SkillsMapProps) {
                 {category.name}
               </div>
               <div className="flex flex-wrap gap-2">
-                {category.skills.map((skill) => (
+                {category.topics.map((topic) => (
                   <span
-                    key={skill}
+                    key={topic}
                     className="flex items-center gap-1.5 inline-flex px-3 py-1.5 bg-white rounded-md text-sm font-medium text-neutral-700 border border-neutral-200 shadow-sm"
                   >
                     <Tag className="w-3 h-3 text-neutral-400" weight="bold" />
-                    {skill}
+                    {topic}
                   </span>
                 ))}
               </div>
@@ -49,3 +49,6 @@ export function SkillsMap({ personName, categories }: SkillsMapProps) {
     </div>
   );
 }
+
+/** @deprecated Use TopicsMap instead */
+export const SkillsMap = TopicsMap;

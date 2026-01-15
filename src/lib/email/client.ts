@@ -25,7 +25,7 @@ export interface SendEmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, from }: SendEmailOptions) {
-  const fromEmail = from || process.env.RESEND_FROM_EMAIL || 'Tacit Knowledge <onboarding@resend.dev>'
+  const fromEmail = from || process.env.RESEND_FROM_EMAIL || 'Tacit <onboarding@resend.dev>'
 
   // In development without a verified domain, log instead of sending
   if (isDev && !hasVerifiedDomain) {

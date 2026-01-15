@@ -22,7 +22,7 @@ interface AICoachPanelProps {
 interface GuidanceData {
   suggestedQuestions: string[];
   detectedTopics: string[];
-  skillsToProbe: string[];
+  topicsToProbe: string[];
   contextualTip: string;
   capturedInsights: string[];
 }
@@ -30,8 +30,8 @@ interface GuidanceData {
 interface GuidanceContext {
   expertName: string;
   sessionNumber: number;
-  capturedSkillsCount: number;
-  remainingSkillsCount: number;
+  capturedTopicsCount: number;
+  remainingTopicsCount: number;
 }
 
 export function AICoachPanel({
@@ -246,17 +246,17 @@ export function AICoachPanel({
               </div>
             </div>
 
-            {/* Skills to Probe */}
-            {guidance.skillsToProbe.length > 0 && (
+            {/* Topics to Probe */}
+            {guidance.topicsToProbe.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                   <Target className="w-3 h-3" weight="bold" />
-                  Skills to Explore
+                  Topics to Explore
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {guidance.skillsToProbe.map((skill, i) => (
+                  {guidance.topicsToProbe.map((topic, i) => (
                     <Badge key={i} variant="outline" className="text-xs font-normal">
-                      {skill}
+                      {topic}
                     </Badge>
                   ))}
                 </div>
@@ -302,9 +302,9 @@ export function AICoachPanel({
             {context && (
               <div className="pt-2 border-t text-xs text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>Skills Captured</span>
+                  <span>Topics Captured</span>
                   <span className="font-medium text-foreground">
-                    {context.capturedSkillsCount} / {context.capturedSkillsCount + context.remainingSkillsCount}
+                    {context.capturedTopicsCount} / {context.capturedTopicsCount + context.remainingTopicsCount}
                   </span>
                 </div>
               </div>

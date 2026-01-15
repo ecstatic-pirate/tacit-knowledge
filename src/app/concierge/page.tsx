@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useApp } from '@/context/app-context'
-import { ConversationList, ChatContainer } from '@/components/concierge'
+import { ConversationList, ChatContainer, CampaignSelector } from '@/components/concierge'
 import { ConciergeSkeleton } from '@/components/ui/skeleton'
 import { SidebarSimple } from 'phosphor-react'
 import { cn } from '@/lib/utils'
 import type { Conversation, Message, MessageSource } from '@/types'
+import type { Campaign } from '@/context/app-context'
 
 export default function ConciergePage() {
-  const { isLoading: appLoading } = useApp()
+  const { isLoading: appLoading, campaigns } = useApp()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -19,6 +20,7 @@ export default function ConciergePage() {
   const [streamingContent, setStreamingContent] = useState('')
   const [pendingSources, setPendingSources] = useState<MessageSource[]>([])
   const [showSidebar, setShowSidebar] = useState(false)
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   // Fetch conversations on mount
@@ -176,6 +178,7 @@ export default function ConciergePage() {
           body: JSON.stringify({
             conversationId: activeConversation.id,
             message: content,
+            campaignId: selectedCampaign?.id,
           }),
           signal: abortController.signal,
         })
@@ -270,7 +273,7 @@ export default function ConciergePage() {
         abortControllerRef.current = null
       }
     },
-    [activeConversation, isSending, messages.length]
+    [activeConversation, isSending, messages.length, selectedCampaign]
   )
 
   if (appLoading || isLoadingConversations) {
@@ -281,9 +284,17 @@ export default function ConciergePage() {
     <div className="h-screen flex relative">
       {/* Main chat area */}
       <div className="flex-1 flex flex-col bg-background min-w-0">
-        {/* Header with sidebar toggle */}
+        {/* Header with campaign selector and sidebar toggle */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h1 className="font-serif text-lg font-semibold">Concierge</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="font-serif text-lg font-semibold">Concierge</h1>
+            <CampaignSelector
+              campaigns={campaigns}
+              selectedCampaign={selectedCampaign}
+              onSelect={setSelectedCampaign}
+              disabled={isSending}
+            />
+          </div>
           <button
             onClick={() => setShowSidebar(!showSidebar)}
             className={cn(
@@ -304,11 +315,13 @@ export default function ConciergePage() {
               isLoading={isSending || isLoadingMessages}
               streamingContent={streamingContent}
               onSendMessage={handleSendMessage}
+              selectedCampaign={selectedCampaign}
             />
           ) : (
             <ChatContainer
               messages={[]}
               isLoading={false}
+              selectedCampaign={selectedCampaign}
               onSendMessage={async (content) => {
                 // Create new conversation first, then send message
                 try {
@@ -394,6 +407,7 @@ export default function ConciergePage() {
       body: JSON.stringify({
         conversationId: conversation.id,
         message: content,
+        campaignId: selectedCampaign?.id,
       }),
       signal: abortController.signal,
     })

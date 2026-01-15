@@ -74,7 +74,7 @@ export function ChatMessage({ role, content, sources, isStreaming }: ChatMessage
             {showSources && (
               <div className="mt-2 space-y-2">
                 {sources.map((source, index) => (
-                  <SourceCard key={index} source={source} />
+                  <SourceCard key={index} source={source} index={index} />
                 ))}
               </div>
             )}
@@ -85,7 +85,7 @@ export function ChatMessage({ role, content, sources, isStreaming }: ChatMessage
   )
 }
 
-function SourceCard({ source }: { source: MessageSource }) {
+function SourceCard({ source, index }: { source: MessageSource; index: number }) {
   const typeLabel = {
     transcript: 'Transcript',
     insight: 'Insight',
@@ -94,15 +94,27 @@ function SourceCard({ source }: { source: MessageSource }) {
   }[source.type]
 
   const typeColor = {
-    transcript: 'bg-blue-100 text-blue-700',
-    insight: 'bg-amber-100 text-amber-700',
-    graph_node: 'bg-purple-100 text-purple-700',
-    document: 'bg-green-100 text-green-700',
+    transcript: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+    insight: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+    graph_node: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
+    document: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
   }[source.type]
+
+  // Extract session info from metadata
+  const metadata = source.metadata || {}
+  const sessionInfo = metadata.sessionTitle
+    ? `Session: ${metadata.sessionTitle}`
+    : metadata.sessionNumber
+      ? `Session #${metadata.sessionNumber}`
+      : null
+  const expertInfo = metadata.expertName ? `Expert: ${metadata.expertName}` : null
 
   return (
     <div className="p-3 rounded-lg bg-card border border-border/40">
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2 mb-1 flex-wrap">
+        <span className="text-xs font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+          [{index + 1}]
+        </span>
         <span className={cn('text-xs px-1.5 py-0.5 rounded', typeColor)}>
           {typeLabel}
         </span>
@@ -111,6 +123,11 @@ function SourceCard({ source }: { source: MessageSource }) {
         </span>
       </div>
       <p className="text-sm font-medium">{source.title}</p>
+      {(sessionInfo || expertInfo) && (
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {[sessionInfo, expertInfo].filter(Boolean).join(' · ')}
+        </p>
+      )}
       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
         {source.excerpt}
       </p>

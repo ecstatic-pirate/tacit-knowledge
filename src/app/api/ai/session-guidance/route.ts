@@ -88,8 +88,8 @@ export async function POST(request: NextRequest) {
       context: {
         expertName: campaign.expert_name,
         sessionNumber: session.session_number,
-        capturedSkillsCount: (session.topics || []).length,
-        remainingSkillsCount: plannedQuestions.length,
+        capturedTopicsCount: (session.topics || []).length,
+        remainingTopicsCount: plannedQuestions.length,
       },
     })
   } catch (error) {

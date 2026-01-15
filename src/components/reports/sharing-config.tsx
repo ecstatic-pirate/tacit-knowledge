@@ -8,7 +8,7 @@ interface SharingConfigProps {
 
 const reportOptions = [
   { id: 'weekly', label: 'Weekly Progress', schedule: 'Auto-send every Friday', icon: '📊' },
-  { id: 'skills', label: 'Skills Progress', schedule: 'After each session', icon: '🎯' },
+  { id: 'topics', label: 'Topics Progress', schedule: 'After each session', icon: '🎯' },
   { id: 'monthly', label: 'Monthly Summary', schedule: 'End of each month', icon: '📅' },
 ];
 

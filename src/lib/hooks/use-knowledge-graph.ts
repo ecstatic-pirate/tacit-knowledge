@@ -9,12 +9,23 @@ export interface KnowledgeNode {
   x: number
   y: number
   label: string
-  type: 'core' | 'skill' | 'concept' | 'system' | 'process'
+  type: 'core' | 'topic' | 'concept' | 'system' | 'process'
   description?: string
   connections: string[]
-  skillId?: string
+  topicId?: string
   sessionId?: string
   campaignId: string
+  // Source attribution fields
+  sourceExcerpt?: string
+  sourceTranscriptLineIds?: string[]
+  coverageStatus?: 'covered' | 'mentioned' | 'not_discussed'
+  // Session info for display
+  session?: {
+    id: string
+    title?: string
+    sessionNumber: number
+    scheduledAt?: string
+  }
 }
 
 export interface KnowledgeEdge {
@@ -57,10 +68,18 @@ export function useKnowledgeGraph(campaignId?: string): UseKnowledgeGraphReturn 
     setError(null)
 
     try {
-      // Build query for nodes
+      // Build query for nodes with session info
       let nodesQuery = supabase
         .from('graph_nodes')
-        .select('*')
+        .select(`
+          *,
+          sessions:session_id (
+            id,
+            title,
+            session_number,
+            scheduled_at
+          )
+        `)
         .is('deleted_at', null)
         .order('created_at', { ascending: true })
 
@@ -92,7 +111,16 @@ export function useKnowledgeGraph(campaignId?: string): UseKnowledgeGraphReturn 
       const centerY = 300
       const totalNodes = nodesData?.length || 0
 
-      const transformedNodes: KnowledgeNode[] = (nodesData || []).map((node: GraphNode, index: number) => {
+      interface NodeWithSession extends GraphNode {
+        sessions: {
+          id: string
+          title: string | null
+          session_number: number
+          scheduled_at: string | null
+        } | null
+      }
+
+      const transformedNodes: KnowledgeNode[] = (nodesData || []).map((node: NodeWithSession, index: number) => {
         // Use saved position or generate one
         const position = (node.position_x !== null && node.position_y !== null)
           ? { x: node.position_x, y: node.position_y }
@@ -111,9 +139,20 @@ export function useKnowledgeGraph(campaignId?: string): UseKnowledgeGraphReturn 
           type: (node.type as KnowledgeNode['type']) || 'concept',
           description: node.description || undefined,
           connections,
-          skillId: node.skill_id || undefined,
+          topicId: node.topic_id || undefined,
           sessionId: node.session_id || undefined,
           campaignId: node.campaign_id,
+          // Source attribution fields
+          sourceExcerpt: node.source_excerpt || undefined,
+          sourceTranscriptLineIds: node.source_transcript_line_ids || undefined,
+          coverageStatus: (node.coverage_status as KnowledgeNode['coverageStatus']) || 'not_discussed',
+          // Session info for display
+          session: node.sessions ? {
+            id: node.sessions.id,
+            title: node.sessions.title ?? undefined,
+            sessionNumber: node.sessions.session_number,
+            scheduledAt: node.sessions.scheduled_at ?? undefined,
+          } : undefined,
         }
       })
 

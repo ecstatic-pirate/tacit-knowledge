@@ -9,7 +9,7 @@ import { ListChecks, FloppyDisk } from 'phosphor-react';
 interface PlannerSidebarProps {
   personName: string;
   goal: string;
-  wantedSkills: string;
+  wantedTopics: string;
   notes: string;
   onUpdate: () => void;
 }
@@ -17,12 +17,12 @@ interface PlannerSidebarProps {
 export function PlannerSidebar({
   personName,
   goal: initialGoal,
-  wantedSkills: initialSkills,
+  wantedTopics: initialTopics,
   notes: initialNotes,
   onUpdate,
 }: PlannerSidebarProps) {
   const [goal, setGoal] = useState(initialGoal);
-  const [wantedSkills, setWantedSkills] = useState(initialSkills);
+  const [wantedTopics, setWantedTopics] = useState(initialTopics);
   const [notes, setNotes] = useState(initialNotes);
 
   return (
@@ -48,9 +48,9 @@ export function PlannerSidebar({
           className="min-h-[100px]"
         />
         <Textarea
-          label="Wanted Skills"
-          value={wantedSkills}
-          onChange={(e) => setWantedSkills(e.target.value)}
+          label="Wanted Topics"
+          value={wantedTopics}
+          onChange={(e) => setWantedTopics(e.target.value)}
           className="min-h-[100px]"
         />
         <Textarea

@@ -1,14 +1,24 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { CaretDown, X, ArrowRight } from 'phosphor-react';
+import { CaretDown, X, ArrowRight, Quotes, Calendar, CheckCircle, Circle } from 'phosphor-react';
 import { cn } from '@/lib/utils';
 
 export interface GraphNode {
   id: string;
   label: string;
-  type: 'core' | 'system' | 'process' | 'skill' | 'concept';
+  type: 'core' | 'system' | 'process' | 'topic' | 'concept';
   description?: string;
+  // Source attribution fields
+  sourceExcerpt?: string;
+  sessionId?: string;
+  session?: {
+    id: string;
+    title?: string;
+    sessionNumber: number;
+    scheduledAt?: string;
+  };
+  coverageStatus?: 'covered' | 'mentioned' | 'not_discussed';
 }
 
 export interface GraphEdge {
@@ -30,7 +40,7 @@ const nodeColors: Record<GraphNode['type'], { bg: string; text: string; border: 
   core: { bg: '#fecaca', text: '#dc2626', border: '#991b1b' },      // red-300
   system: { bg: '#fde68a', text: '#d97706', border: '#92400e' },    // amber-300
   process: { bg: '#ddd6fe', text: '#7c3aed', border: '#5b21b6' },   // violet-300
-  skill: { bg: '#bfdbfe', text: '#2563eb', border: '#1e40af' },     // blue-300
+  topic: { bg: '#bfdbfe', text: '#2563eb', border: '#1e40af' },     // blue-300
   concept: { bg: '#a7f3d0', text: '#059669', border: '#065f46' },   // emerald-300
 };
 
@@ -38,7 +48,7 @@ const nodeLabels: Record<GraphNode['type'], string> = {
   core: 'Core Outcome',
   system: 'System/Tool',
   process: 'Process',
-  skill: 'Skill',
+  topic: 'Topic',
   concept: 'Concept',
 };
 
@@ -83,7 +93,7 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
 
       // Position others by type
       let yOffset = 200;
-      const types: GraphNode['type'][] = ['system', 'process', 'skill', 'concept'];
+      const types: GraphNode['type'][] = ['system', 'process', 'topic', 'concept'];
 
       types.forEach(type => {
         const typeNodes = nodes.filter(n => n.type === type && n.id !== coreNode?.id);
@@ -336,6 +346,64 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                 )}
               </div>
 
+              {/* Source Attribution */}
+              {(selectedNode.session || selectedNode.sourceExcerpt) && (
+                <div className="space-y-3 border-t border-border pt-4">
+                  <div className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                    Source
+                  </div>
+
+                  {/* Session info */}
+                  {selectedNode.session && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-muted-foreground" weight="bold" />
+                      <span className="text-foreground">
+                        {selectedNode.session.title || `Session ${selectedNode.session.sessionNumber}`}
+                      </span>
+                      {selectedNode.session.scheduledAt && (
+                        <span className="text-muted-foreground text-xs">
+                          {new Date(selectedNode.session.scheduledAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Coverage status */}
+                  {selectedNode.coverageStatus && (
+                    <div className="flex items-center gap-2 text-sm">
+                      {selectedNode.coverageStatus === 'covered' ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-emerald-500" weight="fill" />
+                          <span className="text-emerald-700">Fully covered</span>
+                        </>
+                      ) : selectedNode.coverageStatus === 'mentioned' ? (
+                        <>
+                          <Circle className="w-4 h-4 text-amber-500" weight="bold" />
+                          <span className="text-amber-700">Mentioned</span>
+                        </>
+                      ) : (
+                        <>
+                          <Circle className="w-4 h-4 text-muted-foreground" weight="regular" />
+                          <span className="text-muted-foreground">Not discussed</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Transcript excerpt */}
+                  {selectedNode.sourceExcerpt && (
+                    <div className="bg-secondary/50 rounded-lg p-3 border-l-2 border-primary/50">
+                      <div className="flex items-start gap-2">
+                        <Quotes className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" weight="fill" />
+                        <p className="text-sm text-muted-foreground italic leading-relaxed">
+                          "{selectedNode.sourceExcerpt}"
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Related Items */}
               {relatedNodes.length > 0 && (
                 <div className="space-y-3 border-t border-border pt-4">
@@ -376,9 +444,9 @@ export function KnowledgeGraphExplorer({ nodes, edges }: KnowledgeGraphExplorerP
                 </div>
               )}
 
-              {relatedNodes.length === 0 && (
+              {relatedNodes.length === 0 && !selectedNode.session && !selectedNode.sourceExcerpt && (
                 <div className="text-center py-6 text-muted-foreground">
-                  <p className="text-sm">No connections found</p>
+                  <p className="text-sm">No connections or source information found</p>
                 </div>
               )}
             </div>

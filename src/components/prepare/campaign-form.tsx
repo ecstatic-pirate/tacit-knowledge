@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { User, Sparkle, CircleNotch, ArrowRight, ArrowLeft, Check, Users, Plus, X, UserCircle, Folder, Calendar, Lightning, Lightbulb, Info, CheckCircle } from 'phosphor-react'
+import { User, Sparkle, CircleNotch, ArrowRight, ArrowLeft, Check, Users, Plus, X, UserCircle, Folder, Calendar, Lightning, Lightbulb, Info, CheckCircle, Files, FileText, Clock } from 'phosphor-react'
 import { Input, Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { FileUpload } from './file-upload'
 import { TeamSelector } from './team-selector'
-import { ProjectSelector } from './project-selector'
 import type { CampaignSubjectType } from '@/types'
 
 interface CampaignFormProps {
@@ -34,15 +32,24 @@ export type CaptureCadence = 'weekly' | 'biweekly' | 'monthly'
 // Interview format
 export type InterviewFormat = 'human_led' | 'ai_live' | 'ai_async'
 
+// Session duration options
+export type SessionDuration = 30 | 45 | 60
+
+export interface DemoDocument {
+  id: string
+  filename: string
+  description: string
+  content: string
+  fileType: string
+}
+
 export interface CampaignFormData {
   name: string
   role: string
-  department: string
-  yearsExperience: number
   goal: string
-  skills: string
   captureMode: 'human_led' | 'ai_guided' | 'hybrid'
   expertEmail?: string
+  departureDate?: string
   collaborators: Collaborator[]
   subjectType: CampaignSubjectType
   projectId?: string
@@ -52,16 +59,280 @@ export interface CampaignFormData {
   captureSchedule?: CaptureSchedule
   captureCadence?: CaptureCadence
   interviewFormat?: InterviewFormat
+  sessionDuration?: SessionDuration
   focusAreas?: string[]
   suggestedDomains?: { name: string; confidence: number; description: string }[]
+  // Demo documents
+  selectedDemoDocuments?: DemoDocument[]
 }
 
+// Demo documents based on the Tacit Knowledge Capture codebase
+const DEMO_DOCUMENTS_EXPERT: DemoDocument[] = [
+  {
+    id: 'arch-overview',
+    filename: 'Architecture Overview.md',
+    description: 'System architecture and component relationships',
+    fileType: 'text/markdown',
+    content: `# Tacit Knowledge Capture - Architecture Overview
+
+## Core Components
+
+### Frontend (Next.js 16 + React 19)
+- **Pages**: Campaign management, Sessions, Knowledge Hub, Concierge
+- **Components**: Reusable UI components with Tailwind CSS
+- **State Management**: React Context (AppContext) for global state
+
+### Backend (Supabase)
+- **Database**: PostgreSQL with Row Level Security (RLS)
+- **Auth**: Supabase Auth with email/password
+- **Storage**: File uploads for campaign documents
+- **Edge Functions**: AI processing and email notifications
+
+### AI Integration
+- **OpenAI GPT-4**: Knowledge extraction, topic suggestions
+- **Embeddings**: Vector search for knowledge retrieval
+- **Concierge**: RAG-based Q&A over captured knowledge
+
+## Data Flow
+1. Campaign created → Collaborators invited → Surveys collected
+2. Sessions scheduled → Interviews conducted → Transcripts generated
+3. AI extracts insights → Knowledge graph built → Reports generated
+4. Users query Concierge → RAG retrieval → Contextual answers`
+  },
+  {
+    id: 'campaign-flows',
+    filename: 'Campaign Flows.md',
+    description: 'How expert and project campaigns work',
+    fileType: 'text/markdown',
+    content: `# Campaign Flows
+
+## Expert Campaign Flow
+1. **Setup**: Expert profile, team selection, collaborators
+2. **Scoping**: Collaborators complete surveys about expert's knowledge
+3. **AI Planning**: System suggests topics and interview questions
+4. **Capture**: Human-led sessions with real-time transcription
+5. **Processing**: AI extracts insights, builds knowledge graph
+6. **Access**: Knowledge Hub and Concierge for retrieval
+
+## Project Campaign Flow
+1. **Setup**: Project details, document upload, contributors
+2. **Scoping**: Contributors self-report expertise areas
+3. **AI Planning**: System identifies gaps and suggests questions
+4. **Capture**: Multiple participants interviewed about project
+5. **Synthesis**: Knowledge consolidated across all interviews
+6. **Delivery**: Comprehensive project documentation
+
+## Key Entities
+- **Campaign**: Container for all capture activities
+- **Session**: Individual interview or capture event
+- **Topic**: Knowledge area to be covered
+- **Insight**: Extracted knowledge piece from sessions`
+  },
+  {
+    id: 'tech-stack',
+    filename: 'Technology Stack.md',
+    description: 'Technologies and libraries used',
+    fileType: 'text/markdown',
+    content: `# Technology Stack
+
+## Frontend
+- **Framework**: Next.js 16 with App Router
+- **UI**: React 19, Tailwind CSS 4, Radix UI primitives
+- **Icons**: Phosphor React
+- **Video**: Daily.co for live sessions
+
+## Backend
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth
+- **Storage**: Supabase Storage
+- **Email**: Resend for transactional emails
+
+## AI/ML
+- **LLM**: OpenAI GPT-4 for extraction and generation
+- **Embeddings**: text-embedding-3-small for vector search
+- **RAG**: Custom implementation with pgvector
+
+## Development
+- **Language**: TypeScript
+- **Build**: Turbopack
+- **Linting**: ESLint
+- **Package Manager**: npm`
+  },
+  {
+    id: 'db-schema',
+    filename: 'Database Schema.md',
+    description: 'Key database tables and relationships',
+    fileType: 'text/markdown',
+    content: `# Database Schema
+
+## Core Tables
+
+### campaigns
+- Primary entity for knowledge capture
+- Links to: org_id, team_id, project_id
+- Types: person (Expert) or project
+
+### sessions
+- Individual capture events
+- Links to: campaign_id, participant_id
+- Status: scheduled, in_progress, completed
+
+### topics
+- Knowledge areas to capture
+- Source: manual or ai_detected
+- Status: captured or pending
+
+### graph_nodes
+- Knowledge graph entries
+- Types: core, skill, concept, process
+- Links to: campaign_id, topic_id, session_id
+
+## Supporting Tables
+- **documents**: Uploaded files for context
+- **collaborator_responses**: Survey data
+- **transcript_lines**: Session transcripts
+- **knowledge_embeddings**: Vector search index`
+  },
+]
+
+const DEMO_DOCUMENTS_PROJECT: DemoDocument[] = [
+  {
+    id: 'features-roadmap',
+    filename: 'Features Roadmap.md',
+    description: 'Upcoming features and priorities',
+    fileType: 'text/markdown',
+    content: `# Tacit Knowledge Capture - Features Roadmap
+
+## Current Release (v1.0)
+- ✅ Expert and Project campaign flows
+- ✅ Collaborator and participant surveys
+- ✅ Human-led interview sessions
+- ✅ Knowledge Hub with search
+- ✅ AI Concierge for Q&A
+
+## Next Release (v1.1)
+- 🔄 AI-Live interview mode
+- 🔄 AI-Async form-based capture
+- 🔄 Advanced reporting and exports
+- 🔄 Email notifications system
+
+## Future Roadmap
+- Calendar integration (Outlook, Google)
+- Team analytics and insights
+- Knowledge graph visualization
+- API for external integrations
+- Mobile app for on-the-go capture`
+  },
+  {
+    id: 'user-guide',
+    filename: 'User Experience Guide.md',
+    description: 'UX patterns and design decisions',
+    fileType: 'text/markdown',
+    content: `# User Experience Guide
+
+## Design Principles
+1. **Progressive Disclosure**: Show complexity only when needed
+2. **Guided Workflows**: Step-by-step campaign creation
+3. **Contextual Help**: Sidebar tips and inline guidance
+4. **Minimal Friction**: Quick actions, smart defaults
+
+## Key User Flows
+
+### Creating a Campaign
+1. Select campaign type (Expert or Project)
+2. Fill basic details with inline validation
+3. Add collaborators/contributors
+4. Configure capture settings
+5. Review and create
+
+### Running Sessions
+1. Schedule from campaign dashboard
+2. Join video room with Daily.co
+3. Real-time transcription
+4. AI topic tracking
+5. Post-session insights
+
+### Accessing Knowledge
+1. Browse Knowledge Hub by team/campaign
+2. Search across all captured content
+3. Ask Concierge natural language questions
+4. Generate reports on demand`
+  },
+  {
+    id: 'api-overview',
+    filename: 'API Overview.md',
+    description: 'Key API endpoints and data flows',
+    fileType: 'text/markdown',
+    content: `# API Overview
+
+## Campaign APIs
+- POST /api/campaigns - Create campaign
+- GET /api/campaigns - List campaigns
+- GET /api/campaigns/[id] - Get campaign details
+- PATCH /api/campaigns/[id] - Update campaign
+
+## Session APIs
+- POST /api/sessions - Create session
+- GET /api/sessions/[id] - Get session details
+- POST /api/sessions/[id]/transcript - Add transcript line
+
+## Knowledge APIs
+- GET /api/knowledge - Search knowledge base
+- POST /api/knowledge/embed - Generate embeddings
+
+## AI APIs
+- POST /api/ai/extract - Extract insights from text
+- POST /api/ai/suggest-topics - Suggest topics
+- POST /api/concierge/chat - Concierge Q&A
+
+## Webhook Endpoints
+- POST /api/webhooks/daily - Daily.co events
+- POST /api/webhooks/email - Email delivery status`
+  },
+  {
+    id: 'integration-guide',
+    filename: 'Integration Guide.md',
+    description: 'How components work together',
+    fileType: 'text/markdown',
+    content: `# Integration Guide
+
+## Supabase Integration
+- Direct client queries with RLS
+- Server-side with service role for admin ops
+- Real-time subscriptions for live updates
+
+## Daily.co Integration
+- Room creation via API
+- Embedded video player
+- Webhook for session events
+- Recording and transcription
+
+## OpenAI Integration
+- Chat completions for extraction
+- Embeddings for vector search
+- Structured outputs for JSON responses
+
+## Resend Integration
+- Transactional emails for invitations
+- Reminder sequences
+- Email delivery tracking
+
+## Environment Variables
+- NEXT_PUBLIC_SUPABASE_URL
+- SUPABASE_SERVICE_ROLE_KEY
+- OPENAI_API_KEY
+- DAILY_API_KEY
+- RESEND_API_KEY`
+  },
+]
+
 // Steps for Expert campaign flow (simplified - no AI domains step)
+// Documents is step 3 so campaign can be created after collecting all key info
 const EXPERT_STEPS = [
   { id: 0, title: 'Expert', description: 'Who holds the knowledge?' },
   { id: 1, title: 'Team', description: 'Which team are they on?' },
-  { id: 2, title: 'Documents', description: 'Upload relevant files' },
-  { id: 3, title: 'Collaborators', description: 'Who else can provide input?' },
+  { id: 2, title: 'Collaborators', description: 'Who else can provide input?' },
+  { id: 3, title: 'Documents', description: 'Upload relevant files' },
   { id: 4, title: 'Capture', description: 'How to conduct sessions?' },
 ]
 
@@ -163,6 +434,8 @@ const interviewFormatOptions: Array<{
   id: InterviewFormat
   label: string
   description: string
+  disabled?: boolean
+  comingSoon?: boolean
 }> = [
   {
     id: 'human_led',
@@ -173,12 +446,26 @@ const interviewFormatOptions: Array<{
     id: 'ai_live',
     label: 'AI-Live',
     description: 'AI conducts live interview sessions',
+    disabled: true,
+    comingSoon: true,
   },
   {
     id: 'ai_async',
     label: 'AI-Async',
     description: 'Form-like experience, complete at own pace',
+    disabled: true,
+    comingSoon: true,
   },
+]
+
+// Session duration options
+const sessionDurationOptions: Array<{
+  value: SessionDuration
+  label: string
+}> = [
+  { value: 30, label: '30 min' },
+  { value: 45, label: '45 min' },
+  { value: 60, label: '60 min' },
 ]
 
 const collaboratorRoles = [
@@ -325,24 +612,44 @@ export function CampaignForm({
   const [formData, setFormData] = useState<CampaignFormData>({
     name: '',
     role: '',
-    department: '',
-    yearsExperience: 0,
     goal: '',
-    skills: '',
     captureMode: 'hybrid',
     expertEmail: '',
+    departureDate: '',
     collaborators: [],
     subjectType: 'person',
     projectType: 'system_tool',
     captureSchedule: 'event_driven',
     captureCadence: 'biweekly',
     interviewFormat: 'human_led',
+    sessionDuration: 30,
     focusAreas: [],
     suggestedDomains: [],
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLocalhost, setIsLocalhost] = useState(false)
+
+  // Prefetch teams immediately when form loads
+  const [teams, setTeams] = useState<Array<{ id: string; name: string; description: string | null; color: string | null }>>([])
+  const [teamsLoading, setTeamsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const response = await fetch('/api/teams')
+        const data = await response.json()
+        if (data.success) {
+          setTeams(data.teams)
+        }
+      } catch (err) {
+        console.error('Failed to prefetch teams:', err)
+      } finally {
+        setTeamsLoading(false)
+      }
+    }
+    fetchTeams()
+  }, [])
 
   // Check for localhost after mount
   useEffect(() => {
@@ -370,40 +677,52 @@ export function CampaignForm({
   }, [searchParams])
 
   const fillDemoData = () => {
+    // Get a date 3 months from now for demo departure date
+    const futureDate = new Date()
+    futureDate.setMonth(futureDate.getMonth() + 3)
+    const departureDateStr = futureDate.toISOString().split('T')[0]
+
+    // Select first available team (Product Engineering if available)
+    const productTeam = teams.find(t => t.name.toLowerCase().includes('product') || t.name.toLowerCase().includes('engineering'))
+    const selectedTeamId = productTeam?.id || teams[0]?.id || formData.teamId
+
     if (subjectType === 'person') {
+      // Expert flow: Shantanu Garg - Product Lead on Tacit Knowledge Capture
       setFormData({
         ...formData,
-        name: 'Maria Santos',
-        role: 'Senior Customer Success Manager',
-        goal: 'Capture deep knowledge of enterprise client relationships, escalation processes, and renewal strategies before Maria transitions to a new role.',
-        skills: 'Enterprise account management\nCustomer escalation handling\nContract renewal negotiations\nStakeholder relationship mapping',
+        name: 'Shantanu Garg',
+        role: 'Product Lead',
+        goal: 'Capture comprehensive knowledge of the Tacit Knowledge Capture platform: architecture decisions, implementation patterns, AI integration approaches, user experience design rationale, and operational knowledge for maintaining and extending the system.',
         captureMode: 'hybrid',
-        expertEmail: 'maria.santos@example.com',
+        expertEmail: 'shantanu.garg@getabstract.com',
+        departureDate: departureDateStr,
+        teamId: selectedTeamId,
         collaborators: [
-          { name: 'David Park', email: 'david.park@example.com', role: 'successor' },
-          { name: 'Lisa Thompson', email: 'lisa.thompson@example.com', role: 'teammate' },
-          { name: 'Robert Kim', email: 'robert.kim@example.com', role: 'manager' },
+          { name: 'Raul Bergen', email: 'raul@getabstract.com', role: 'partner' },
         ],
         subjectType: 'person',
         interviewFormat: 'human_led',
+        selectedDemoDocuments: DEMO_DOCUMENTS_EXPERT,
       })
     } else {
+      // Project flow: Tacit Knowledge Capture platform documentation
       setFormData({
         ...formData,
-        name: 'Customer Onboarding Process',
-        role: 'Operations',
-        department: '',
-        goal: 'Document the end-to-end customer onboarding workflow, including key decision points, common pitfalls, and best practices for different customer segments.',
+        name: 'Tacit Knowledge Capture Platform',
+        role: 'Core Product',
+        goal: 'Document the complete Tacit Knowledge Capture system: campaign management, knowledge capture workflows, AI concierge integration, session management, and the knowledge hub architecture.',
         captureMode: 'hybrid',
+        teamId: selectedTeamId,
         collaborators: [
-          { name: 'Jennifer Wu', email: 'jennifer.wu@example.com', role: 'teammate' },
-          { name: 'Marcus Brown', email: 'marcus.brown@example.com', role: 'teammate' },
+          { name: 'Shantanu Garg', email: 'shantanu.garg@getabstract.com', role: 'teammate' },
+          { name: 'Raul Bergen', email: 'raul@getabstract.com', role: 'partner' },
         ],
         subjectType: 'project',
         projectType: 'process_workflow',
         captureSchedule: 'event_driven',
-        captureCadence: 'biweekly',
-        interviewFormat: 'ai_live',
+        captureCadence: 'weekly',
+        interviewFormat: 'human_led',
+        selectedDemoDocuments: DEMO_DOCUMENTS_PROJECT,
       })
     }
   }
@@ -447,6 +766,15 @@ export function CampaignForm({
         if (formData.expertEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.expertEmail)) {
           newErrors.expertEmail = 'Invalid email format'
         }
+        // Validate departure date is in the future if provided
+        if (formData.departureDate) {
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const departureDate = new Date(formData.departureDate)
+          if (departureDate < today) {
+            newErrors.departureDate = 'Departure date must be today or in the future'
+          }
+        }
       }
       if (step === 1) {
         if (!formData.teamId) newErrors.teamId = 'Team is required'
@@ -466,21 +794,20 @@ export function CampaignForm({
   const handleNext = async () => {
     if (!validateStep(currentStep)) return
 
-    // For Expert flow: Create campaign after Step 1 (Team selection) to enable document upload
-    // For Project flow: Create campaign after Step 0 (Project details) to enable document upload
-    const shouldCreateCampaign = subjectType === 'person'
-      ? currentStep === 1
-      : currentStep === 0
+    if (currentStep < STEPS.length - 1) {
+      setCurrentStep(currentStep + 1)
+    }
+  }
 
-    if (shouldCreateCampaign && !createdCampaignId) {
+  // Handle final submission - create campaign at the end
+  const handleFinish = async () => {
+    if (!validateStep(currentStep)) return
+
+    if (!createdCampaignId) {
       const result = await onSubmit(formData)
       if (result?.id) {
         setCreatedCampaignId(result.id)
       }
-    }
-
-    if (currentStep < STEPS.length - 1) {
-      setCurrentStep(currentStep + 1)
     }
   }
 
@@ -492,17 +819,7 @@ export function CampaignForm({
     }
   }
 
-  const goToStep = async (step: number) => {
-    // Create campaign before documents step if not created
-    // Expert: documents at step 2, Project: documents at step 1
-    const documentsStep = subjectType === 'person' ? 2 : 1
-
-    if (step >= documentsStep && !createdCampaignId && validateStep(0) && (subjectType === 'project' || validateStep(1))) {
-      const result = await onSubmit(formData)
-      if (result?.id) {
-        setCreatedCampaignId(result.id)
-      }
-    }
+  const goToStep = (step: number) => {
     setCurrentStep(step)
   }
 
@@ -661,6 +978,15 @@ export function CampaignForm({
                   error={errors.expertEmail}
                   hint="Optional - used to send interview invitations"
                 />
+                <Input
+                  label="Departure Date"
+                  type="date"
+                  value={formData.departureDate}
+                  onChange={(e) => setFormData({ ...formData, departureDate: e.target.value })}
+                  error={errors.departureDate}
+                  hint="Optional - when is the expert leaving?"
+                  min={new Date().toISOString().split('T')[0]}
+                />
               </div>
             </div>
           )}
@@ -686,26 +1012,16 @@ export function CampaignForm({
                   error={errors.teamId}
                   required
                   hint="Teams help organize knowledge in your Knowledge Hub"
+                  teams={teams}
+                  isLoading={teamsLoading}
+                  onTeamsChange={setTeams}
                 />
               </div>
             </div>
           )}
 
-          {/* Step 2: Documents */}
+          {/* Step 2: Collaborators */}
           {currentStep === 2 && (
-            <div className="space-y-6">
-              <FileUpload
-                campaignId={createdCampaignId || undefined}
-                              />
-              <div className="text-xs text-muted-foreground text-center">
-                Upload documents to provide context for capture sessions.
-                You can skip this step and upload documents later.
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Collaborators */}
-          {currentStep === 3 && (
             <div className="border rounded-lg bg-card">
               <div className="p-4 border-b flex items-center gap-3">
                 <div className="p-2 rounded-md bg-secondary">
@@ -808,60 +1124,209 @@ export function CampaignForm({
             </div>
           )}
 
-          {/* Step 4: Capture Format */}
-          {currentStep === 4 && (
+          {/* Step 3: Documents */}
+          {currentStep === 3 && (
             <div className="border rounded-lg bg-card">
               <div className="p-4 border-b flex items-center gap-3">
                 <div className="p-2 rounded-md bg-secondary">
-                  <Sparkle className="w-4 h-4 text-muted-foreground" weight="bold" />
+                  <Files className="w-4 h-4 text-muted-foreground" weight="bold" />
                 </div>
                 <div>
-                  <h3 className="font-medium">Capture Format</h3>
+                  <h3 className="font-medium">Documents</h3>
                   <p className="text-xs text-muted-foreground">
-                    How should knowledge capture sessions be conducted?
+                    {formData.selectedDemoDocuments?.length
+                      ? 'Select documents to include with this campaign'
+                      : 'Upload files to provide context for capture sessions'}
                   </p>
                 </div>
               </div>
               <div className="p-4">
-                <div className="space-y-3">
-                  {interviewFormatOptions.map((option) => (
-                    <label
-                      key={option.id}
-                      className={cn(
-                        'flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-colors border',
-                        formData.interviewFormat === option.id
-                          ? 'border-foreground bg-secondary/50'
-                          : 'border-border hover:bg-secondary/30'
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="capture-format"
-                        value={option.id}
-                        checked={formData.interviewFormat === option.id}
-                        onChange={() => setFormData({ ...formData, interviewFormat: option.id })}
-                        className="sr-only"
-                      />
-                      <div
+                {formData.selectedDemoDocuments?.length ? (
+                  <div className="space-y-2">
+                    {(subjectType === 'person' ? DEMO_DOCUMENTS_EXPERT : DEMO_DOCUMENTS_PROJECT).map((doc) => {
+                      const isSelected = formData.selectedDemoDocuments?.some(d => d.id === doc.id)
+                      return (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => {
+                            const currentDocs = formData.selectedDemoDocuments || []
+                            if (isSelected) {
+                              setFormData({
+                                ...formData,
+                                selectedDemoDocuments: currentDocs.filter(d => d.id !== doc.id)
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                selectedDemoDocuments: [...currentDocs, doc]
+                              })
+                            }
+                          }}
+                          className={cn(
+                            'w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all',
+                            isSelected
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/50 hover:bg-secondary/30'
+                          )}
+                        >
+                          <div className={cn(
+                            'flex items-center justify-center w-5 h-5 rounded border-[1.5px] shrink-0 transition-colors',
+                            isSelected
+                              ? 'border-primary bg-primary'
+                              : 'border-muted-foreground/40'
+                          )}>
+                            {isSelected && (
+                              <Check className="w-3 h-3 text-primary-foreground" weight="bold" />
+                            )}
+                          </div>
+                          <div className="p-2 rounded bg-secondary/50">
+                            <FileText className="w-4 h-4 text-muted-foreground" weight="bold" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{doc.filename}</p>
+                            <p className="text-xs text-muted-foreground truncate">{doc.description}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                    <p className="text-xs text-muted-foreground text-center pt-2">
+                      {formData.selectedDemoDocuments.length} document{formData.selectedDemoDocuments.length !== 1 ? 's' : ''} selected
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-3 py-2">
+                    <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center mx-auto">
+                      <Files className="w-6 h-6 text-muted-foreground" weight="bold" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Documents can be uploaded after the campaign is created.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        You&apos;ll be able to add relevant files from the campaign page.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Capture Format */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              {/* Capture Format */}
+              <div className="border rounded-lg bg-card">
+                <div className="p-4 border-b flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-secondary">
+                    <Sparkle className="w-4 h-4 text-muted-foreground" weight="bold" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Capture Format</h3>
+                    <p className="text-xs text-muted-foreground">
+                      How should knowledge capture sessions be conducted?
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {interviewFormatOptions.map((option) => (
+                      <label
+                        key={option.id}
                         className={cn(
-                          'w-4 h-4 rounded-full border-2 flex items-center justify-center',
-                          formData.interviewFormat === option.id
-                            ? 'border-foreground'
-                            : 'border-muted-foreground'
+                          'flex items-center gap-4 p-4 rounded-lg transition-colors border',
+                          option.disabled
+                            ? 'cursor-not-allowed opacity-50 border-border'
+                            : 'cursor-pointer',
+                          !option.disabled && formData.interviewFormat === option.id
+                            ? 'border-foreground bg-secondary/50'
+                            : !option.disabled && 'border-border hover:bg-secondary/30'
+                        )}
+                        onClick={(e) => {
+                          if (option.disabled) {
+                            e.preventDefault()
+                          }
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="capture-format"
+                          value={option.id}
+                          checked={formData.interviewFormat === option.id}
+                          onChange={() => {
+                            if (!option.disabled) {
+                              setFormData({ ...formData, interviewFormat: option.id })
+                            }
+                          }}
+                          disabled={option.disabled}
+                          className="sr-only"
+                        />
+                        <div
+                          className={cn(
+                            'w-4 h-4 rounded-full border-2 flex items-center justify-center',
+                            formData.interviewFormat === option.id && !option.disabled
+                              ? 'border-foreground'
+                              : 'border-muted-foreground'
+                          )}
+                        >
+                          {formData.interviewFormat === option.id && !option.disabled && (
+                            <div className="w-2 h-2 rounded-full bg-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{option.label}</span>
+                            {option.comingSoon && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                Coming Soon
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {option.description}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Session Duration */}
+              <div className="border rounded-lg bg-card">
+                <div className="p-4 border-b flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-secondary">
+                    <Clock className="w-4 h-4 text-muted-foreground" weight="bold" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Session Duration</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Target length for each capture session
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="flex gap-2">
+                    {sessionDurationOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, sessionDuration: option.value })}
+                        className={cn(
+                          'flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-colors border',
+                          formData.sessionDuration === option.value
+                            ? 'border-foreground bg-secondary/50'
+                            : 'border-border hover:bg-secondary/30'
                         )}
                       >
-                        {formData.interviewFormat === option.id && (
-                          <div className="w-2 h-2 rounded-full bg-foreground" />
-                        )}
-                      </div>
-                      <div>
-                        <span className="font-medium text-sm">{option.label}</span>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {option.description}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    AI will plan sessions to fit within this duration based on the topics to cover.
+                  </p>
                 </div>
               </div>
             </div>
@@ -915,16 +1380,9 @@ export function CampaignForm({
                   </div>
                 </div>
 
-                <ProjectSelector
-                  value={formData.projectId}
-                  onChange={(projectId) => setFormData({ ...formData, projectId })}
-                  label="Select or Create Project"
-                  hint="Choose an existing project or create a new one"
-                />
-
                 <Input
-                  label="Project Name / Title"
-                  placeholder="Payment Gateway"
+                  label="Project Name"
+                  placeholder="e.g., Payment Gateway v2, Customer Onboarding Process"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   error={errors.name}
@@ -943,12 +1401,89 @@ export function CampaignForm({
 
           {/* Step 1: Documents */}
           {currentStep === 1 && (
-            <div className="space-y-6">
-              <FileUpload
-                campaignId={createdCampaignId || undefined}
-                              />
-              <div className="text-xs text-muted-foreground text-center">
-                Upload project artifacts (specs, docs, diagrams) to help AI suggest focus areas.
+            <div className="border rounded-lg bg-card">
+              <div className="p-4 border-b flex items-center gap-3">
+                <div className="p-2 rounded-md bg-secondary">
+                  <Files className="w-4 h-4 text-muted-foreground" weight="bold" />
+                </div>
+                <div>
+                  <h3 className="font-medium">Documents</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.selectedDemoDocuments?.length
+                      ? 'Select documents to include with this campaign'
+                      : 'Upload project artifacts (specs, docs, diagrams)'}
+                  </p>
+                </div>
+              </div>
+              <div className="p-4">
+                {formData.selectedDemoDocuments?.length ? (
+                  <div className="space-y-2">
+                    {DEMO_DOCUMENTS_PROJECT.map((doc) => {
+                      const isSelected = formData.selectedDemoDocuments?.some(d => d.id === doc.id)
+                      return (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => {
+                            const currentDocs = formData.selectedDemoDocuments || []
+                            if (isSelected) {
+                              setFormData({
+                                ...formData,
+                                selectedDemoDocuments: currentDocs.filter(d => d.id !== doc.id)
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                selectedDemoDocuments: [...currentDocs, doc]
+                              })
+                            }
+                          }}
+                          className={cn(
+                            'w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all',
+                            isSelected
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/50 hover:bg-secondary/30'
+                          )}
+                        >
+                          <div className={cn(
+                            'flex items-center justify-center w-5 h-5 rounded border-[1.5px] shrink-0 transition-colors',
+                            isSelected
+                              ? 'border-primary bg-primary'
+                              : 'border-muted-foreground/40'
+                          )}>
+                            {isSelected && (
+                              <Check className="w-3 h-3 text-primary-foreground" weight="bold" />
+                            )}
+                          </div>
+                          <div className="p-2 rounded bg-secondary/50">
+                            <FileText className="w-4 h-4 text-muted-foreground" weight="bold" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{doc.filename}</p>
+                            <p className="text-xs text-muted-foreground truncate">{doc.description}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                    <p className="text-xs text-muted-foreground text-center pt-2">
+                      {formData.selectedDemoDocuments.length} document{formData.selectedDemoDocuments.length !== 1 ? 's' : ''} selected
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-3 py-2">
+                    <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center mx-auto">
+                      <Files className="w-6 h-6 text-muted-foreground" weight="bold" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Documents can be uploaded after the campaign is created.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        You&apos;ll be able to add project artifacts from the campaign page.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1141,34 +1676,54 @@ export function CampaignForm({
                       <label
                         key={option.id}
                         className={cn(
-                          'flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-colors border',
-                          formData.interviewFormat === option.id
+                          'flex items-center gap-4 p-4 rounded-lg transition-colors border',
+                          option.disabled
+                            ? 'cursor-not-allowed opacity-50 border-border'
+                            : 'cursor-pointer',
+                          !option.disabled && formData.interviewFormat === option.id
                             ? 'border-foreground bg-secondary/50'
-                            : 'border-border hover:bg-secondary/30'
+                            : !option.disabled && 'border-border hover:bg-secondary/30'
                         )}
+                        onClick={(e) => {
+                          if (option.disabled) {
+                            e.preventDefault()
+                          }
+                        }}
                       >
                         <input
                           type="radio"
                           name="capture-format-project"
                           value={option.id}
                           checked={formData.interviewFormat === option.id}
-                          onChange={() => setFormData({ ...formData, interviewFormat: option.id })}
+                          onChange={() => {
+                            if (!option.disabled) {
+                              setFormData({ ...formData, interviewFormat: option.id })
+                            }
+                          }}
+                          disabled={option.disabled}
                           className="sr-only"
                         />
                         <div
                           className={cn(
                             'w-4 h-4 rounded-full border-2 flex items-center justify-center',
-                            formData.interviewFormat === option.id
+                            formData.interviewFormat === option.id && !option.disabled
                               ? 'border-foreground'
                               : 'border-muted-foreground'
                           )}
                         >
-                          {formData.interviewFormat === option.id && (
+                          {formData.interviewFormat === option.id && !option.disabled && (
                             <div className="w-2 h-2 rounded-full bg-foreground" />
                           )}
                         </div>
-                        <div>
-                          <span className="font-medium text-sm">{option.label}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{option.label}</span>
+                            {option.comingSoon && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                Coming Soon
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {option.description}
                           </p>
@@ -1176,6 +1731,43 @@ export function CampaignForm({
                       </label>
                     ))}
                   </div>
+                </div>
+              </div>
+
+              {/* Session Duration */}
+              <div className="border rounded-lg bg-card">
+                <div className="p-4 border-b flex items-center gap-3">
+                  <div className="p-2 rounded-md bg-secondary">
+                    <Clock className="w-4 h-4 text-muted-foreground" weight="bold" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Session Duration</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Target length for each capture session
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="flex gap-2">
+                    {sessionDurationOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, sessionDuration: option.value })}
+                        className={cn(
+                          'flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-colors border',
+                          formData.sessionDuration === option.value
+                            ? 'border-foreground bg-secondary/50'
+                            : 'border-border hover:bg-secondary/30'
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    AI will plan sessions to fit within this duration based on the topics to cover.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1210,21 +1802,21 @@ export function CampaignForm({
           )}
         </div>
 
-        {currentStep < STEPS.length - 1 && (
-          <Button type="button" onClick={handleNext} disabled={isSubmitting}>
+        {currentStep < STEPS.length - 1 ? (
+          <Button type="button" onClick={handleNext}>
+            Next
+            <ArrowRight className="w-4 h-4 ml-2" weight="bold" />
+          </Button>
+        ) : (
+          <Button type="button" onClick={handleFinish} disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <CircleNotch className="w-4 h-4 mr-2 animate-spin" weight="bold" />
                 Creating...
               </>
-            ) : ((subjectType === 'person' ? currentStep === 1 : currentStep === 0) && !createdCampaignId) ? (
-              <>
-                Create & Continue
-                <ArrowRight className="w-4 h-4 ml-2" weight="bold" />
-              </>
             ) : (
               <>
-                Next
+                Create Campaign
                 <ArrowRight className="w-4 h-4 ml-2" weight="bold" />
               </>
             )}

@@ -14,7 +14,7 @@ interface KnowledgeGraphViewProps {
 const nodeStyles: Record<KnowledgeNode['type'], { fill: string; size: number; pulse?: boolean }> = {
   core: { fill: 'fill-primary', size: 20, pulse: true },
   system: { fill: 'fill-amber-500', size: 18, pulse: true },
-  skill: { fill: 'fill-blue-500', size: 14 },
+  topic: { fill: 'fill-blue-500', size: 14 },
   process: { fill: 'fill-violet-500', size: 14 },
   concept: { fill: 'fill-emerald-500', size: 12 },
 };
@@ -161,7 +161,7 @@ export function KnowledgeGraphView({ campaignId }: KnowledgeGraphViewProps) {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span className="font-medium">Skill</span>
+          <span className="font-medium">Topic</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-violet-500" />

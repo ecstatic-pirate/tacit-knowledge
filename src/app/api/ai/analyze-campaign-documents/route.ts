@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       // Return empty suggestions if no documents
       const emptySuggestions: DocumentSuggestionResult = {
         suggestedDomains: [],
-        suggestedSkills: [],
+        suggestedTopics: [],
         suggestedFocusAreas: [],
         keyTopics: [],
         knowledgeGaps: ['No documents uploaded yet'],
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         success: true,
         suggestions: {
           suggestedDomains: [],
-          suggestedSkills: [],
+          suggestedTopics: [],
           suggestedFocusAreas: [],
           keyTopics: [],
           knowledgeGaps: ['Document content could not be extracted'],

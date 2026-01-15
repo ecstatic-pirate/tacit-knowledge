@@ -9,7 +9,7 @@ import type {
   Task as DBTask,
   User as DBUser,
   Organization,
-  Skill as DBSkill,
+  Topic as DBTopic,
   Session as DBSession,
   SelfAssessment,
   Json,
@@ -56,20 +56,18 @@ export interface Campaign {
   id: string
   name: string
   role: string
-  department?: string
-  yearsExperience?: number
   goal?: string
   status: 'on-track' | 'keep-track' | 'danger'
   progress: number
   totalSessions: number
   completedSessions: number
-  skillsCaptured: number
+  topicsCaptured: number
   captureMode?: string
   expertEmail?: string
+  departureDate?: string
   createdAt?: string
   selfAssessment?: SelfAssessment
   collaborators?: Collaborator[]
-  skills?: string // Raw skills text from form
   subjectType: CampaignSubjectType
   projectId?: string
   teamId?: string
@@ -115,7 +113,7 @@ interface AppContextType {
   signOut: () => Promise<void>
   toggleTask: (taskId: string) => Promise<void>
   updateCampaign: (campaign: Campaign) => Promise<void>
-  addCampaign: (campaign: Omit<Campaign, 'id' | 'skillsCaptured'>) => Promise<Campaign>
+  addCampaign: (campaign: Omit<Campaign, 'id' | 'topicsCaptured'>) => Promise<Campaign>
   deleteCampaign: (campaignId: string) => Promise<void>
   refreshData: () => Promise<void>
 }
@@ -142,21 +140,20 @@ function uiStatusToDb(uiStatus: Campaign['status']): string {
 }
 
 // Helper to map database campaign to app campaign
-function mapDBCampaignToApp(dbCampaign: DBCampaign, skillsCount: number): Campaign {
+function mapDBCampaignToApp(dbCampaign: DBCampaign, topicsCount: number): Campaign {
   return {
     id: dbCampaign.id,
     name: dbCampaign.expert_name,
     role: dbCampaign.expert_role,
-    department: dbCampaign.department ?? undefined,
-    yearsExperience: dbCampaign.years_experience ?? undefined,
     goal: dbCampaign.goal ?? undefined,
     status: dbStatusToUi(dbCampaign.status),
     progress: dbCampaign.progress ?? 0,
     totalSessions: dbCampaign.total_sessions ?? 14,
     completedSessions: dbCampaign.completed_sessions ?? 0,
-    skillsCaptured: skillsCount,
+    topicsCaptured: topicsCount,
     captureMode: dbCampaign.capture_mode ?? undefined,
     expertEmail: dbCampaign.expert_email ?? undefined,
+    departureDate: (dbCampaign as Record<string, unknown>).departure_date as string | undefined,
     createdAt: dbCampaign.created_at ?? undefined,
     selfAssessment: dbCampaign.self_assessment as SelfAssessment | undefined,
     subjectType: (dbCampaign.subject_type as CampaignSubjectType) ?? 'person',
@@ -184,19 +181,9 @@ function mapDBTaskToApp(dbTask: DBTask): Task {
   }
 }
 
-// Timeout error class for identification
-class TimeoutError extends Error {
-  constructor(operation: string, ms: number) {
-    super(`${operation} timed out after ${ms}ms`)
-    this.name = 'TimeoutError'
-  }
-}
-
-// Create a timeout promise
-function createTimeout(ms: number, operation: string): Promise<never> {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new TimeoutError(operation, ms)), ms)
-  })
+// Check if an error is an abort/timeout error
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))
 }
 
 // Classify fatal auth errors that should immediately logout (no retry)
@@ -353,24 +340,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { user: null, shouldLogout: false }
   }, [supabase])
 
-  // Fetch user profile and organization with timeout protection and retry
+  // Fetch user profile and organization with proper timeout using AbortSignal
   const fetchUserData = useCallback(async (authUser: User, retryCount = 0): Promise<boolean> => {
     const MAX_RETRIES = 3
-    const TIMEOUT_MS = 15000 // 15 seconds per attempt (browsers throttle timers in background tabs)
+    const TIMEOUT_MS = 15000 // 15 seconds per attempt
 
     console.log('[AppProvider] fetchUserData called for user:', authUser.id, authUser.email, retryCount > 0 ? `(retry ${retryCount})` : '')
 
     try {
-      const userQuery = supabase
+      // Use AbortSignal.timeout() which actually cancels the HTTP request on timeout
+      // This prevents request pile-up when queries are slow or tab is backgrounded
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', authUser.id)
+        .abortSignal(AbortSignal.timeout(TIMEOUT_MS))
         .single()
-
-      const { data: userData, error: userError } = await Promise.race([
-        userQuery,
-        createTimeout(TIMEOUT_MS, 'fetchUserData:users')
-      ])
 
       console.log('[AppProvider] fetchUserData result:', { userData: userData ? 'found' : 'null', error: userError?.message })
 
@@ -400,17 +385,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         orgId: userData.org_id,
       })
 
-      // Fetch organization
-      const orgQuery = supabase
+      // Fetch organization with AbortSignal timeout
+      const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .select('*')
         .eq('id', userData.org_id)
+        .abortSignal(AbortSignal.timeout(10000))
         .single()
-
-      const { data: orgData, error: orgError } = await Promise.race([
-        orgQuery,
-        createTimeout(10000, 'fetchUserData:organizations')
-      ])
 
       if (orgError) {
         console.error('Error fetching organization:', orgError)
@@ -427,11 +408,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setOrganization(orgData)
       return true
     } catch (err) {
-      // Check if it's a timeout error and we can retry
-      if (err instanceof TimeoutError && retryCount < MAX_RETRIES) {
+      // Check if it's an abort/timeout error and we can retry
+      if (isAbortError(err) && retryCount < MAX_RETRIES) {
         // Exponential backoff: 1s, 2s, 4s
         const delay = 1000 * Math.pow(2, retryCount)
-        console.log(`[AppProvider] fetchUserData timed out, retrying in ${delay}ms (${retryCount + 1}/${MAX_RETRIES})...`)
+        console.log(`[AppProvider] fetchUserData timed out (request cancelled), retrying in ${delay}ms (${retryCount + 1}/${MAX_RETRIES})...`)
         await new Promise(resolve => setTimeout(resolve, delay))
         return fetchUserData(authUser, retryCount + 1)
       }
@@ -442,7 +423,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [supabase, handleAuthError])
 
-  // Fetch campaigns with skills count
+  // Fetch campaigns with topics count
   const fetchCampaigns = useCallback(async (): Promise<boolean> => {
     console.log('[AppProvider] fetchCampaigns called')
 
@@ -467,11 +448,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return false
     }
 
-    // Fetch skills count for each campaign
-    const campaignsWithSkills = await Promise.all(
+    // Fetch topics count for each campaign
+    const campaignsWithTopics = await Promise.all(
       (campaignsData || []).map(async (campaign) => {
         const { count } = await supabase
-          .from('skills')
+          .from('topics')
           .select('*', { count: 'exact', head: true })
           .eq('campaign_id', campaign.id)
           .eq('captured', true)
@@ -480,7 +461,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
     )
 
-    setCampaigns(campaignsWithSkills)
+    setCampaigns(campaignsWithTopics)
     return true
   }, [supabase, handleAuthError])
 
@@ -943,8 +924,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .update({
         expert_name: campaign.name,
         expert_role: campaign.role,
-        department: campaign.department,
-        years_experience: campaign.yearsExperience,
         goal: campaign.goal,
         status: uiStatusToDb(campaign.status),
         progress: campaign.progress,
@@ -952,6 +931,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completed_sessions: campaign.completedSessions,
         capture_mode: campaign.captureMode,
         expert_email: campaign.expertEmail,
+        departure_date: campaign.departureDate ?? null,
         updated_by: user?.id,
       })
       .eq('id', campaign.id)
@@ -967,8 +947,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [supabase, user])
 
   // Add campaign
-  const addCampaign = useCallback(async (campaign: Omit<Campaign, 'id' | 'skillsCaptured'>) => {
+  const addCampaign = useCallback(async (campaign: Omit<Campaign, 'id' | 'topicsCaptured'>) => {
     if (!appUser) throw new Error('User not authenticated')
+
+    // Auto-generate interviewer guide token
+    const tokenBytes = new Uint8Array(32)
+    crypto.getRandomValues(tokenBytes)
+    const guideToken = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
 
     const { data, error } = await supabase
       .from('campaigns')
@@ -976,8 +961,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         org_id: appUser.orgId,
         expert_name: campaign.name,
         expert_role: campaign.role,
-        department: campaign.department,
-        years_experience: campaign.yearsExperience,
         goal: campaign.goal,
         status: uiStatusToDb(campaign.status),
         progress: campaign.progress,
@@ -985,6 +968,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completed_sessions: campaign.completedSessions,
         capture_mode: campaign.captureMode,
         expert_email: campaign.expertEmail,
+        departure_date: campaign.departureDate ?? null,
         self_assessment: campaign.selfAssessment as unknown as Json,
         collaborators: campaign.collaborators as unknown as Json,
         created_by: user?.id,
@@ -998,6 +982,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         interview_format: campaign.interviewFormat ?? null,
         focus_areas: campaign.focusAreas as unknown as Json ?? null,
         ai_suggested_domains: campaign.suggestedDomains as unknown as Json ?? null,
+        // Auto-generated guide token
+        interviewer_guide_token: guideToken,
       })
       .select()
       .single()
@@ -1007,36 +993,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       throw error
     }
 
-    // Parse and insert skills into the skills table
-    if (campaign.skills) {
-      const skillNames = campaign.skills
-        .split('\n')
-        .map(s => s.trim())
-        .filter(s => s.length > 0)
-
-      if (skillNames.length > 0) {
-        const skillsToInsert = skillNames.map(name => ({
-          campaign_id: data.id,
-          name,
-          captured: false,
-          created_by: user?.id,
-        }))
-
-        const { error: skillsError } = await supabase
-          .from('skills')
-          .insert(skillsToInsert)
-
-        if (skillsError) {
-          console.error('Error inserting skills:', skillsError)
-          // Don't throw - campaign was created successfully
-        }
-      }
-    }
-
     const newCampaign: Campaign = {
       ...campaign,
       id: data.id,
-      skillsCaptured: 0,
+      topicsCaptured: 0,
     }
 
     setCampaigns((prev) => [newCampaign, ...prev])

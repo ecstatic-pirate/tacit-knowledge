@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { UsersThree, Plus, CircleNotch, CaretDown } from 'phosphor-react'
+import { UsersThree, Plus, CircleNotch, Check } from 'phosphor-react'
 
 interface Team {
   id: string
@@ -20,6 +20,10 @@ interface TeamSelectorProps {
   required?: boolean
   allowCreate?: boolean
   className?: string
+  // Optional pre-loaded teams (for instant display)
+  teams?: Team[]
+  isLoading?: boolean
+  onTeamsChange?: (teams: Team[]) => void
 }
 
 export function TeamSelector({
@@ -31,32 +35,41 @@ export function TeamSelector({
   required = false,
   allowCreate = true,
   className,
+  teams: externalTeams,
+  isLoading: externalLoading,
+  onTeamsChange,
 }: TeamSelectorProps) {
-  const [teams, setTeams] = useState<Team[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [internalTeams, setInternalTeams] = useState<Team[]>([])
+  const [internalLoading, setInternalLoading] = useState(externalTeams === undefined)
   const [isCreating, setIsCreating] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newTeamName, setNewTeamName] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
 
-  // Fetch teams
+  // Use external teams if provided, otherwise use internal state
+  const teams = externalTeams ?? internalTeams
+  const isLoading = externalLoading ?? internalLoading
+  const setTeams = onTeamsChange ?? setInternalTeams
+
+  // Only fetch teams if not provided externally
   useEffect(() => {
+    if (externalTeams !== undefined) return // Teams provided externally
+
     const fetchTeams = async () => {
       try {
         const response = await fetch('/api/teams')
         const data = await response.json()
         if (data.success) {
-          setTeams(data.teams)
+          setInternalTeams(data.teams)
         }
       } catch (err) {
         console.error('Failed to fetch teams:', err)
       } finally {
-        setIsLoading(false)
+        setInternalLoading(false)
       }
     }
 
     fetchTeams()
-  }, [])
+  }, [externalTeams])
 
   const handleCreateTeam = async () => {
     if (!newTeamName.trim()) return
@@ -70,11 +83,10 @@ export function TeamSelector({
       })
       const data = await response.json()
       if (data.success && data.team) {
-        setTeams(prev => [...prev, data.team])
+        setTeams([...teams, data.team])
         onChange(data.team.id)
         setShowCreateForm(false)
         setNewTeamName('')
-        setIsOpen(false)
       }
     } catch (err) {
       console.error('Failed to create team:', err)
@@ -83,26 +95,24 @@ export function TeamSelector({
     }
   }
 
-  const selectedTeam = teams.find(t => t.id === value)
-
   if (isLoading) {
     return (
-      <div className={cn('space-y-1.5', className)}>
+      <div className={cn('space-y-3', className)}>
         {label && (
           <label className="block text-sm font-medium text-foreground">
             {label}
             {required && <span className="text-destructive ml-1">*</span>}
           </label>
         )}
-        <div className="flex h-9 w-full items-center justify-center rounded-md border border-input bg-transparent">
-          <CircleNotch className="w-4 h-4 animate-spin text-muted-foreground" weight="bold" />
+        <div className="flex items-center justify-center py-8">
+          <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" weight="bold" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className={cn('space-y-1.5', className)}>
+    <div className={cn('space-y-3', className)}>
       {label && (
         <label className="block text-sm font-medium text-foreground">
           {label}
@@ -110,119 +120,127 @@ export function TeamSelector({
         </label>
       )}
 
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            'flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors',
-            'hover:bg-accent/50',
-            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-            error && 'border-destructive focus-visible:ring-destructive'
-          )}
-        >
-          <span className={cn('flex items-center gap-2', !selectedTeam && 'text-muted-foreground')}>
-            <UsersThree className="w-4 h-4" weight="bold" />
-            {selectedTeam ? selectedTeam.name : 'Select a team'}
-          </span>
-          <CaretDown className={cn('w-4 h-4 transition-transform', isOpen && 'rotate-180')} weight="bold" />
-        </button>
-
-        {isOpen && (
-          <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
-            <div className="max-h-60 overflow-auto py-1">
-              {!required && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange(undefined)
-                    setIsOpen(false)
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent/50 text-muted-foreground"
-                >
-                  No team selected
-                </button>
+      {/* Radio button grid */}
+      <div className="grid grid-cols-2 gap-2">
+        {teams.map(team => {
+          const isSelected = value === team.id
+          return (
+            <button
+              key={team.id}
+              type="button"
+              onClick={() => onChange(team.id)}
+              className={cn(
+                'relative flex items-center gap-2.5 px-3 py-2.5 rounded-md border text-left transition-all',
+                'hover:border-primary/50 hover:bg-accent/30',
+                isSelected
+                  ? 'border-primary bg-primary/5'
+                  : 'border-input bg-transparent'
               )}
+            >
+              {/* Radio indicator */}
+              <div
+                className={cn(
+                  'flex items-center justify-center w-4 h-4 rounded-full border-[1.5px] shrink-0 transition-colors',
+                  isSelected
+                    ? 'border-primary bg-primary'
+                    : 'border-muted-foreground/40'
+                )}
+              >
+                {isSelected && (
+                  <Check className="w-2.5 h-2.5 text-primary-foreground" weight="bold" />
+                )}
+              </div>
 
-              {teams.map(team => (
-                <button
-                  key={team.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(team.id)
-                    setIsOpen(false)
-                  }}
-                  className={cn(
-                    'w-full px-3 py-2 text-left text-sm hover:bg-accent/50 flex items-center gap-2',
-                    value === team.id && 'bg-accent'
-                  )}
-                >
-                  {team.color && (
-                    <div
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: team.color }}
-                    />
-                  )}
-                  <span className="font-medium">{team.name}</span>
-                </button>
-              ))}
+              {/* Team info */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                {team.color ? (
+                  <div
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: team.color }}
+                  />
+                ) : (
+                  <UsersThree className="w-3.5 h-3.5 text-muted-foreground shrink-0" weight="bold" />
+                )}
+                <span className={cn(
+                  'text-sm font-medium truncate',
+                  isSelected ? 'text-foreground' : 'text-foreground/80'
+                )}>
+                  {team.name}
+                </span>
+              </div>
+            </button>
+          )
+        })}
 
-              {teams.length === 0 && (
-                <div className="px-3 py-2 text-sm text-muted-foreground">
-                  No teams found
-                </div>
-              )}
-
-              {allowCreate && !showCreateForm && (
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(true)}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent/50 flex items-center gap-2 border-t border-input mt-1 pt-2"
-                >
-                  <Plus className="w-4 h-4" weight="bold" />
-                  Create new team
-                </button>
-              )}
-
-              {allowCreate && showCreateForm && (
-                <div className="px-3 py-2 border-t border-input mt-1 pt-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newTeamName}
-                      onChange={e => setNewTeamName(e.target.value)}
-                      placeholder="Team name"
-                      className="flex-1 h-8 rounded-md border border-input bg-transparent px-2 text-sm"
-                      autoFocus
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleCreateTeam()
-                        } else if (e.key === 'Escape') {
-                          setShowCreateForm(false)
-                          setNewTeamName('')
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleCreateTeam}
-                      disabled={!newTeamName.trim() || isCreating}
-                      className="h-8 px-3 rounded-md bg-foreground text-background text-sm font-medium disabled:opacity-50"
-                    >
-                      {isCreating ? (
-                        <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
-                      ) : (
-                        'Add'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
+        {/* Create new team button */}
+        {allowCreate && !showCreateForm && (
+          <button
+            type="button"
+            onClick={() => setShowCreateForm(true)}
+            className={cn(
+              'flex items-center gap-2.5 px-3 py-2.5 rounded-md border border-dashed text-left transition-all',
+              'border-input hover:border-primary/50 hover:bg-accent/30'
+            )}
+          >
+            <div className="flex items-center justify-center w-4 h-4 rounded-full border-[1.5px] border-dashed border-muted-foreground/40 shrink-0">
+              <Plus className="w-2.5 h-2.5 text-muted-foreground" weight="bold" />
             </div>
-          </div>
+            <span className="text-sm text-muted-foreground font-medium">New team</span>
+          </button>
         )}
       </div>
+
+      {/* Create team form */}
+      {allowCreate && showCreateForm && (
+        <div className="flex gap-2 p-3 rounded-lg border border-input bg-accent/20">
+          <input
+            type="text"
+            value={newTeamName}
+            onChange={e => setNewTeamName(e.target.value)}
+            placeholder="Enter team name..."
+            className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleCreateTeam()
+              } else if (e.key === 'Escape') {
+                setShowCreateForm(false)
+                setNewTeamName('')
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleCreateTeam}
+            disabled={!newTeamName.trim() || isCreating}
+            className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 transition-colors hover:bg-primary/90"
+          >
+            {isCreating ? (
+              <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
+            ) : (
+              'Add'
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowCreateForm(false)
+              setNewTeamName('')
+            }}
+            className="h-9 px-3 rounded-md text-sm text-muted-foreground hover:bg-accent transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {teams.length === 0 && !showCreateForm && (
+        <div className="text-center py-6 text-muted-foreground text-sm">
+          No teams yet. Create your first team to get started.
+        </div>
+      )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}

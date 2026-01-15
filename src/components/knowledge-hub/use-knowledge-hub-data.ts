@@ -154,7 +154,6 @@ export function useKnowledgeHubData(): UseKnowledgeHubDataReturn {
         id: campaign.id,
         name: campaign.expert_name,
         role: campaign.expert_role,
-        department: campaign.department || undefined,
         teamId: campaign.team_id || undefined,
         teamName: team?.name,
         teamColor: team?.color || undefined,

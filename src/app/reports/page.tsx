@@ -76,7 +76,7 @@ export default function ReportsPage() {
         })
       : 'Date unknown';
 
-    const TypeIcon = reportData?.type === 'summary' ? ListChecks : reportData?.type === 'skills' ? ChartBar : reportData?.type === 'graph' ? ShareNetwork : FileText;
+    const TypeIcon = reportData?.type === 'summary' ? ListChecks : reportData?.type === 'topics' ? ChartBar : reportData?.type === 'graph' ? ShareNetwork : FileText;
 
     setModalState({
       isOpen: true,

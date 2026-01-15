@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { CoverageLevel } from '@/lib/supabase/database.types'
 
 export type CoverageStatus = 'covered' | 'mentioned' | 'not_discussed'
 
@@ -11,6 +12,24 @@ interface TopicNode {
   description: string | null
   coverageStatus: CoverageStatus
   type: string
+}
+
+// Enhanced topic type with knowledge links
+export interface TopicWithCoverage {
+  id: string
+  name: string
+  category: string | null
+  captured: boolean
+  capturedAt: string | null
+  sessionId: string | null
+  suggestedBy: string | null
+  // Knowledge nodes that cover this topic
+  coveringKnowledgeNodes: Array<{
+    nodeId: string
+    nodeLabel: string
+    coverageLevel: CoverageLevel
+    sessionId: string | null
+  }>
 }
 
 interface UseKnowledgeCoverageOptions {
@@ -34,6 +53,24 @@ interface UseKnowledgeCoverageReturn {
 
   // Actions
   refresh: () => Promise<void>
+}
+
+// Extended interface for topic coverage with knowledge node links
+export interface UseTopicCoverageReturn {
+  topics: TopicWithCoverage[]
+  isLoading: boolean
+  error: string | null
+
+  // Coverage stats
+  capturedCount: number
+  partialCount: number
+  notCapturedCount: number
+  totalCount: number
+  coveragePercentage: number
+
+  // Actions
+  refresh: () => Promise<void>
+  updateTopicCaptured: (topicId: string, captured: boolean) => Promise<void>
 }
 
 /**
@@ -186,4 +223,162 @@ export function useKnowledgeCoverageStats(campaignId: string) {
   }, [supabase, campaignId])
 
   return { ...stats, isLoading }
+}
+
+/**
+ * Hook to manage topic coverage with knowledge node links.
+ * Uses the topics table and knowledge_topic_coverage junction table.
+ */
+export function useTopicCoverage(campaignId: string): UseTopicCoverageReturn {
+  const [topics, setTopics] = useState<TopicWithCoverage[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const supabase = useMemo(() => createClient(), [])
+
+  const fetchTopics = useCallback(async () => {
+    if (!campaignId) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Fetch topics with their coverage links
+      const { data: topicsData, error: topicsError } = await supabase
+        .from('topics')
+        .select(`
+          id,
+          name,
+          category,
+          captured,
+          captured_at,
+          session_id,
+          suggested_by
+        `)
+        .eq('campaign_id', campaignId)
+        .is('deleted_at', null)
+        .order('name', { ascending: true })
+
+      if (topicsError) throw topicsError
+
+      // Fetch coverage links for these topics
+      const topicIds = (topicsData || []).map(t => t.id)
+
+      let coverageData: Array<{
+        topic_id: string
+        coverage_level: string | null
+        session_id: string | null
+        graph_nodes: { id: string; label: string } | null
+      }> = []
+
+      if (topicIds.length > 0) {
+        const { data: coverage, error: coverageError } = await supabase
+          .from('knowledge_topic_coverage')
+          .select(`
+            topic_id,
+            coverage_level,
+            session_id,
+            graph_nodes:knowledge_node_id (
+              id,
+              label
+            )
+          `)
+          .in('topic_id', topicIds)
+
+        if (coverageError) {
+          console.warn('Could not fetch coverage links:', coverageError)
+        } else {
+          coverageData = coverage || []
+        }
+      }
+
+      // Map topics with their coverage info
+      const topicsWithCoverage: TopicWithCoverage[] = (topicsData || []).map(topic => {
+        const coverageLinks = coverageData.filter(c => c.topic_id === topic.id)
+
+        return {
+          id: topic.id,
+          name: topic.name,
+          category: topic.category,
+          captured: topic.captured || false,
+          capturedAt: topic.captured_at,
+          sessionId: topic.session_id,
+          suggestedBy: topic.suggested_by,
+          coveringKnowledgeNodes: coverageLinks
+            .filter(c => c.graph_nodes)
+            .map(c => ({
+              nodeId: c.graph_nodes!.id,
+              nodeLabel: c.graph_nodes!.label,
+              coverageLevel: (c.coverage_level || 'mentioned') as CoverageLevel,
+              sessionId: c.session_id,
+            })),
+        }
+      })
+
+      setTopics(topicsWithCoverage)
+    } catch (err) {
+      console.error('Error fetching topic coverage:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch topics')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [supabase, campaignId])
+
+  // Update topic captured status
+  const updateTopicCaptured = useCallback(async (topicId: string, captured: boolean) => {
+    // Optimistic update
+    setTopics(prev => prev.map(t =>
+      t.id === topicId
+        ? { ...t, captured, capturedAt: captured ? new Date().toISOString() : null }
+        : t
+    ))
+
+    const { error } = await supabase
+      .from('topics')
+      .update({
+        captured,
+        captured_at: captured ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', topicId)
+
+    if (error) {
+      console.error('Error updating topic:', error)
+      // Revert on error
+      await fetchTopics()
+    }
+  }, [supabase, fetchTopics])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchTopics()
+  }, [fetchTopics])
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const captured = topics.filter(t => t.captured).length
+    const partial = topics.filter(t => !t.captured && t.coveringKnowledgeNodes.length > 0).length
+    const notCaptured = topics.filter(t => !t.captured && t.coveringKnowledgeNodes.length === 0).length
+    const total = topics.length
+
+    return {
+      capturedCount: captured,
+      partialCount: partial,
+      notCapturedCount: notCaptured,
+      totalCount: total,
+      coveragePercentage: total > 0 ? Math.round((captured / total) * 100) : 0,
+    }
+  }, [topics])
+
+  return {
+    topics,
+    isLoading,
+    error,
+    ...stats,
+    refresh: fetchTopics,
+    updateTopicCaptured,
+  }
 }

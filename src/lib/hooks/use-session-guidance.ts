@@ -14,8 +14,8 @@ export interface GuidanceData {
 export interface GuidanceContext {
   expertName: string
   sessionNumber: number
-  capturedSkillsCount: number
-  remainingSkillsCount: number
+  capturedTopicsCount: number
+  remainingTopicsCount: number
 }
 
 export interface UseSessionGuidanceOptions {

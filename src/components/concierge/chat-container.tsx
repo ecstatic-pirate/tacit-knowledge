@@ -3,8 +3,9 @@
 import { useRef, useEffect } from 'react'
 import { ChatMessage } from './chat-message'
 import { ChatInput } from './chat-input'
-import { Sparkle } from 'phosphor-react'
+import { Sparkle, FolderOpen } from 'phosphor-react'
 import type { Message } from '@/types'
+import type { Campaign } from '@/context/app-context'
 
 interface ChatContainerProps {
   messages: Message[]
@@ -12,6 +13,7 @@ interface ChatContainerProps {
   streamingContent?: string
   onSendMessage: (message: string) => void
   onNewConversation?: () => void
+  selectedCampaign?: Campaign | null
 }
 
 export function ChatContainer({
@@ -20,6 +22,7 @@ export function ChatContainer({
   streamingContent,
   onSendMessage,
   onNewConversation,
+  selectedCampaign,
 }: ChatContainerProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -35,7 +38,7 @@ export function ChatContainer({
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto">
         {isEmpty ? (
-          <EmptyState onSendMessage={onSendMessage} />
+          <EmptyState onSendMessage={onSendMessage} selectedCampaign={selectedCampaign} />
         ) : (
           <div className="p-4 space-y-4">
             {messages.map((message) => (
@@ -69,8 +72,36 @@ export function ChatContainer({
   )
 }
 
-function EmptyState({ onSendMessage }: { onSendMessage: (message: string) => void }) {
-  const suggestions = [
+function EmptyState({
+  onSendMessage,
+  selectedCampaign
+}: {
+  onSendMessage: (message: string) => void
+  selectedCampaign?: Campaign | null
+}) {
+  // Campaign-specific suggestions
+  const campaignSuggestions = selectedCampaign ? [
+    {
+      title: `What does ${selectedCampaign.name} know about?`,
+      description: "Get a summary of captured knowledge areas",
+      query: `What are the main topics and knowledge areas captured from ${selectedCampaign.name}?`
+    },
+    {
+      title: "Key insights from sessions",
+      description: "Review the most important findings",
+      query: `What are the key insights and important findings from the sessions with ${selectedCampaign.name}?`
+    },
+    {
+      title: "What processes were documented?",
+      description: "Explore workflows and procedures",
+      query: `What processes, workflows, and procedures were documented from ${selectedCampaign.name}?`
+    },
+    {
+      title: "Are there any knowledge gaps?",
+      description: "Identify areas that need more coverage",
+      query: `What topics or knowledge areas might still need more coverage or clarification from ${selectedCampaign.name}?`
+    },
+  ] : [
     {
       title: "What are the key insights?",
       description: "Get a summary of the most important findings",
@@ -90,18 +121,38 @@ function EmptyState({ onSendMessage }: { onSendMessage: (message: string) => voi
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-4">
-      <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-        <Sparkle className="w-8 h-8 text-primary" weight="fill" />
-      </div>
-      <h2 className="font-serif text-2xl font-semibold mb-2">
-        Knowledge Concierge
-      </h2>
-      <p className="text-muted-foreground text-center max-w-md mb-8">
-        Ask questions about your captured knowledge. I can search through
-        transcripts, insights, and your knowledge graph to find answers.
-      </p>
+      {selectedCampaign ? (
+        <>
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+            <FolderOpen className="w-8 h-8 text-primary" weight="fill" />
+          </div>
+          <h2 className="font-serif text-2xl font-semibold mb-2">
+            {selectedCampaign.name}
+          </h2>
+          <p className="text-muted-foreground text-center max-w-md mb-2">
+            {selectedCampaign.subjectType === 'person' ? 'Expert' : 'Project'} Campaign · {selectedCampaign.topicsCaptured} topics captured
+          </p>
+          <p className="text-sm text-muted-foreground text-center max-w-md mb-8">
+            Ask questions about the knowledge captured from this campaign.
+            Responses will cite specific sessions and sources.
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+            <Sparkle className="w-8 h-8 text-primary" weight="fill" />
+          </div>
+          <h2 className="font-serif text-2xl font-semibold mb-2">
+            Knowledge Concierge
+          </h2>
+          <p className="text-muted-foreground text-center max-w-md mb-8">
+            Ask questions about your captured knowledge. I can search through
+            transcripts, insights, and your knowledge graph to find answers.
+          </p>
+        </>
+      )}
       <div className="grid gap-3 w-full max-w-md">
-        {suggestions.map((suggestion, index) => (
+        {campaignSuggestions.map((suggestion, index) => (
           <button
             key={index}
             onClick={() => onSendMessage(suggestion.query)}

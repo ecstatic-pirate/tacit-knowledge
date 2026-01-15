@@ -48,7 +48,7 @@ export interface InterviewPlanResult {
 export interface SessionGuidanceResult {
   suggestedQuestions: string[]
   detectedTopics: string[]
-  skillsToProbe: string[]
+  topicsToProbe: string[]
   contextualTip: string
 }
 
@@ -218,14 +218,14 @@ ${recentTranscript.slice(-3000) || 'No transcript yet'}
 Based on what was just discussed, provide:
 1. 3 follow-up questions to dig deeper into what was just said
 2. Topics detected in the recent conversation
-3. Skills or knowledge areas to probe further
+3. Topics or knowledge areas to probe further
 4. A brief tip for the interviewer
 
 Respond in JSON format:
 {
   "suggestedQuestions": ["question1", "question2", "question3"],
   "detectedTopics": ["topic1", "topic2"],
-  "skillsToProbe": ["skill1", "skill2"],
+  "topicsToProbe": ["topic1", "topic2"],
   "contextualTip": "Brief tip for the interviewer..."
 }`,
   })
@@ -245,7 +245,7 @@ Respond in JSON format:
         'Who else should know about this?',
       ],
       detectedTopics: [],
-      skillsToProbe: [],
+      topicsToProbe: [],
       contextualTip: 'Ask for specific examples to capture actionable knowledge.',
     }
   }
@@ -365,13 +365,13 @@ Respond in JSON format:
 }
 
 /**
- * Analyze documents for campaign creation - suggests domains/skills or focus areas
+ * Analyze documents for campaign creation - suggests domains/topics or focus areas
  * Used during the campaign creation flow after documents are uploaded
  */
 export interface DocumentSuggestionResult {
   // For Expert campaigns
   suggestedDomains: { name: string; confidence: number; description: string }[]
-  suggestedSkills: string[]
+  suggestedTopics: string[]
   // For Project campaigns
   suggestedFocusAreas: { area: string; description: string; priority: 'high' | 'medium' | 'low' }[]
   // Common
@@ -404,7 +404,7 @@ Expert Role: ${contextInfo?.expertRole || 'Unknown'}`
 Project Description: ${contextInfo?.projectDescription || 'Not provided'}`
 
   const analysisPrompt = campaignType === 'person'
-    ? `Analyze these documents to understand an expert's knowledge domains and skills.
+    ? `Analyze these documents to understand an expert's knowledge domains and topics.
 
 ${contextPrompt}
 
@@ -413,7 +413,7 @@ ${documentsText}
 
 Based on these documents, identify:
 1. Knowledge domains this expert owns (areas of expertise) - be specific
-2. Technical and soft skills evident from the documents
+2. Technical and soft topics evident from the documents
 3. Key topics covered in the documents
 4. Knowledge gaps (things mentioned but not fully explained)
 5. A brief summary of the expert's knowledge base
@@ -424,7 +424,7 @@ Respond in JSON format:
     {"name": "Domain Name", "confidence": 0.8, "description": "Why this domain"},
     ...
   ],
-  "suggestedSkills": ["Skill 1", "Skill 2", ...],
+  "suggestedTopics": ["Topic 1", "Topic 2", ...],
   "suggestedFocusAreas": [],
   "keyTopics": ["Topic 1", "Topic 2", ...],
   "knowledgeGaps": ["Gap 1", "Gap 2", ...],
@@ -446,7 +446,7 @@ Based on these documents, identify:
 Respond in JSON format:
 {
   "suggestedDomains": [],
-  "suggestedSkills": [],
+  "suggestedTopics": [],
   "suggestedFocusAreas": [
     {"area": "Focus Area Name", "description": "Why this needs capture", "priority": "high|medium|low"},
     ...
@@ -471,7 +471,7 @@ Respond in JSON format:
   } catch {
     return {
       suggestedDomains: [],
-      suggestedSkills: [],
+      suggestedTopics: [],
       suggestedFocusAreas: [],
       keyTopics: [],
       knowledgeGaps: ['Unable to analyze documents'],

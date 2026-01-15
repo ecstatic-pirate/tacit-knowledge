@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         ai_processed: true,
         ai_processed_at: new Date().toISOString(),
         ai_analysis: analysis as unknown as Json,
-        extracted_skills: analysis.topics as Json,
+        extracted_topics: analysis.topics as Json,
       })
       .eq('id', documentId)
 

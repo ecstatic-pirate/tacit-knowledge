@@ -7,15 +7,15 @@ import { cn } from '@/lib/utils';
 
 interface HumanGuidancePanelProps {
   suggestedQuestions: string[];
-  capturedSkills: string[];
-  missingSkills: string[];
+  capturedTopics: string[];
+  missingTopics: string[];
   referenceFiles: string[];
 }
 
 export function HumanGuidancePanel({
   suggestedQuestions,
-  capturedSkills,
-  missingSkills,
+  capturedTopics,
+  missingTopics,
   referenceFiles,
 }: HumanGuidancePanelProps) {
   return (
@@ -52,21 +52,21 @@ export function HumanGuidancePanel({
 
         <div className="h-px bg-border w-full" />
 
-        {/* Skills Map */}
+        {/* Topics Map */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
             <MapPin className="w-3 h-3" weight="bold" />
-            Skill Coverage
+            Topic Coverage
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {capturedSkills.map((skill) => (
-              <Badge key={skill} variant="success" className="gap-1">
-                <Check className="w-2.5 h-2.5" weight="bold" /> {skill}
+            {capturedTopics.map((topic) => (
+              <Badge key={topic} variant="success" className="gap-1">
+                <Check className="w-2.5 h-2.5" weight="bold" /> {topic}
               </Badge>
             ))}
-            {missingSkills.map((skill) => (
-              <Badge key={skill} variant="secondary" className="gap-1 text-muted-foreground">
-                <Circle className="w-2.5 h-2.5" weight="fill" /> {skill}
+            {missingTopics.map((topic) => (
+              <Badge key={topic} variant="secondary" className="gap-1 text-muted-foreground">
+                <Circle className="w-2.5 h-2.5" weight="fill" /> {topic}
               </Badge>
             ))}
           </div>
