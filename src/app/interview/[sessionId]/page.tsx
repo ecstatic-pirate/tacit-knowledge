@@ -2,8 +2,9 @@
 
 import { useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { CircleNotch, Warning, VideoCamera } from 'phosphor-react'
+import { CircleNotch, Warning, VideoCamera, User } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 interface SessionData {
   id: string
@@ -22,6 +23,7 @@ export default function InterviewEntryPage({ params }: { params: Promise<{ sessi
   const [creatingRoom, setCreatingRoom] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionData | null>(null)
+  const [interviewerName, setInterviewerName] = useState('')
 
   // Fetch session data from public API (no auth required)
   useEffect(() => {
@@ -54,6 +56,11 @@ export default function InterviewEntryPage({ params }: { params: Promise<{ sessi
 
   // Create room and start interview
   const handleStartInterview = async () => {
+    if (!interviewerName.trim()) {
+      setError('Please enter your name')
+      return
+    }
+
     setCreatingRoom(true)
     setError(null)
 
@@ -61,7 +68,7 @@ export default function InterviewEntryPage({ params }: { params: Promise<{ sessi
       const response = await fetch('/api/daily/create-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
+        body: JSON.stringify({ sessionId, interviewerName: interviewerName.trim() }),
       })
 
       if (!response.ok) {
@@ -118,10 +125,31 @@ export default function InterviewEntryPage({ params }: { params: Promise<{ sessi
           </div>
         )}
 
+        {/* Interviewer name input */}
+        <div className="mb-6">
+          <label className="block text-sm text-zinc-400 mb-2 text-left">
+            Your name
+          </label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" weight="bold" />
+            <Input
+              type="text"
+              placeholder="Enter your name"
+              value={interviewerName}
+              onChange={(e) => setInterviewerName(e.target.value)}
+              className="pl-10 bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="text-red-400 text-sm mb-4">{error}</p>
+        )}
+
         <div className="space-y-3">
           <Button
             onClick={handleStartInterview}
-            disabled={creatingRoom}
+            disabled={creatingRoom || !interviewerName.trim()}
             className="w-full"
             size="lg"
           >
@@ -146,10 +174,6 @@ export default function InterviewEntryPage({ params }: { params: Promise<{ sessi
             Cancel
           </Button>
         </div>
-
-        {error && (
-          <p className="text-red-400 text-sm mt-4">{error}</p>
-        )}
       </div>
     </div>
   )

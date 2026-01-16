@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { createRoom, createMeetingToken } from '@/lib/daily'
 
-// GET: Fetch tokens for an existing room
+// Use service role to bypass RLS for public interview access
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+// GET: Fetch tokens for an existing room (public - no auth required)
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Verify authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get('sessionId')
 
@@ -20,8 +18,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'sessionId is required' }, { status: 400 })
     }
 
+    const interviewerName = searchParams.get('interviewerName') || 'Interviewer'
+
     // Get the session with room URL
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sessionError } = await supabaseAdmin
       .from('sessions')
       .select(`
         id,
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('id', sessionId)
+      .is('deleted_at', null)
       .single()
 
     if (sessionError || !session) {
@@ -44,13 +45,14 @@ export async function GET(request: NextRequest) {
 
     // Extract room name from URL
     const roomName = session.room_url.split('/').pop() || ''
-    const expertName = (session.campaigns as { expert_name: string })?.expert_name || 'Expert'
+    const campaign = session.campaigns as unknown as { expert_name: string } | null
+    const expertName = campaign?.expert_name || 'Expert'
 
     // Create new tokens
     const [interviewerToken, guestToken] = await Promise.all([
       createMeetingToken({
         roomName,
-        userName: 'Interviewer',
+        userName: interviewerName,
         isOwner: true,
         expirySeconds: 7200,
       }),
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
       interviewerToken: interviewerToken.token,
       guestToken: guestToken.token,
       interviewerLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/interviewer`,
-      guestLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/guest?token=${guestToken.token}`,
+      guestLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/guest`,
     })
 
   } catch (error) {
@@ -80,26 +82,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Create a new room or return existing
+// POST: Create a new room or return existing (public - no auth required)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Verify authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
-    const { sessionId } = body
+    const { sessionId, interviewerName = 'Interviewer' } = body
 
     if (!sessionId) {
       return NextResponse.json({ error: 'sessionId is required' }, { status: 400 })
     }
 
     // Get the session with campaign info
-    const { data: session, error: sessionError } = await supabase
+    const { data: session, error: sessionError } = await supabaseAdmin
       .from('sessions')
       .select(`
         id,
@@ -111,28 +105,30 @@ export async function POST(request: NextRequest) {
         )
       `)
       .eq('id', sessionId)
+      .is('deleted_at', null)
       .single()
 
     if (sessionError || !session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
-    // If room already exists, return it
+    const campaign = session.campaigns as unknown as { expert_name: string } | null
+    const expertName = campaign?.expert_name || 'Expert'
+
+    // If room already exists, return it with fresh tokens
     if (session.room_url) {
-      // Extract room name from URL
       const roomName = session.room_url.split('/').pop() || ''
 
-      // Create new tokens for this session
       const [interviewerToken, guestToken] = await Promise.all([
         createMeetingToken({
           roomName,
-          userName: 'Interviewer',
+          userName: interviewerName,
           isOwner: true,
-          expirySeconds: 7200, // 2 hours
+          expirySeconds: 7200,
         }),
         createMeetingToken({
           roomName,
-          userName: (session.campaigns as { expert_name: string })?.expert_name || 'Expert',
+          userName: expertName,
           isOwner: false,
           expirySeconds: 7200,
         }),
@@ -144,25 +140,22 @@ export async function POST(request: NextRequest) {
         interviewerToken: interviewerToken.token,
         guestToken: guestToken.token,
         interviewerLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/interviewer`,
-        guestLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/guest?token=${guestToken.token}`,
+        guestLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/guest`,
       })
     }
 
     // Create a new Daily.co room
     const room = await createRoom({
       name: `session-${sessionId.substring(0, 8)}`,
-      expirySeconds: 7200, // 2 hours
+      expirySeconds: 7200,
       enableRecording: true,
-      maxParticipants: 4, // Allow a bit more for flexibility
+      maxParticipants: 4,
     })
-
-    // Create meeting tokens
-    const expertName = (session.campaigns as { expert_name: string })?.expert_name || 'Expert'
 
     const [interviewerToken, guestToken] = await Promise.all([
       createMeetingToken({
         roomName: room.name,
-        userName: 'Interviewer',
+        userName: interviewerName,
         isOwner: true,
         expirySeconds: 7200,
       }),
@@ -175,7 +168,7 @@ export async function POST(request: NextRequest) {
     ])
 
     // Save room URL to session
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('sessions')
       .update({
         room_url: room.url,
@@ -185,7 +178,6 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error('Failed to save room URL:', updateError)
-      // Don't fail - room is created, we can still use it
     }
 
     return NextResponse.json({
@@ -194,7 +186,7 @@ export async function POST(request: NextRequest) {
       interviewerToken: interviewerToken.token,
       guestToken: guestToken.token,
       interviewerLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/interviewer`,
-      guestLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/guest?token=${guestToken.token}`,
+      guestLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/guest`,
     })
 
   } catch (error) {
