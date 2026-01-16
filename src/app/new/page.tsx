@@ -74,17 +74,38 @@ function PreparePageContent() {
         }
       }
 
-      // Send invitations to expert and collaborators (fire and forget)
+      // Send invitations to expert and collaborators
       if (campaign.id && (data.expertEmail || data.collaborators.length > 0)) {
-        fetch(`/api/campaigns/${campaign.id}/send-invitations`, {
-          method: 'POST',
-        }).catch(() => {
-          console.error('Failed to send invitations');
-        });
+        try {
+          const response = await fetch(`/api/campaigns/${campaign.id}/send-invitations`, {
+            method: 'POST',
+          });
+          const result = await response.json();
+
+          if (response.ok && result.emailsSent > 0) {
+            showToast(
+              `Campaign created! ${result.emailsSent} invitation${result.emailsSent > 1 ? 's' : ''} sent.`,
+              'success'
+            );
+          } else if (response.ok) {
+            showToast(`Campaign "${data.name}" created!`, 'success');
+          } else {
+            // Campaign created but emails failed - still navigate but warn
+            console.error('Failed to send invitations:', result.error);
+            showToast(
+              `Campaign created. Invitations will be sent later.`,
+              'success'
+            );
+          }
+        } catch (err) {
+          console.error('Failed to send invitations:', err);
+          // Campaign was still created successfully
+          showToast(`Campaign "${data.name}" created!`, 'success');
+        }
+      } else {
+        showToast(`Campaign "${data.name}" created!`, 'success');
       }
 
-      // Show success and redirect to campaign page
-      showToast(`Campaign "${data.name}" created! Redirecting...`, 'success');
       router.push(`/campaigns/${campaign.id}`);
 
       return campaign;

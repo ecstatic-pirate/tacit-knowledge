@@ -56,9 +56,16 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to create access tokens' }, { status: 500 })
   }
 
-  // Schedule reminders for each token
+  // Schedule reminders for each token (non-blocking - don't fail if reminders fail)
   for (const token of tokens) {
-    await supabase.rpc('schedule_token_reminders', { p_token_id: token.id })
+    try {
+      const { error: reminderError } = await supabase.rpc('schedule_token_reminders', { p_token_id: token.id })
+      if (reminderError) {
+        console.error('Failed to schedule reminders for token:', token.id, reminderError)
+      }
+    } catch (err) {
+      console.error('Error scheduling reminders for token:', token.id, err)
+    }
   }
 
   const emailResults: { type: string; email: string; success: boolean; error?: string }[] = []
