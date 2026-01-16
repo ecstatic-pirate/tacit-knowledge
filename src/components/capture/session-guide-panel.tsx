@@ -7,7 +7,6 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   Sparkle,
-  Lightbulb,
   CheckCircle,
   Circle,
   CircleDashed,
@@ -16,6 +15,7 @@ import {
   Pause,
   Clock,
   CircleNotch,
+  ChatCircle,
 } from 'phosphor-react'
 import { cn } from '@/lib/utils'
 
@@ -64,8 +64,22 @@ function StatusIcon({ status }: { status: CoverageStatus }) {
   }
 }
 
-function TopicCard({ node }: { node: LiveGraphNode }) {
+function TopicCard({ node, showFull = false }: { node: LiveGraphNode; showFull?: boolean }) {
   const colors = statusColors[node.coverageStatus]
+
+  if (showFull) {
+    // Full display for "Being Discussed" section
+    return (
+      <div className={cn('px-3 py-2 rounded-md border text-xs', colors.bg, colors.border)}>
+        <div className="flex items-start gap-2">
+          <StatusIcon status={node.coverageStatus} />
+          <span className={cn('font-medium leading-relaxed', colors.text)}>
+            {node.label}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative group">
@@ -79,7 +93,7 @@ function TopicCard({ node }: { node: LiveGraphNode }) {
       >
         <div className="flex items-center gap-1.5">
           <StatusIcon status={node.coverageStatus} />
-          <span className={cn('font-medium truncate', colors.text)}>
+          <span className={cn('font-medium', colors.text)}>
             {node.label}
           </span>
         </div>
@@ -272,15 +286,15 @@ export function SessionGuidePanel({
                 </div>
               )}
 
-              {/* Being Discussed */}
+              {/* Being Discussed - with full text and questions */}
               {groupedNodes.mentioned.length > 0 && (
                 <div>
                   <h4 className="text-[10px] font-medium text-muted-foreground mb-1.5">
                     Being Discussed
                   </h4>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="space-y-2">
                     {groupedNodes.mentioned.map(node => (
-                      <TopicCard key={node.id} node={node} />
+                      <TopicCard key={node.id} node={node} showFull />
                     ))}
                   </div>
                 </div>
@@ -303,17 +317,24 @@ export function SessionGuidePanel({
           </div>
         )}
 
-        {/* Contextual Tip */}
-        {guidance?.contextualTip && (
+        {/* Questions to Ask */}
+        {guidance?.suggestedQuestions && guidance.suggestedQuestions.length > 0 && (
           <div className="border-t border-border/50 pt-4">
             <div className="flex items-center gap-2 mb-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              <Lightbulb className="w-3 h-3" weight="bold" />
-              Contextual Tip
+              <ChatCircle className="w-3 h-3" weight="bold" />
+              Questions to Ask
             </div>
-            <div className="bg-primary/5 border border-primary/10 rounded-md p-3">
-              <p className="text-sm text-foreground/80 leading-relaxed">
-                {guidance.contextualTip}
-              </p>
+            <div className="space-y-2">
+              {guidance.suggestedQuestions.map((question, idx) => (
+                <div
+                  key={idx}
+                  className="bg-primary/5 border border-primary/10 rounded-md p-3"
+                >
+                  <p className="text-sm text-foreground/80 leading-relaxed">
+                    {question}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         )}

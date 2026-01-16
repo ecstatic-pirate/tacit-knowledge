@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { VideoCall } from './video-call'
+import { VideoCall, VideoCallHandle } from './video-call'
 import { TranscriptPanel } from './transcript-panel'
 import { SessionGuidePanel } from './session-guide-panel'
-import { QuestionSuggestionsOverlay } from './question-suggestions-overlay'
 import { useRealtimeTranscription } from '@/lib/hooks/use-realtime-transcription'
 import {
   CircleNotch,
@@ -51,6 +50,7 @@ export function InterviewRoom({
   const lastProcessedTimeRef = useRef<number>(0)
   const pendingTranscriptRef = useRef<string>('')
   const getAudioStreamRef = useRef<(() => MediaStream | null) | null>(null)
+  const videoCallRef = useRef<VideoCallHandle>(null)
 
   // Transcription hook
   const {
@@ -210,7 +210,7 @@ export function InterviewRoom({
             variant="ghost"
             size="sm"
             className="h-8 gap-1.5 text-zinc-300 hover:text-red-400 hover:bg-red-500/10"
-            onClick={() => setShowEndModal(true)}
+            onClick={() => videoCallRef.current?.leave()}
           >
             <SignOut className="w-3.5 h-3.5" weight="bold" />
             End Session
@@ -227,17 +227,13 @@ export function InterviewRoom({
             <div className={cn('flex flex-col p-4 gap-4 transition-all duration-300', showSidePanel ? 'w-2/3' : 'w-full')}>
               <div className="flex-1 relative">
                 <VideoCall
+                  ref={videoCallRef}
                   roomUrl={roomUrl}
                   token={token}
                   onJoined={handleCallJoined}
                   onLeft={handleCallLeft}
                   onAudioStreamReady={handleAudioStreamReady}
                   className="h-full"
-                />
-                {/* Floating question suggestions overlay */}
-                <QuestionSuggestionsOverlay
-                  sessionId={sessionId}
-                  recentTranscript={recentTranscript}
                 />
               </div>
               {showTranscript && (
@@ -273,6 +269,7 @@ export function InterviewRoom({
           <div className="flex-1 flex flex-col p-4 gap-4 max-w-4xl mx-auto">
             <div className="flex-1">
               <VideoCall
+                ref={videoCallRef}
                 roomUrl={roomUrl}
                 token={token}
                 onJoined={handleCallJoined}

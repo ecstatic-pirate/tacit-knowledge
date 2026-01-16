@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react'
 import { useDailyCall } from '@/lib/hooks/use-daily-call'
 import {
   Microphone,
   MicrophoneSlash,
   VideoCamera,
   VideoCameraSlash,
-  Phone,
   DesktopTower,
   CircleNotch,
   User,
@@ -15,6 +14,10 @@ import {
 } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+export interface VideoCallHandle {
+  leave: () => Promise<void>
+}
 
 interface VideoCallProps {
   roomUrl: string
@@ -28,7 +31,7 @@ interface VideoCallProps {
   className?: string
 }
 
-export function VideoCall({
+export const VideoCall = forwardRef<VideoCallHandle, VideoCallProps>(function VideoCall({
   roomUrl,
   token,
   onAudioTrack,
@@ -37,7 +40,7 @@ export function VideoCall({
   onError,
   onAudioStreamReady,
   className,
-}: VideoCallProps) {
+}, ref) {
   const {
     callObject,
     isJoining,
@@ -63,6 +66,14 @@ export function VideoCall({
 
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const hasAttemptedJoin = useRef(false)
+
+  // Expose leave method to parent via ref
+  useImperativeHandle(ref, () => ({
+    leave: async () => {
+      await leaveCall()
+      onLeft?.()
+    },
+  }), [leaveCall, onLeft])
 
   // Auto-join when component mounts (with small delay for SDK initialization)
   useEffect(() => {
@@ -95,12 +106,6 @@ export function VideoCall({
       remoteVideoRef.current.srcObject = stream
     }
   }, [remoteParticipants])
-
-  // Handle leave
-  const handleLeave = async () => {
-    await leaveCall()
-    onLeft?.()
-  }
 
   if (error) {
     return (
@@ -238,16 +243,6 @@ export function VideoCall({
         >
           <DesktopTower className={cn('w-5 h-5', isScreenSharing && 'text-primary-foreground')} weight="bold" />
         </Button>
-
-        {/* Leave Call */}
-        <Button
-          variant="destructive"
-          size="icon"
-          className="rounded-full w-12 h-12 ml-4"
-          onClick={handleLeave}
-        >
-          <Phone className="w-5 h-5 rotate-135" weight="fill" />
-        </Button>
       </div>
 
       <style jsx>{`
@@ -257,4 +252,4 @@ export function VideoCall({
       `}</style>
     </div>
   )
-}
+})

@@ -160,6 +160,12 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
           if (event.participant.audioTrack && onAudioTrack) {
             onAudioTrack(event.participant.audioTrack, event.participant.session_id)
           }
+
+          // Update combined audio stream to include new participant
+          // Small delay to ensure audio track is ready
+          setTimeout(() => {
+            updateCombinedAudioStream()
+          }, 500)
         }
       })
 
@@ -176,8 +182,12 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
       })
 
       call.on('track-started', (event) => {
-        if (event?.track?.kind === 'audio' && event.participant && onAudioTrack) {
-          onAudioTrack(event.track, event.participant.session_id)
+        if (event?.track?.kind === 'audio' && event.participant) {
+          if (onAudioTrack) {
+            onAudioTrack(event.track, event.participant.session_id)
+          }
+          // Update combined audio stream to include new audio track
+          updateCombinedAudioStream()
         }
         if (event?.track?.kind === 'video' && event.participant?.local) {
           setupLocalVideo(call)
@@ -312,34 +322,40 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
     }
   }, [])
 
+  // Destination node ref for adding new audio sources dynamically
+  const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null)
+  const connectedParticipantsRef = useRef<Set<string>>(new Set())
+
   // Get combined audio stream from all participants (for Deepgram)
   const getCombinedAudioStream = useCallback((): MediaStream | null => {
     const call = callObjectRef.current
     if (!call) return null
 
     try {
-      // Clean up previous audio sources to prevent memory leak
-      audioSourcesRef.current.forEach(source => {
-        try { source.disconnect() } catch { /* ignore */ }
-      })
-      audioSourcesRef.current = []
-
       // Create audio context if needed
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContext()
       }
       const audioContext = audioContextRef.current
 
-      const participants = call.participants()
-      const destination = audioContext.createMediaStreamDestination()
+      // Create destination if needed
+      if (!destinationRef.current) {
+        destinationRef.current = audioContext.createMediaStreamDestination()
+      }
+      const destination = destinationRef.current
 
-      // Add all audio tracks to the destination
+      const participants = call.participants()
+
+      // Add audio tracks for participants not yet connected
       Object.values(participants).forEach(participant => {
-        if (participant.audioTrack) {
+        const participantId = participant.session_id
+        if (participant.audioTrack && !connectedParticipantsRef.current.has(participantId)) {
+          console.log('[useDailyCall] Adding audio track for participant:', participantId)
           const stream = new MediaStream([participant.audioTrack])
           const source = audioContext.createMediaStreamSource(stream)
           source.connect(destination)
-          audioSourcesRef.current.push(source) // Track for cleanup
+          audioSourcesRef.current.push(source)
+          connectedParticipantsRef.current.add(participantId)
         }
       })
 
@@ -349,6 +365,33 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
       console.error('Failed to create combined audio stream:', err)
       return null
     }
+  }, [])
+
+  // Update combined audio stream when participants change
+  const updateCombinedAudioStream = useCallback(() => {
+    const call = callObjectRef.current
+    if (!call || !audioContextRef.current || !destinationRef.current) return
+
+    const audioContext = audioContextRef.current
+    const destination = destinationRef.current
+    const participants = call.participants()
+
+    // Add new participant audio tracks
+    Object.values(participants).forEach(participant => {
+      const participantId = participant.session_id
+      if (participant.audioTrack && !connectedParticipantsRef.current.has(participantId)) {
+        console.log('[useDailyCall] Adding new participant audio:', participantId)
+        try {
+          const stream = new MediaStream([participant.audioTrack])
+          const source = audioContext.createMediaStreamSource(stream)
+          source.connect(destination)
+          audioSourcesRef.current.push(source)
+          connectedParticipantsRef.current.add(participantId)
+        } catch (err) {
+          console.error('[useDailyCall] Error adding participant audio:', err)
+        }
+      }
+    })
   }, [])
 
   // Cleanup on unmount
