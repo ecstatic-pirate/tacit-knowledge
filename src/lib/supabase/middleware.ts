@@ -58,6 +58,7 @@ export async function updateSession(request: NextRequest) {
     '/feedback',    // Collaborator feedback form (token-based)
     '/guide',       // Interview guide (token-based, for interviewers)
     '/interview',   // Interview room (guests and interviewers join via unique links)
+    '/share',       // Public shared reports (token-based)
     '/api/public',  // Public API endpoints for form submissions
     '/api/daily',   // Daily.co room creation API
   ]
