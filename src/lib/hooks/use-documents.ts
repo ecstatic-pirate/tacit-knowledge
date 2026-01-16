@@ -54,8 +54,8 @@ export function useDocuments({ campaignId, orgId }: UseDocumentsOptions) {
         fileType: doc.file_type || 'unknown',
         storagePath: doc.storage_path,
         aiProcessed: doc.ai_processed || false,
-        extractedTopics: Array.isArray(doc.extracted_topics)
-          ? (doc.extracted_topics as string[])
+        extractedTopics: Array.isArray(doc.extracted_skills)
+          ? (doc.extracted_skills as string[])
           : [],
         createdAt: doc.created_at || '',
       }))

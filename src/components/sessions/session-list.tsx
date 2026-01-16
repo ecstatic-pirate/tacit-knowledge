@@ -11,6 +11,7 @@ import {
   Sparkle,
   ListBullets,
   CalendarPlus,
+  Eye,
 } from 'phosphor-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -43,7 +44,7 @@ interface Session {
 interface Question {
   id: string
   text: string
-  topic_id: string
+  topic_id: string | null
 }
 
 // Transform ai_suggested_topics from DB format to UI format
@@ -377,6 +378,21 @@ export function SessionList({
 
                 {/* Actions */}
                 <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-wrap items-center gap-2">
+                  {/* View Session button - for completed sessions */}
+                  {session.status === 'completed' && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/capture/${session.id}`)
+                      }}
+                      className="gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5" weight="bold" />
+                      View Session
+                    </Button>
+                  )}
+
                   {/* Schedule button - for pending sessions */}
                   {(session.status === 'pending' || !session.scheduledAt) && session.status !== 'completed' && session.status !== 'cancelled' && (
                     <Button

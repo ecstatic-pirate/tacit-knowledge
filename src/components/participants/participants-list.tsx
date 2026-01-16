@@ -32,6 +32,26 @@ const statusConfig: Record<
   ParticipantStatus,
   { label: string; color: string; icon: typeof Circle }
 > = {
+  pending: {
+    label: 'Pending',
+    color: 'bg-stone-100 text-stone-600',
+    icon: Circle,
+  },
+  invited: {
+    label: 'Invited',
+    color: 'bg-blue-100 text-blue-700',
+    icon: Circle,
+  },
+  active: {
+    label: 'Active',
+    color: 'bg-amber-100 text-amber-700',
+    icon: Clock,
+  },
+  completed: {
+    label: 'Completed',
+    color: 'bg-emerald-100 text-emerald-700',
+    icon: CheckCircle,
+  },
   not_interviewed: {
     label: 'Not Interviewed',
     color: 'bg-stone-100 text-stone-600',

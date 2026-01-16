@@ -304,6 +304,7 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
   const isActive = session.status === 'in_progress';
   const isPaused = session.status === 'paused';
   const isScheduled = session.status === 'scheduled';
+  const isCompleted = session.status === 'completed';
   const suggestedQuestions = getContextualQuestions(allTranscriptLines.length);
 
   return (
@@ -313,13 +314,19 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
         <div className="flex items-center gap-3">
           {isActive && <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
           {isPaused && <div className="h-2 w-2 rounded-full bg-amber-500" />}
-          <span className="font-mono text-sm font-medium">{formatTime(elapsedSeconds)}</span>
+          {isCompleted && <div className="h-2 w-2 rounded-full bg-green-500" />}
+          {!isCompleted && <span className="font-mono text-sm font-medium">{formatTime(elapsedSeconds)}</span>}
           <span className="text-sm text-muted-foreground">
-            · Session {session.sessionNumber} with {session.campaign?.expertName || 'Expert'}
+            {isCompleted ? '' : '· '}Session {session.sessionNumber} with {session.campaign?.expertName || 'Expert'}
           </span>
           {isTranscribing && (
             <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
               Recording
+            </span>
+          )}
+          {isCompleted && (
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+              Completed
             </span>
           )}
         </div>
@@ -339,6 +346,15 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
               </Button>
             </>
           )}
+          {isCompleted && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.history.back()}
+            >
+              Back
+            </Button>
+          )}
         </div>
       </div>
 
@@ -355,7 +371,27 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
         <div className="flex-1 flex flex-col bg-zinc-900 relative">
           {/* Main Video Area */}
           <div className="flex-1 flex items-center justify-center">
-            {isScheduled && !isMediaReady ? (
+            {isCompleted ? (
+              <div className="text-center p-8">
+                <div className="w-24 h-24 rounded-full bg-green-600 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-3xl text-white">
+                    {session.campaign?.expertName?.split(' ').map(n => n[0]).join('') || 'E'}
+                  </span>
+                </div>
+                <h2 className="text-xl font-semibold text-white mb-2">Session Complete</h2>
+                <p className="text-white/60 mb-6">{session.campaign?.expertName}</p>
+                <div className="grid grid-cols-2 gap-4 max-w-xs mx-auto">
+                  <div className="bg-zinc-800 p-3 rounded-lg">
+                    <div className="text-xs text-zinc-400 font-medium uppercase">Transcript</div>
+                    <div className="text-lg font-bold text-white">{allTranscriptLines.length} lines</div>
+                  </div>
+                  <div className="bg-zinc-800 p-3 rounded-lg">
+                    <div className="text-xs text-zinc-400 font-medium uppercase">Insights</div>
+                    <div className="text-lg font-bold text-white">{capturedInsights.length}</div>
+                  </div>
+                </div>
+              </div>
+            ) : isScheduled && !isMediaReady ? (
               <div className="text-center">
                 <div className="w-24 h-24 rounded-full bg-zinc-700 flex items-center justify-center mx-auto mb-4">
                   <span className="text-3xl text-white">
@@ -481,27 +517,40 @@ export function CaptureTab({ sessionId, onPauseSession, onEndSession }: CaptureT
           <div className="flex-1 overflow-y-auto">
             {activePanel === 'transcript' && (
               <div className={cn("p-4", spacing.sectionGapTiny)}>
-                {isActive || isPaused ? (
+                {isActive || isPaused || isCompleted ? (
                   <>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-                      {isTranscribing ? (
-                        <>
-                          <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                          Live transcript
-                        </>
-                      ) : (
-                        <>
-                          <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                          Transcript paused
-                        </>
-                      )}
-                    </div>
+                    {/* Status indicator - only show for active/paused sessions */}
+                    {(isActive || isPaused) && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                        {isTranscribing ? (
+                          <>
+                            <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                            Live transcript
+                          </>
+                        ) : (
+                          <>
+                            <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                            Transcript paused
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Completed session header */}
+                    {isCompleted && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                        <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                        Session transcript
+                      </div>
+                    )}
 
                     {allTranscriptLines.length === 0 && !currentInterim ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
-                        {isTranscribing
-                          ? 'Start speaking and your words will appear here...'
-                          : 'Resume the session to continue transcribing'}
+                        {isCompleted
+                          ? 'No transcript available for this session'
+                          : isTranscribing
+                            ? 'Start speaking and your words will appear here...'
+                            : 'Resume the session to continue transcribing'}
                       </p>
                     ) : (
                       <>
