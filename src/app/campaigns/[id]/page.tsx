@@ -34,6 +34,7 @@ import {
   FolderSimple,
   Briefcase,
   Sparkle,
+  Scroll,
 } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -47,7 +48,7 @@ import { CoverageBar } from '@/components/ui/coverage-bar'
 import { ParticipantModal, ParticipantsList } from '@/components/participants'
 import { TopicModal, TopicsList } from '@/components/topics'
 
-type TabId = 'overview' | 'participants' | 'topics' | 'sessions' | 'context'
+type TabId = 'overview' | 'participants' | 'topics' | 'sessions' | 'context' | 'transcripts'
 
 interface CampaignWithDetails extends Campaign {
   organizations?: { name: string } | null
@@ -86,7 +87,7 @@ interface Document {
   filename: string
   file_type: string | null
   ai_processed: boolean
-  extracted_topics: unknown
+  extracted_skills: unknown
 }
 
 interface Session {
@@ -104,6 +105,21 @@ interface Session {
   }>
   calendarEventId?: string
   calendarProvider?: string
+  participantId?: string
+  participantName?: string
+}
+
+interface TranscriptLine {
+  id: string
+  session_id: string
+  speaker: string
+  text: string
+  timestamp_seconds: number
+  created_at: string | null
+}
+
+interface SessionWithTranscript extends Session {
+  transcriptLines: TranscriptLine[]
 }
 
 // Transform ai_suggested_topics from DB format to UI format
@@ -200,6 +216,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [topics, setTopics] = useState<Topic[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [sessions, setSessions] = useState<Session[]>([])
+  const [sessionsWithTranscripts, setSessionsWithTranscripts] = useState<SessionWithTranscript[]>([])
+  const [loadingTranscripts, setLoadingTranscripts] = useState(false)
+  const [expandedTranscripts, setExpandedTranscripts] = useState<Set<string>>(new Set())
 
   // Participants state (for project campaigns)
   const [participants, setParticipants] = useState<Participant[]>([])
@@ -284,7 +303,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     // Fetch topics
     const { data: topicsData } = await supabase
       .from('topics')
-      .select('id, name, category, captured, suggested_by')
+      .select('id, name, category, captured, suggested_by, coverage_status')
       .eq('campaign_id', campaignId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
@@ -319,9 +338,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       }
 
       setTopics(topicsData.map(t => ({
-        ...t,
+        id: t.id,
+        name: t.name,
+        category: t.category,
         captured: t.captured ?? false,
         suggested_by: t.suggested_by ?? null,
+        coverage_status: (t.coverage_status ?? 'not_discussed') as 'not_discussed' | 'mentioned' | 'partial' | 'full',
         questions: questionsMap.get(t.id) || [],
       })))
     }
@@ -329,13 +351,13 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     // Fetch documents
     const { data: documentsData } = await supabase
       .from('documents')
-      .select('id, filename, file_type, ai_processed, extracted_topics')
+      .select('id, filename, file_type, ai_processed, extracted_skills')
       .eq('campaign_id', campaignId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
 
     if (documentsData) {
-      setDocuments(documentsData.map(d => ({ ...d, ai_processed: d.ai_processed ?? false, extracted_topics: d.extracted_topics })))
+      setDocuments(documentsData.map(d => ({ ...d, ai_processed: d.ai_processed ?? false, extracted_skills: d.extracted_skills })))
     }
 
     // Fetch sessions
@@ -370,6 +392,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         aiSuggestedTopics: transformAiSuggestedTopics(s.ai_suggested_topics, sessionQuestionsMap),
         calendarEventId: s.calendar_event_id || undefined,
         calendarProvider: s.calendar_provider || undefined,
+        participantId: s.participant_id || undefined,
       })))
     }
 
@@ -471,6 +494,102 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     setResending(tokenId)
     showToast('Invitation resent (placeholder)', 'info')
     setResending(null)
+  }
+
+  // Load transcripts for completed sessions
+  const loadTranscripts = useCallback(async () => {
+    if (loadingTranscripts) return
+    setLoadingTranscripts(true)
+
+    try {
+      // Get completed sessions
+      const completedSessions = sessions.filter(s => s.status === 'completed')
+      if (completedSessions.length === 0) {
+        setSessionsWithTranscripts([])
+        setLoadingTranscripts(false)
+        return
+      }
+
+      // Fetch transcript lines for all completed sessions
+      const sessionIds = completedSessions.map(s => s.id)
+      const { data: transcriptData, error } = await supabase
+        .from('transcript_lines')
+        .select('*')
+        .in('session_id', sessionIds)
+        .order('timestamp_seconds', { ascending: true })
+
+      if (error) {
+        console.error('Error fetching transcripts:', error)
+        setLoadingTranscripts(false)
+        return
+      }
+
+      // Group transcript lines by session
+      const transcriptsBySession = (transcriptData || []).reduce((acc, line) => {
+        if (!acc[line.session_id]) acc[line.session_id] = []
+        acc[line.session_id].push(line)
+        return acc
+      }, {} as Record<string, TranscriptLine[]>)
+
+      // Get participant names for project sessions
+      const participantIds = completedSessions
+        .map(s => s.participantId)
+        .filter((id): id is string => !!id)
+
+      let participantMap = new Map<string, string>()
+      if (participantIds.length > 0) {
+        const { data: participantData } = await supabase
+          .from('participants')
+          .select('id, name')
+          .in('id', participantIds)
+
+        if (participantData) {
+          participantData.forEach(p => participantMap.set(p.id, p.name))
+        }
+      }
+
+      // Build sessions with transcripts
+      const sessionsWithData: SessionWithTranscript[] = completedSessions
+        .filter(session => transcriptsBySession[session.id]?.length > 0)
+        .map(session => ({
+          ...session,
+          participantName: session.participantId ? participantMap.get(session.participantId) : undefined,
+          transcriptLines: transcriptsBySession[session.id] || [],
+        }))
+        .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
+
+      setSessionsWithTranscripts(sessionsWithData)
+    } catch (err) {
+      console.error('Error loading transcripts:', err)
+    } finally {
+      setLoadingTranscripts(false)
+    }
+  }, [sessions, supabase, loadingTranscripts])
+
+  // Load transcripts when switching to transcripts tab
+  useEffect(() => {
+    if (activeTab === 'transcripts' && sessionsWithTranscripts.length === 0 && sessions.some(s => s.status === 'completed')) {
+      loadTranscripts()
+    }
+  }, [activeTab, sessionsWithTranscripts.length, sessions, loadTranscripts])
+
+  const toggleTranscriptExpanded = (sessionId: string) => {
+    setExpandedTranscripts(prev => {
+      const next = new Set(prev)
+      if (next.has(sessionId)) {
+        next.delete(sessionId)
+      } else {
+        next.add(sessionId)
+      }
+      return next
+    })
+  }
+
+  // Format timestamp for display
+  const formatTimestamp = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   // Generate a shareable link without sending email
@@ -917,6 +1036,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       .update({
         captured,
         captured_at: captured ? new Date().toISOString() : null,
+        // Sync coverage_status with captured flag for consistency
+        coverage_status: captured ? 'full' : 'not_discussed',
       })
       .eq('id', topicId)
 
@@ -1111,6 +1232,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             ...(!isProjectCampaign ? [{ id: 'context' as TabId, label: 'Context', icon: Clipboard }] : []),
             { id: 'topics' as TabId, label: 'Topics', icon: Lightning },
             { id: 'sessions' as TabId, label: 'Sessions', icon: Calendar },
+            { id: 'transcripts' as TabId, label: 'Transcripts', icon: Scroll },
           ].map(tab => (
             <button
               key={tab.id}
@@ -1891,6 +2013,139 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           )}
         </section>
           </>
+        )}
+
+        {/* Transcripts Tab */}
+        {activeTab === 'transcripts' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Scroll className="w-5 h-5" weight="bold" />
+                Session Transcripts
+                {sessionsWithTranscripts.length > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({sessionsWithTranscripts.length} session{sessionsWithTranscripts.length !== 1 ? 's' : ''})
+                  </span>
+                )}
+              </h2>
+              {sessionsWithTranscripts.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Expand all or collapse all
+                    if (expandedTranscripts.size === sessionsWithTranscripts.length) {
+                      setExpandedTranscripts(new Set())
+                    } else {
+                      setExpandedTranscripts(new Set(sessionsWithTranscripts.map(s => s.id)))
+                    }
+                  }}
+                >
+                  {expandedTranscripts.size === sessionsWithTranscripts.length ? 'Collapse All' : 'Expand All'}
+                </Button>
+              )}
+            </div>
+
+            {loadingTranscripts ? (
+              <div className="flex items-center justify-center py-12">
+                <CircleNotch className="w-8 h-8 animate-spin text-muted-foreground" weight="bold" />
+              </div>
+            ) : sessionsWithTranscripts.length > 0 ? (
+              <div className="space-y-4">
+                {sessionsWithTranscripts.map((session) => {
+                  const isExpanded = expandedTranscripts.has(session.id)
+                  const sessionDate = new Date(session.scheduledAt)
+                  const formattedDate = sessionDate.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+
+                  return (
+                    <div key={session.id} className="border rounded-lg bg-card overflow-hidden">
+                      {/* Session header */}
+                      <button
+                        onClick={() => toggleTranscriptExpanded(session.id)}
+                        className="w-full p-4 flex items-center justify-between hover:bg-secondary/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                            <CheckCircle className="w-5 h-5 text-emerald-600" weight="fill" />
+                          </div>
+                          <div className="text-left">
+                            <p className="font-medium">
+                              {session.title || `Session ${session.sessionNumber}`}
+                              {session.participantName && (
+                                <span className="text-muted-foreground font-normal ml-2">
+                                  with {session.participantName}
+                                </span>
+                              )}
+                            </p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>{formattedDate}</span>
+                              <span>·</span>
+                              <span>{session.transcriptLines.length} lines</span>
+                            </div>
+                          </div>
+                        </div>
+                        {isExpanded ? (
+                          <CaretUp className="w-5 h-5 text-muted-foreground" weight="bold" />
+                        ) : (
+                          <CaretDown className="w-5 h-5 text-muted-foreground" weight="bold" />
+                        )}
+                      </button>
+
+                      {/* Transcript content */}
+                      {isExpanded && (
+                        <div className="border-t bg-secondary/20">
+                          <div className="p-4 max-h-[500px] overflow-y-auto">
+                            <div className="space-y-3">
+                              {session.transcriptLines.map((line, index) => (
+                                <div key={line.id || index} className="flex gap-3">
+                                  <span className="text-xs text-muted-foreground w-12 flex-shrink-0 pt-0.5">
+                                    {formatTimestamp(line.timestamp_seconds)}
+                                  </span>
+                                  <div className="flex-1">
+                                    <span className={cn(
+                                      'text-xs font-medium',
+                                      line.speaker === 'Expert' || line.speaker === 'Participant'
+                                        ? 'text-primary'
+                                        : 'text-muted-foreground'
+                                    )}>
+                                      {line.speaker}
+                                    </span>
+                                    <p className="text-sm mt-0.5">{line.text}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : sessions.some(s => s.status === 'completed') ? (
+              <div className="border rounded-lg bg-card p-8 text-center text-muted-foreground">
+                <Scroll className="w-10 h-10 mx-auto mb-3" weight="bold" />
+                <p className="font-medium mb-1">No transcripts available</p>
+                <p className="text-sm">
+                  Completed sessions don&apos;t have any transcript data yet.
+                </p>
+              </div>
+            ) : (
+              <div className="border rounded-lg bg-card p-8 text-center text-muted-foreground">
+                <Scroll className="w-10 h-10 mx-auto mb-3" weight="bold" />
+                <p className="font-medium mb-1">No completed sessions</p>
+                <p className="text-sm">
+                  Transcripts will appear here once you complete interview sessions.
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

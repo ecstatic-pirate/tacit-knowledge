@@ -32,13 +32,17 @@ export interface Question {
   priority: 'high' | 'medium' | 'low' | null
   category: string | null
   asked: boolean
+  topic_id: string | null
 }
+
+export type CoverageStatus = 'not_discussed' | 'mentioned' | 'partial' | 'full'
 
 export interface TopicWithDetails {
   id: string
   name: string
   category: string | null
   captured: boolean
+  coverage_status?: CoverageStatus
   suggested_by: string | null
   // Knowledge nodes that cover this topic
   coveringKnowledgeNodes?: TopicKnowledgeLink[]
@@ -123,9 +127,30 @@ export function TopicsList({
     }
   }
 
-  // Calculate coverage stats
-  const capturedCount = topics.filter((t) => t.captured).length
-  const partialCount = topics.filter((t) => !t.captured && t.coveringKnowledgeNodes && t.coveringKnowledgeNodes.length > 0).length
+  // Helper to get effective coverage status
+  const getEffectiveCoverage = (topic: TopicWithDetails): CoverageStatus => {
+    // Manual captured flag takes precedence
+    if (topic.captured) return 'full'
+    // Use coverage_status if explicitly set (check for undefined/null, not falsy)
+    if (topic.coverage_status !== undefined && topic.coverage_status !== null) {
+      return topic.coverage_status
+    }
+    // Fallback: check knowledge nodes
+    if (topic.coveringKnowledgeNodes && topic.coveringKnowledgeNodes.length > 0) {
+      const hasFullCoverage = topic.coveringKnowledgeNodes.some(n => n.coverageLevel === 'full')
+      if (hasFullCoverage) return 'full'
+      const hasPartialCoverage = topic.coveringKnowledgeNodes.some(n => n.coverageLevel === 'partial')
+      if (hasPartialCoverage) return 'partial'
+      return 'mentioned'
+    }
+    return 'not_discussed'
+  }
+
+  // Calculate coverage stats using 4-tier system
+  const fullCount = topics.filter((t) => getEffectiveCoverage(t) === 'full').length
+  const partialCount = topics.filter((t) => getEffectiveCoverage(t) === 'partial').length
+  const mentionedCount = topics.filter((t) => getEffectiveCoverage(t) === 'mentioned').length
+  const notDiscussedCount = topics.filter((t) => getEffectiveCoverage(t) === 'not_discussed').length
   const totalCount = topics.length
 
   // Group topics by category
@@ -163,17 +188,23 @@ export function TopicsList({
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              {capturedCount} captured
+              {fullCount} captured
             </span>
             {partialCount > 0 && (
               <span className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full bg-amber-400" />
-                {partialCount} in progress
+                {partialCount} partial
+              </span>
+            )}
+            {mentionedCount > 0 && (
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-blue-400" />
+                {mentionedCount} mentioned
               </span>
             )}
             <span className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-stone-300" />
-              {totalCount - capturedCount - partialCount} to discuss
+              {notDiscussedCount} to discuss
             </span>
           </div>
         </div>
@@ -205,13 +236,30 @@ export function TopicsList({
                   const topicQuestions = getTopicQuestions(topic.id)
                   const hasQuestions = topicQuestions.length > 0
                   const isExpanded = expandedTopics.has(topic.id)
+                  const coverage = getEffectiveCoverage(topic)
+
+                  // Determine card styling based on coverage
+                  const cardStyles = {
+                    full: 'border-emerald-200 bg-emerald-50/50',
+                    partial: 'border-amber-200 bg-amber-50/50',
+                    mentioned: 'border-blue-200 bg-blue-50/50',
+                    not_discussed: '',
+                  }
+
+                  // Determine button styling based on coverage
+                  const buttonStyles = {
+                    full: 'bg-emerald-500 text-white hover:bg-emerald-600',
+                    partial: 'bg-amber-400 text-white hover:bg-amber-500',
+                    mentioned: 'bg-blue-400 text-white hover:bg-blue-500',
+                    not_discussed: 'bg-secondary text-muted-foreground hover:bg-secondary/80',
+                  }
 
                   return (
                     <div
                       key={topic.id}
                       className={cn(
                         'border rounded-lg bg-card transition-colors overflow-hidden',
-                        topic.captured && 'border-emerald-200 bg-emerald-50/50'
+                        cardStyles[coverage]
                       )}
                     >
                       {/* Topic header */}
@@ -226,17 +274,16 @@ export function TopicsList({
                             disabled={togglingId === topic.id}
                             className={cn(
                               'w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-colors',
-                              topic.captured
-                                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                              buttonStyles[coverage]
                             )}
+                            title={`Coverage: ${coverage.replace('_', ' ')}`}
                           >
                             {togglingId === topic.id ? (
                               <CircleNotch
                                 className="w-3.5 h-3.5 animate-spin"
                                 weight="bold"
                               />
-                            ) : topic.captured ? (
+                            ) : coverage === 'full' ? (
                               <CheckCircle className="w-3.5 h-3.5" weight="fill" />
                             ) : (
                               <Circle className="w-3.5 h-3.5" weight="bold" />
@@ -248,7 +295,9 @@ export function TopicsList({
                               <p
                                 className={cn(
                                   'font-medium truncate',
-                                  topic.captured && 'text-emerald-800'
+                                  coverage === 'full' && 'text-emerald-800',
+                                  coverage === 'partial' && 'text-amber-800',
+                                  coverage === 'mentioned' && 'text-blue-800'
                                 )}
                               >
                                 {topic.name}

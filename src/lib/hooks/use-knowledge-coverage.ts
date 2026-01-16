@@ -14,6 +14,9 @@ interface TopicNode {
   type: string
 }
 
+// Topic coverage status enum
+export type TopicCoverageStatus = 'not_discussed' | 'mentioned' | 'partial' | 'full'
+
 // Enhanced topic type with knowledge links
 export interface TopicWithCoverage {
   id: string
@@ -23,6 +26,7 @@ export interface TopicWithCoverage {
   capturedAt: string | null
   sessionId: string | null
   suggestedBy: string | null
+  coverageStatus: TopicCoverageStatus
   // Knowledge nodes that cover this topic
   coveringKnowledgeNodes: Array<{
     nodeId: string
@@ -256,7 +260,8 @@ export function useTopicCoverage(campaignId: string): UseTopicCoverageReturn {
           captured,
           captured_at,
           session_id,
-          suggested_by
+          suggested_by,
+          coverage_status
         `)
         .eq('campaign_id', campaignId)
         .is('deleted_at', null)
@@ -307,6 +312,7 @@ export function useTopicCoverage(campaignId: string): UseTopicCoverageReturn {
           capturedAt: topic.captured_at,
           sessionId: topic.session_id,
           suggestedBy: topic.suggested_by,
+          coverageStatus: (topic.coverage_status || 'not_discussed') as TopicCoverageStatus,
           coveringKnowledgeNodes: coverageLinks
             .filter(c => c.graph_nodes)
             .map(c => ({
@@ -357,19 +363,36 @@ export function useTopicCoverage(campaignId: string): UseTopicCoverageReturn {
     fetchTopics()
   }, [fetchTopics])
 
-  // Calculate stats
+  // Helper to get effective coverage status (same logic as UI component)
+  const getEffectiveCoverage = (topic: TopicWithCoverage): TopicCoverageStatus => {
+    if (topic.captured) return 'full'
+    if (topic.coverageStatus !== undefined && topic.coverageStatus !== null) {
+      return topic.coverageStatus
+    }
+    if (topic.coveringKnowledgeNodes.length > 0) {
+      const hasFullCoverage = topic.coveringKnowledgeNodes.some(n => n.coverageLevel === 'full')
+      if (hasFullCoverage) return 'full'
+      const hasPartialCoverage = topic.coveringKnowledgeNodes.some(n => n.coverageLevel === 'partial')
+      if (hasPartialCoverage) return 'partial'
+      return 'mentioned'
+    }
+    return 'not_discussed'
+  }
+
+  // Calculate stats using 4-tier system
   const stats = useMemo(() => {
-    const captured = topics.filter(t => t.captured).length
-    const partial = topics.filter(t => !t.captured && t.coveringKnowledgeNodes.length > 0).length
-    const notCaptured = topics.filter(t => !t.captured && t.coveringKnowledgeNodes.length === 0).length
+    const fullCount = topics.filter(t => getEffectiveCoverage(t) === 'full').length
+    const partialCount = topics.filter(t => getEffectiveCoverage(t) === 'partial').length
+    const mentionedCount = topics.filter(t => getEffectiveCoverage(t) === 'mentioned').length
+    const notDiscussedCount = topics.filter(t => getEffectiveCoverage(t) === 'not_discussed').length
     const total = topics.length
 
     return {
-      capturedCount: captured,
-      partialCount: partial,
-      notCapturedCount: notCaptured,
+      capturedCount: fullCount,  // Backward compatibility: captured = full
+      partialCount: partialCount + mentionedCount,  // Combined for backward compatibility
+      notCapturedCount: notDiscussedCount,
       totalCount: total,
-      coveragePercentage: total > 0 ? Math.round((captured / total) * 100) : 0,
+      coveragePercentage: total > 0 ? Math.round((fullCount / total) * 100) : 0,
     }
   }, [topics])
 
