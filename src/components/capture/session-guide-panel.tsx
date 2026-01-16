@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState, useEffect } from 'react'
 import { useLiveGraph, LiveGraphNode, CoverageStatus } from '@/lib/hooks/use-live-graph'
 import { useSessionGuidance } from '@/lib/hooks/use-session-guidance'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
@@ -11,11 +11,12 @@ import {
   Circle,
   CircleDashed,
   ArrowClockwise,
-  Play,
-  Pause,
-  Clock,
   CircleNotch,
   ChatCircle,
+  CaretRight,
+  CaretDown,
+  ArrowRight,
+  ListBullets,
 } from 'phosphor-react'
 import { cn } from '@/lib/utils'
 
@@ -51,65 +52,74 @@ const statusColors: Record<CoverageStatus, { bg: string; text: string; border: s
   },
 }
 
-function StatusIcon({ status }: { status: CoverageStatus }) {
+function StatusIcon({ status, size = 'sm' }: { status: CoverageStatus; size?: 'sm' | 'xs' }) {
   const colors = statusColors[status]
+  const sizeClass = size === 'sm' ? 'w-3.5 h-3.5' : 'w-2.5 h-2.5'
 
   switch (status) {
     case 'covered':
-      return <CheckCircle className={cn('w-3.5 h-3.5', colors.icon)} weight="fill" />
+      return <CheckCircle className={cn(sizeClass, colors.icon)} weight="fill" />
     case 'mentioned':
-      return <Circle className={cn('w-3.5 h-3.5', colors.icon)} weight="fill" />
+      return <Circle className={cn(sizeClass, colors.icon)} weight="fill" />
     case 'not_discussed':
-      return <CircleDashed className={cn('w-3.5 h-3.5', colors.icon)} weight="bold" />
+      return <CircleDashed className={cn(sizeClass, colors.icon)} weight="bold" />
   }
 }
 
-function TopicCard({ node, showFull = false }: { node: LiveGraphNode; showFull?: boolean }) {
+function TopicChip({ node }: { node: LiveGraphNode }) {
   const colors = statusColors[node.coverageStatus]
 
-  if (showFull) {
-    // Full display for "Being Discussed" section
-    return (
-      <div className={cn('px-3 py-2 rounded-md border text-xs', colors.bg, colors.border)}>
-        <div className="flex items-start gap-2">
-          <StatusIcon status={node.coverageStatus} />
-          <span className={cn('font-medium leading-relaxed', colors.text)}>
-            {node.label}
-          </span>
-        </div>
-      </div>
-    )
-  }
+  return (
+    <div
+      className={cn(
+        'px-2 py-1 rounded-md border text-xs inline-flex items-center gap-1.5',
+        colors.bg,
+        colors.border
+      )}
+    >
+      <StatusIcon status={node.coverageStatus} size="xs" />
+      <span className={cn('font-medium', colors.text)}>{node.label}</span>
+    </div>
+  )
+}
+
+// Progress ring component
+function ProgressRing({ percentage, size = 40 }: { percentage: number; size?: number }) {
+  const strokeWidth = 4
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const offset = circumference - (percentage / 100) * circumference
 
   return (
-    <div className="relative group">
-      <div
-        className={cn(
-          'px-2.5 py-1.5 rounded-md border text-xs cursor-help',
-          colors.bg,
-          colors.border,
-          'hover:ring-2 hover:ring-offset-1 hover:ring-primary/20 transition-all'
-        )}
-      >
-        <div className="flex items-center gap-1.5">
-          <StatusIcon status={node.coverageStatus} />
-          <span className={cn('font-medium', colors.text)}>
-            {node.label}
-          </span>
-        </div>
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg className="transform -rotate-90" width={size} height={size}>
+        {/* Background circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-zinc-200"
+        />
+        {/* Progress circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="text-primary transition-all duration-500"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-xs font-semibold text-foreground">{percentage}%</span>
       </div>
-
-      {/* Tooltip */}
-      {node.description && (
-        <div className="absolute left-0 bottom-full mb-2 w-72 p-3 bg-zinc-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
-          <div className="font-semibold mb-1.5">{node.label}</div>
-          <div className="text-zinc-300 leading-relaxed line-clamp-6">
-            {node.description}
-          </div>
-          {/* Arrow */}
-          <div className="absolute left-4 bottom-0 translate-y-full border-8 border-transparent border-t-zinc-900" />
-        </div>
-      )}
     </div>
   )
 }
@@ -120,22 +130,21 @@ export function SessionGuidePanel({
   recentTranscript,
   className,
 }: SessionGuidePanelProps) {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [isMoreQuestionsOpen, setIsMoreQuestionsOpen] = useState(false)
+  const [isTopicsOpen, setIsTopicsOpen] = useState(false)
+
   // Data hooks
   const {
     nodes,
     isLoading: isLoadingGraph,
     coveredCount,
-    mentionedCount,
-    notDiscussedCount,
     coveragePercentage,
   } = useLiveGraph({ campaignId })
 
   const {
     guidance,
     isLoading: isLoadingGuidance,
-    lastRefreshTime,
-    autoRefreshEnabled,
-    toggleAutoRefresh,
     refresh,
   } = useSessionGuidance({
     sessionId,
@@ -157,193 +166,267 @@ export function SessionGuidePanel({
     return groups
   }, [nodes])
 
-  // Format last refresh time
-  const formatLastRefresh = useCallback(() => {
-    if (!lastRefreshTime) return null
-    const now = new Date()
-    const diffSeconds = Math.floor((now.getTime() - lastRefreshTime.getTime()) / 1000)
-    if (diffSeconds < 60) return `${diffSeconds}s ago`
-    const diffMinutes = Math.floor(diffSeconds / 60)
-    return `${diffMinutes}m ago`
-  }, [lastRefreshTime])
+  // Get current topic being discussed
+  const currentTopic = useMemo(() => {
+    // First check for mentioned topics (actively being discussed)
+    if (groupedNodes.mentioned.length > 0) {
+      return groupedNodes.mentioned[0]
+    }
+    // Fall back to first not discussed topic
+    if (groupedNodes.not_discussed.length > 0) {
+      return groupedNodes.not_discussed[0]
+    }
+    return null
+  }, [groupedNodes])
+
+  // Questions management
+  const questions = guidance?.suggestedQuestions || []
+
+  // Reset index when questions change and current index is out of bounds
+  useEffect(() => {
+    if (questions.length > 0 && currentQuestionIndex >= questions.length) {
+      setCurrentQuestionIndex(0)
+    }
+  }, [questions.length, currentQuestionIndex])
+
+  const currentQuestion = questions[currentQuestionIndex]
+
+  // Track remaining questions with their original indices
+  const remainingQuestionsWithIndices = useMemo(() =>
+    questions
+      .map((question, index) => ({ question, index }))
+      .filter(item => item.index !== currentQuestionIndex),
+    [questions, currentQuestionIndex]
+  )
+
+  const handleSkipQuestion = useCallback(() => {
+    setCurrentQuestionIndex(prev =>
+      prev < questions.length - 1 ? prev + 1 : 0
+    )
+  }, [questions.length])
+
+  const handleSelectQuestion = useCallback((originalIndex: number) => {
+    setCurrentQuestionIndex(originalIndex)
+    setIsMoreQuestionsOpen(false)
+  }, [])
 
   const isLoading = isLoadingGraph || isLoadingGuidance
 
   return (
     <Card className={cn('flex flex-col h-full', className)}>
-      {/* Header */}
+      {/* Minimal Header */}
       <CardHeader className="px-4 py-3 border-b flex-row items-center justify-between space-y-0">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary/10 text-primary">
-            <Sparkle className="w-4 h-4" weight="fill" />
-          </div>
-          <div className="flex flex-col">
-            <h3 className="text-sm font-semibold">Session Guide</h3>
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">AI-Powered Assistance</p>
-              {lastRefreshTime && (
-                <span className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
-                  <Clock className="w-2.5 h-2.5" weight="bold" />
-                  {formatLastRefresh()}
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <Sparkle className="w-4 h-4 text-primary" weight="fill" />
+          <h3 className="text-sm font-semibold">Session Guide</h3>
         </div>
-        <div className="flex items-center gap-1">
-          {/* Auto-refresh toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              'h-7 w-7',
-              autoRefreshEnabled ? 'text-emerald-600' : 'text-muted-foreground'
-            )}
-            onClick={toggleAutoRefresh}
-            title={autoRefreshEnabled ? 'Auto-refresh ON (2.5 min)' : 'Auto-refresh OFF'}
-          >
-            {autoRefreshEnabled ? (
-              <Play className="w-3.5 h-3.5" weight="fill" />
-            ) : (
-              <Pause className="w-3.5 h-3.5" weight="bold" />
-            )}
-          </Button>
-          {/* Manual refresh */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={refresh}
-            disabled={isLoading}
-            title="Refresh now"
-          >
-            <ArrowClockwise className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} weight="bold" />
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          onClick={refresh}
+          disabled={isLoading}
+          title="Refresh guidance"
+        >
+          <ArrowClockwise className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} weight="bold" />
+        </Button>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+      <CardContent className="flex-1 overflow-y-auto p-0">
         {/* Loading State */}
-        {isLoading && !guidance && (
-          <div className="flex items-center justify-center py-8">
+        {isLoading && !guidance && !nodes.length && (
+          <div className="flex items-center justify-center py-12">
             <CircleNotch className="w-5 h-5 animate-spin text-primary" weight="bold" />
           </div>
         )}
 
-        {/* Topic Coverage */}
+        {/* Hero Question Section */}
+        {currentQuestion && (
+          <div className="p-4 bg-primary/5 border-b border-primary/10">
+            <div className="flex items-center gap-2 mb-2">
+              <ChatCircle className="w-4 h-4 text-primary" weight="fill" />
+              <span className="text-xs font-semibold text-primary uppercase tracking-wide">Ask Next</span>
+            </div>
+            <div className="bg-white rounded-lg border border-primary/20 p-4 shadow-sm">
+              <p className="text-sm text-foreground leading-relaxed mb-3">
+                "{currentQuestion}"
+              </p>
+              <div className="flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
+                  onClick={handleSkipQuestion}
+                >
+                  Skip
+                  <ArrowRight className="w-3 h-3" weight="bold" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Compact Progress + Current Topic */}
         {nodes.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              <Sparkle className="w-3 h-3" weight="bold" />
-              Topic Coverage ({coveragePercentage}%)
-            </div>
-
-            {/* Progress bar */}
-            <div className="mb-3">
-              <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                <div className="h-full flex">
-                  <div
-                    className="bg-emerald-500 transition-all duration-500"
-                    style={{ width: `${(coveredCount / nodes.length) * 100}%` }}
-                  />
-                  <div
-                    className="bg-amber-400 transition-all duration-500"
-                    style={{ width: `${(mentionedCount / nodes.length) * 100}%` }}
-                  />
-                </div>
+          <div className="px-4 py-3 border-b flex items-center gap-4">
+            <ProgressRing percentage={coveragePercentage} />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-muted-foreground mb-0.5">
+                {coveredCount}/{nodes.length} topics covered
               </div>
-
-              {/* Legend */}
-              <div className="flex items-center gap-3 mt-2 text-[10px]">
-                <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span className="text-muted-foreground">Covered ({coveredCount})</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                  <span className="text-muted-foreground">Mentioned ({mentionedCount})</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-300" />
-                  <span className="text-muted-foreground">To discuss ({notDiscussedCount})</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Topics grouped by status */}
-            <div className="space-y-3">
-              {/* Still to Cover - show first as priority */}
-              {groupedNodes.not_discussed.length > 0 && (
-                <div>
-                  <h4 className="text-[10px] font-medium text-muted-foreground mb-1.5">
-                    Still to Cover
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {groupedNodes.not_discussed.map(node => (
-                      <TopicCard key={node.id} node={node} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Being Discussed - with full text and questions */}
-              {groupedNodes.mentioned.length > 0 && (
-                <div>
-                  <h4 className="text-[10px] font-medium text-muted-foreground mb-1.5">
-                    Being Discussed
-                  </h4>
-                  <div className="space-y-2">
-                    {groupedNodes.mentioned.map(node => (
-                      <TopicCard key={node.id} node={node} showFull />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Covered */}
-              {groupedNodes.covered.length > 0 && (
-                <div>
-                  <h4 className="text-[10px] font-medium text-muted-foreground mb-1.5">
-                    Covered
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {groupedNodes.covered.map(node => (
-                      <TopicCard key={node.id} node={node} />
-                    ))}
-                  </div>
+              {currentTopic && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Now:</span>
+                  <TopicChip node={currentTopic} />
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Questions to Ask */}
-        {guidance?.suggestedQuestions && guidance.suggestedQuestions.length > 0 && (
-          <div className="border-t border-border/50 pt-4">
-            <div className="flex items-center gap-2 mb-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              <ChatCircle className="w-3 h-3" weight="bold" />
-              Questions to Ask
-            </div>
-            <div className="space-y-2">
-              {guidance.suggestedQuestions.map((question, idx) => (
-                <div
-                  key={idx}
-                  className="bg-primary/5 border border-primary/10 rounded-md p-3"
-                >
-                  <p className="text-sm text-foreground/80 leading-relaxed">
-                    {question}
-                  </p>
-                </div>
-              ))}
-            </div>
+        {/* Collapsible More Questions Section */}
+        {remainingQuestionsWithIndices.length > 0 && (
+          <div className="border-b">
+            <button
+              onClick={() => setIsMoreQuestionsOpen(!isMoreQuestionsOpen)}
+              className="w-full px-4 py-2.5 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {isMoreQuestionsOpen ? (
+                  <CaretDown className="w-3.5 h-3.5 text-muted-foreground" weight="bold" />
+                ) : (
+                  <CaretRight className="w-3.5 h-3.5 text-muted-foreground" weight="bold" />
+                )}
+                <ChatCircle className="w-3.5 h-3.5 text-muted-foreground" weight="bold" />
+                <span className="text-xs font-medium text-muted-foreground">
+                  More questions ({remainingQuestionsWithIndices.length})
+                </span>
+              </div>
+            </button>
+            {isMoreQuestionsOpen && (
+              <div className="px-4 pb-3 space-y-2">
+                {remainingQuestionsWithIndices.map(({ question, index }) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSelectQuestion(index)}
+                    className="w-full text-left p-2.5 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors group"
+                  >
+                    <p className="text-xs text-foreground/70 group-hover:text-foreground leading-relaxed line-clamp-2">
+                      "{question}"
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Collapsible Topics Section */}
+        {nodes.length > 0 && (
+          <div>
+            <button
+              onClick={() => setIsTopicsOpen(!isTopicsOpen)}
+              className="w-full px-4 py-2.5 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {isTopicsOpen ? (
+                  <CaretDown className="w-3.5 h-3.5 text-muted-foreground" weight="bold" />
+                ) : (
+                  <CaretRight className="w-3.5 h-3.5 text-muted-foreground" weight="bold" />
+                )}
+                <ListBullets className="w-3.5 h-3.5 text-muted-foreground" weight="bold" />
+                <span className="text-xs font-medium text-muted-foreground">
+                  All topics ({nodes.length})
+                </span>
+              </div>
+              {/* Mini status indicators */}
+              <div className="flex items-center gap-1.5">
+                {groupedNodes.covered.length > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-emerald-600">
+                    <CheckCircle className="w-2.5 h-2.5" weight="fill" />
+                    {groupedNodes.covered.length}
+                  </span>
+                )}
+                {groupedNodes.mentioned.length > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-amber-600">
+                    <Circle className="w-2.5 h-2.5" weight="fill" />
+                    {groupedNodes.mentioned.length}
+                  </span>
+                )}
+                {groupedNodes.not_discussed.length > 0 && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                    <CircleDashed className="w-2.5 h-2.5" weight="bold" />
+                    {groupedNodes.not_discussed.length}
+                  </span>
+                )}
+              </div>
+            </button>
+            {isTopicsOpen && (
+              <div className="px-4 pb-3 space-y-3">
+                {/* Still to Cover */}
+                {groupedNodes.not_discussed.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                      Still to Cover
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {groupedNodes.not_discussed.map(node => (
+                        <TopicChip key={node.id} node={node} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Being Discussed */}
+                {groupedNodes.mentioned.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                      Being Discussed
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {groupedNodes.mentioned.map(node => (
+                        <TopicChip key={node.id} node={node} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Covered */}
+                {groupedNodes.covered.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
+                      Covered
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {groupedNodes.covered.map(node => (
+                        <TopicChip key={node.id} node={node} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* Empty state */}
         {!isLoading && !guidance && nodes.length === 0 && (
-          <div className="text-center text-muted-foreground py-8 text-sm">
+          <div className="text-center text-muted-foreground py-12 px-4">
             <CircleDashed className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" weight="bold" />
-            <p>Start the session to receive AI guidance</p>
+            <p className="text-sm">Start the session to receive AI guidance</p>
+          </div>
+        )}
+
+        {/* No questions state but has topics */}
+        {!isLoading && !currentQuestion && nodes.length > 0 && (
+          <div className="p-4 bg-muted/30 border-b">
+            <div className="flex items-center gap-2 mb-2">
+              <ChatCircle className="w-4 h-4 text-muted-foreground" weight="bold" />
+              <span className="text-xs font-medium text-muted-foreground">Questions</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Continue the conversation. AI will suggest questions based on the discussion.
+            </p>
           </div>
         )}
       </CardContent>

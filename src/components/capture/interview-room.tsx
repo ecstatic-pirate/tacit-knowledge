@@ -209,7 +209,7 @@ export function InterviewRoom({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 text-zinc-300 hover:text-red-400 hover:bg-red-500/10"
+            className="h-8 gap-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20"
             onClick={() => videoCallRef.current?.leave()}
           >
             <SignOut className="w-3.5 h-3.5" weight="bold" />
