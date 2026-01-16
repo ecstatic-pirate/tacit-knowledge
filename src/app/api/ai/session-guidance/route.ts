@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionGuidance } from '@/lib/openai'
-import type { InterviewQuestion } from '@/lib/supabase/database.types'
+
+// Type for questions in interview_plans JSON field
+interface InterviewQuestion {
+  question: string
+  priority: 'high' | 'medium' | 'low'
+  topic?: string
+}
 
 export async function POST(request: NextRequest) {
   try {

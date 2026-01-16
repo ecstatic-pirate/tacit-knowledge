@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateInterviewPlan } from '@/lib/openai'
-import type { Json, DocumentAnalysis } from '@/lib/supabase/database.types'
+import type { Json } from '@/lib/supabase/database.types'
+
+// Type for the ai_analysis JSON field from documents table
+interface DocumentAnalysis {
+  summary?: string
+  topics?: string[]
+  gaps?: string[]
+}
 
 export async function POST(request: NextRequest) {
   try {
