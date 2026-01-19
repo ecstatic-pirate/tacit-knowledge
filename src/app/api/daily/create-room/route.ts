@@ -144,10 +144,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create a new Daily.co room
+    // Create a new Daily.co room (permanent - no expiry for scheduled interviews)
     const room = await createRoom({
       name: `session-${sessionId.substring(0, 8)}`,
-      expirySeconds: 7200,
       enableRecording: true,
       maxParticipants: 4,
     })

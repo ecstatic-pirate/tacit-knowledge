@@ -20,7 +20,7 @@ export interface DailyRoom {
 export interface CreateRoomOptions {
   /** Unique name for the room (will be part of URL) */
   name?: string
-  /** Room expires after this many seconds (default: 1 hour) */
+  /** Room expires after this many seconds. If not set, room is permanent. */
   expirySeconds?: number
   /** Enable cloud recording */
   enableRecording?: boolean
@@ -52,7 +52,7 @@ export async function createRoom(options: CreateRoomOptions = {}): Promise<Daily
 
   const {
     name,
-    expirySeconds = 3600, // 1 hour default
+    expirySeconds, // If not set, room is permanent
     enableRecording = true,
     maxParticipants = 2,
   } = options
@@ -70,7 +70,8 @@ export async function createRoom(options: CreateRoomOptions = {}): Promise<Daily
       name: roomName,
       privacy: 'private', // Require token to join
       properties: {
-        exp: Math.floor(Date.now() / 1000) + expirySeconds,
+        // Only set exp if expirySeconds is provided; otherwise room is permanent
+        ...(expirySeconds !== undefined && { exp: Math.floor(Date.now() / 1000) + expirySeconds }),
         max_participants: maxParticipants,
         enable_chat: true,
         enable_screenshare: true,
