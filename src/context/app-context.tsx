@@ -1,102 +1,43 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
-import type {
-  Campaign as DBCampaign,
-  Task as DBTask,
-  User as DBUser,
-  Organization,
-  Topic as DBTopic,
-  Session as DBSession,
-  SelfAssessment,
-  Json,
-} from '@/lib/supabase/database.types'
+import type { Organization } from '@/lib/supabase/database.types'
+import { AuthProvider, useAuth } from './auth-context'
+import {
+  DataProvider,
+  useData,
+  type Campaign,
+  type Task,
+  type AppUser,
+  type Collaborator,
+  type CampaignSubjectType,
+  type ProjectType,
+  type CaptureSchedule,
+  type CaptureCadence,
+  type InterviewFormat,
+  type SuggestedDomain,
+  type FocusArea,
+} from './data-context'
 
-// Collaborator type for campaign creation
-export interface Collaborator {
-  name: string
-  email: string
-  role: 'successor' | 'teammate' | 'partner' | 'manager' | 'report'
+// Re-export types for backward compatibility
+export type {
+  Campaign,
+  Task,
+  AppUser,
+  Collaborator,
+  CampaignSubjectType,
+  ProjectType,
+  CaptureSchedule,
+  CaptureCadence,
+  InterviewFormat,
+  SuggestedDomain,
+  FocusArea,
 }
 
-// Campaign subject type (simplified to Expert and Project only)
-export type CampaignSubjectType = 'person' | 'project'
-
-// Project type for project campaigns (universal categories across industries)
-export type ProjectType = 'system_tool' | 'process_workflow' | 'client_relationship' | 'regulatory_compliance' | 'product_service'
-
-// Capture schedule options
-export type CaptureSchedule = 'cadence' | 'event_driven'
-
-// Capture cadence options
-export type CaptureCadence = 'weekly' | 'biweekly' | 'monthly'
-
-// Interview format options
-export type InterviewFormat = 'human_led' | 'ai_live' | 'ai_async'
-
-// AI-suggested domain
-export interface SuggestedDomain {
-  name: string
-  confidence: number
-  description: string
-}
-
-// Focus area for project campaigns
-export interface FocusArea {
-  area: string
-  description: string
-  priority: 'high' | 'medium' | 'low'
-}
-
-// App-level types that map database types to UI-friendly format
-export interface Campaign {
-  id: string
-  name: string
-  role: string
-  goal?: string
-  status: 'on-track' | 'keep-track' | 'danger'
-  progress: number
-  totalSessions: number
-  completedSessions: number
-  topicsCaptured: number
-  captureMode?: string
-  expertEmail?: string
-  departureDate?: string
-  createdAt?: string
-  selfAssessment?: SelfAssessment
-  collaborators?: Collaborator[]
-  subjectType: CampaignSubjectType
-  projectId?: string
-  teamId?: string
-  // New fields for redesigned flow
-  projectType?: ProjectType
-  captureSchedule?: CaptureSchedule
-  captureCadence?: CaptureCadence
-  interviewFormat?: InterviewFormat
-  focusAreas?: FocusArea[]
-  suggestedDomains?: SuggestedDomain[]
-}
-
-export interface Task {
-  id: string
-  title: string
-  priority: 'urgent' | 'this-week' | 'on-track'
-  completed: boolean
-  campaignId?: string
-  dueAt?: string
-}
-
-export interface AppUser {
-  id: string
-  email: string
-  fullName?: string
-  avatarUrl?: string
-  role: string
-  orgId: string
-}
+// =============================================================================
+// BACKWARD-COMPATIBLE APP CONTEXT INTERFACE
+// =============================================================================
 
 interface AppContextType {
   // Auth state
@@ -104,6 +45,11 @@ interface AppContextType {
   appUser: AppUser | null
   organization: Organization | null
   isLoading: boolean
+
+  // Error state (new - for error banner)
+  authError: string | null
+  dataError: string | null
+  hasError: boolean
 
   // Data
   campaigns: Campaign[]
@@ -116,929 +62,143 @@ interface AppContextType {
   addCampaign: (campaign: Omit<Campaign, 'id' | 'topicsCaptured'>) => Promise<Campaign>
   deleteCampaign: (campaignId: string) => Promise<void>
   refreshData: () => Promise<void>
+  clearErrors: () => void
+  retryAuth: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
-// Status conversion helpers (DB uses underscores, UI uses hyphens)
-function dbStatusToUi(dbStatus: string | null): Campaign['status'] {
-  const map: Record<string, Campaign['status']> = {
-    'on_track': 'on-track',
-    'keep_track': 'keep-track',
-    'danger': 'danger',
-  }
-  return map[dbStatus ?? 'on_track'] ?? 'on-track'
-}
+// =============================================================================
+// APP CONTEXT BRIDGE - Maps new contexts to old API
+// =============================================================================
 
-function uiStatusToDb(uiStatus: Campaign['status']): string {
-  const map: Record<Campaign['status'], string> = {
-    'on-track': 'on_track',
-    'keep-track': 'keep_track',
-    'danger': 'danger',
-  }
-  return map[uiStatus] ?? 'on_track'
-}
+function AppContextBridge({ children }: { children: ReactNode }) {
+  const { authState, signOut, retryAuth, clearError: clearAuthError } = useAuth()
+  const {
+    dataState,
+    fetchAllData,
+    toggleTask,
+    updateCampaign,
+    addCampaign,
+    deleteCampaign,
+    clearDataError,
+  } = useData()
 
-// Helper to map database campaign to app campaign
-function mapDBCampaignToApp(dbCampaign: DBCampaign, topicsCount: number): Campaign {
-  return {
-    id: dbCampaign.id,
-    name: dbCampaign.expert_name,
-    role: dbCampaign.expert_role,
-    goal: dbCampaign.goal ?? undefined,
-    status: dbStatusToUi(dbCampaign.status),
-    progress: dbCampaign.progress ?? 0,
-    totalSessions: dbCampaign.total_sessions ?? 14,
-    completedSessions: dbCampaign.completed_sessions ?? 0,
-    topicsCaptured: topicsCount,
-    captureMode: dbCampaign.capture_mode ?? undefined,
-    expertEmail: dbCampaign.expert_email ?? undefined,
-    departureDate: (dbCampaign as Record<string, unknown>).departure_date as string | undefined,
-    createdAt: dbCampaign.created_at ?? undefined,
-    selfAssessment: dbCampaign.self_assessment as SelfAssessment | undefined,
-    subjectType: (dbCampaign.subject_type as CampaignSubjectType) ?? 'person',
-    projectId: dbCampaign.project_id ?? undefined,
-    teamId: dbCampaign.team_id ?? undefined,
-    // New fields
-    projectType: (dbCampaign as Record<string, unknown>).project_type as ProjectType | undefined,
-    captureSchedule: (dbCampaign as Record<string, unknown>).capture_schedule as CaptureSchedule | undefined,
-    captureCadence: (dbCampaign as Record<string, unknown>).capture_cadence as CaptureCadence | undefined,
-    interviewFormat: (dbCampaign as Record<string, unknown>).interview_format as InterviewFormat | undefined,
-    focusAreas: (dbCampaign as Record<string, unknown>).focus_areas as FocusArea[] | undefined,
-    suggestedDomains: (dbCampaign as Record<string, unknown>).ai_suggested_domains as SuggestedDomain[] | undefined,
-  }
-}
+  // Compute isLoading from both states
+  const isLoading = authState.status === 'initializing' ||
+                    (authState.status === 'authenticated' && dataState.status === 'loading')
 
-// Helper to map database task to app task
-function mapDBTaskToApp(dbTask: DBTask): Task {
-  return {
-    id: dbTask.id,
-    title: dbTask.title,
-    priority: (dbTask.priority as Task['priority']) ?? 'on-track',
-    completed: dbTask.completed ?? false,
-    campaignId: dbTask.campaign_id ?? undefined,
-    dueAt: dbTask.due_at ?? undefined,
-  }
-}
+  // Map auth state to user
+  const user = authState.status === 'authenticated' || authState.status === 'session-expired'
+    ? authState.user
+    : null
 
-// Check if an error is an abort/timeout error
-function isAbortError(err: unknown): boolean {
-  return err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))
-}
+  // Map data state to app data
+  const appUser = dataState.status === 'success' || dataState.status === 'partial-error'
+    ? dataState.data.appUser
+    : null
 
-// Classify fatal auth errors that should immediately logout (no retry)
-// NOTE: 'JWT expired' is NOT fatal - let the auto-refresh mechanism handle it
-function isFatalAuthError(error: { message?: string; code?: string; status?: number } | null): boolean {
-  if (!error) return false
+  const organization = dataState.status === 'success' || dataState.status === 'partial-error'
+    ? dataState.data.organization
+    : null
 
-  const fatalPatterns = [
-    'invalid claim',
-    'invalid JWT',           // Malformed JWT - can't be fixed by refresh
-    'refresh_token_not_found', // Refresh token is gone - session is dead
-    'Invalid Refresh Token',   // Refresh token invalid - session is dead
-  ]
+  const campaigns = dataState.status === 'success' || dataState.status === 'partial-error'
+    ? dataState.data.campaigns
+    : []
 
-  const errorStr = `${error.message || ''} ${error.code || ''}`
-  const statusCode = error.status || (error.code ? parseInt(error.code, 10) : 0)
+  const tasks = dataState.status === 'success' || dataState.status === 'partial-error'
+    ? dataState.data.tasks
+    : []
 
-  // Only 403 is truly fatal (forbidden) - 401 might just need a refresh
-  // PGRST301 (JWT error) is also retryable - refresh might fix it
-  if (statusCode === 403) {
-    return true
-  }
+  // Error states
+  const authError = authState.status === 'session-expired' || authState.status === 'error'
+    ? authState.error
+    : null
 
-  return fatalPatterns.some(pattern => errorStr.includes(pattern))
-}
+  const dataError = dataState.status === 'error' || dataState.status === 'partial-error'
+    ? dataState.error?.message ?? null
+    : null
 
-// Check if error might be auth-related but could be transient (network issue)
-function isAuthError(error: { message?: string; code?: string; status?: number } | null): boolean {
-  if (!error) return false
+  const hasError = authError !== null || dataError !== null
 
-  const authErrorPatterns = [
-    'JWT',
-    'token',
-    'session',
-    'auth',
-    'expired',
-    'invalid',
-    'PGRST301',
-    '401',
-    '403',
-  ]
+  // Clear all errors - memoized to avoid recreating on every render
+  const clearErrors = useCallback(() => {
+    clearAuthError()
+    clearDataError()
+  }, [clearAuthError, clearDataError])
 
-  const errorStr = `${error.message || ''} ${error.code || ''} ${error.status || ''}`.toLowerCase()
-  return authErrorPatterns.some(pattern => errorStr.includes(pattern.toLowerCase()))
-}
-
-export function AppProvider({ children }: { children: ReactNode }) {
-  const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [appUser, setAppUser] = useState<AppUser | null>(null)
-  const [organization, setOrganization] = useState<Organization | null>(null)
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  const supabase = useMemo(() => createClient(), [])
-
-  // Auth resilience state
-  const authRetryCountRef = useRef(0)
-  const isAuthCheckingRef = useRef(false)
-  const initializedRef = useRef(false)
-  const isInitializingRef = useRef(false) // Global lock to prevent concurrent initializations
-  const broadcastChannelRef = useRef<BroadcastChannel | null>(null)
-
-  // Handle auth errors by clearing state and redirecting to login
-  const handleAuthError = useCallback(async (source: string = 'unknown') => {
-    console.log(`[AppProvider] Handling auth error from ${source}, clearing session`)
-
-    // Prevent duplicate logout calls
-    if (!user && !appUser) {
-      console.log('[AppProvider] Already logged out, skipping')
-      return
-    }
-
-    try {
-      await supabase.auth.signOut()
-    } catch (e) {
-      console.error('[AppProvider] Error during signOut:', e)
-    }
-
-    // Broadcast logout to other tabs
-    if (broadcastChannelRef.current) {
-      try {
-        broadcastChannelRef.current.postMessage({ type: 'LOGOUT', source })
-      } catch (e) {
-        console.error('[AppProvider] Error broadcasting logout:', e)
-      }
-    }
-
-    setUser(null)
-    setAppUser(null)
-    setOrganization(null)
-    setCampaigns([])
-    setTasks([])
-    setIsLoading(false)
-    authRetryCountRef.current = 0
-    initializedRef.current = false
-
-    router.push('/login')
-  }, [supabase, router, user, appUser])
-
-  // Validate session with retry logic and exponential backoff
-  const validateSessionWithRetry = useCallback(async (): Promise<{ user: User | null; shouldLogout: boolean }> => {
-    const maxRetries = 3
-    const baseDelay = 1000 // Start with 1 second
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const { data: { user: validatedUser }, error } = await supabase.auth.getUser()
-
-        if (!error && validatedUser) {
-          // Success - reset retry count
-          authRetryCountRef.current = 0
-          return { user: validatedUser, shouldLogout: false }
-        }
-
-        // Check if this is a fatal auth error (no point retrying)
-        if (error && isFatalAuthError(error)) {
-          console.log('[AppProvider] Fatal auth error, no retry:', error.message)
-          return { user: null, shouldLogout: true }
-        }
-
-        // For other errors, retry with backoff
-        if (attempt < maxRetries - 1) {
-          const delay = baseDelay * Math.pow(2, attempt)
-          console.log(`[AppProvider] Auth check failed (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms:`, error?.message)
-          await new Promise(resolve => setTimeout(resolve, delay))
-        } else {
-          // Max retries reached for this cycle
-          console.log('[AppProvider] Max retries reached for this validation cycle')
-          authRetryCountRef.current++
-
-          // Only logout after multiple consecutive validation cycles fail
-          if (authRetryCountRef.current >= 3) {
-            console.log('[AppProvider] Too many consecutive auth failures, logging out')
-            return { user: null, shouldLogout: true }
-          }
-
-          return { user: null, shouldLogout: false }
-        }
-      } catch (err) {
-        console.error(`[AppProvider] Exception in auth validation (attempt ${attempt + 1}):`, err)
-        if (attempt === maxRetries - 1) {
-          authRetryCountRef.current++
-          if (authRetryCountRef.current >= 3) {
-            return { user: null, shouldLogout: true }
-          }
-          return { user: null, shouldLogout: false }
-        }
-        await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(2, attempt)))
-      }
-    }
-
-    return { user: null, shouldLogout: false }
-  }, [supabase])
-
-  // Fetch user profile and organization with proper timeout using AbortSignal
-  const fetchUserData = useCallback(async (authUser: User, retryCount = 0): Promise<boolean> => {
-    const MAX_RETRIES = 3
-    const TIMEOUT_MS = 15000 // 15 seconds per attempt
-
-    console.log('[AppProvider] fetchUserData called for user:', authUser.id, authUser.email, retryCount > 0 ? `(retry ${retryCount})` : '')
-
-    try {
-      // Use AbortSignal.timeout() which actually cancels the HTTP request on timeout
-      // This prevents request pile-up when queries are slow or tab is backgrounded
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', authUser.id)
-        .abortSignal(AbortSignal.timeout(TIMEOUT_MS))
-        .single()
-
-      console.log('[AppProvider] fetchUserData result:', { userData: userData ? 'found' : 'null', error: userError?.message })
-
-      if (userError) {
-        console.error('Error fetching user:', userError)
-        if (isFatalAuthError(userError)) {
-          await handleAuthError('fetchUserData:fatal')
-          return false
-        } else if (isAuthError(userError)) {
-          await handleAuthError('fetchUserData:auth')
-          return false
-        }
-        return false
-      }
-
-      if (!userData) {
-        console.error('No user data found')
-        return false
-      }
-
-      setAppUser({
-        id: userData.id,
-        email: userData.email,
-        fullName: userData.full_name ?? undefined,
-        avatarUrl: userData.avatar_url ?? undefined,
-        role: userData.role,
-        orgId: userData.org_id,
-      })
-
-      // Fetch organization with AbortSignal timeout
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', userData.org_id)
-        .abortSignal(AbortSignal.timeout(10000))
-        .single()
-
-      if (orgError) {
-        console.error('Error fetching organization:', orgError)
-        if (isFatalAuthError(orgError)) {
-          await handleAuthError('fetchUserData:org:fatal')
-          return false
-        } else if (isAuthError(orgError)) {
-          await handleAuthError('fetchUserData:org:auth')
-          return false
-        }
-        return false
-      }
-
-      setOrganization(orgData)
-      return true
-    } catch (err) {
-      // Check if it's an abort/timeout error and we can retry
-      if (isAbortError(err) && retryCount < MAX_RETRIES) {
-        // Exponential backoff: 1s, 2s, 4s
-        const delay = 1000 * Math.pow(2, retryCount)
-        console.log(`[AppProvider] fetchUserData timed out (request cancelled), retrying in ${delay}ms (${retryCount + 1}/${MAX_RETRIES})...`)
-        await new Promise(resolve => setTimeout(resolve, delay))
-        return fetchUserData(authUser, retryCount + 1)
-      }
-
-      console.error('[AppProvider] fetchUserData exception:', err)
-      // Non-timeout error or max retries reached - don't treat as fatal, allow external retry
-      return false
-    }
-  }, [supabase, handleAuthError])
-
-  // Fetch campaigns with topics count
-  const fetchCampaigns = useCallback(async (): Promise<boolean> => {
-    console.log('[AppProvider] fetchCampaigns called')
-
-    const { data: campaignsData, error: campaignsError } = await supabase
-      .from('campaigns')
-      .select('*')
-      .is('deleted_at', null)
-      .is('completed_at', null)
-      .order('created_at', { ascending: false })
-
-    console.log('[AppProvider] fetchCampaigns result:', { count: campaignsData?.length, error: campaignsError?.message })
-
-    if (campaignsError) {
-      console.error('Error fetching campaigns:', campaignsError)
-      if (isFatalAuthError(campaignsError)) {
-        await handleAuthError('fetchCampaigns:fatal')
-        return false
-      } else if (isAuthError(campaignsError)) {
-        await handleAuthError('fetchCampaigns:auth')
-        return false
-      }
-      return false
-    }
-
-    // Fetch topics count for each campaign
-    const campaignsWithTopics = await Promise.all(
-      (campaignsData || []).map(async (campaign) => {
-        const { count } = await supabase
-          .from('topics')
-          .select('*', { count: 'exact', head: true })
-          .eq('campaign_id', campaign.id)
-          .eq('captured', true)
-
-        return mapDBCampaignToApp(campaign, count ?? 0)
-      })
-    )
-
-    setCampaigns(campaignsWithTopics)
-    return true
-  }, [supabase, handleAuthError])
-
-  // Fetch tasks
-  const fetchTasks = useCallback(async (): Promise<boolean> => {
-    const { data: tasksData, error: tasksError } = await supabase
-      .from('tasks')
-      .select('*')
-      .is('deleted_at', null)
-      .eq('completed', false)
-      .order('due_at', { ascending: true })
-
-    if (tasksError) {
-      console.error('Error fetching tasks:', tasksError)
-      if (isFatalAuthError(tasksError)) {
-        await handleAuthError('fetchTasks:fatal')
-        return false
-      } else if (isAuthError(tasksError)) {
-        await handleAuthError('fetchTasks:auth')
-        return false
-      }
-      return false
-    }
-
-    setTasks((tasksData || []).map(mapDBTaskToApp))
-    return true
-  }, [supabase, handleAuthError])
-
-  // Refresh all data
+  // Refresh data wrapper - memoized
   const refreshData = useCallback(async () => {
-    await Promise.all([fetchCampaigns(), fetchTasks()])
-  }, [fetchCampaigns, fetchTasks])
-
-  // Initialize auth and data
-  useEffect(() => {
-    let isMounted = true
-
-    // Start auto-refresh to keep tokens fresh
-    // This is critical for long-running sessions
-    console.log('[AppProvider] Starting Supabase auto-refresh')
-    supabase.auth.startAutoRefresh()
-
-    const initializeUser = async (authUser: User, source: string = 'unknown') => {
-      if (!isMounted) return
-
-      // Prevent concurrent initialization using global ref (shared across useEffects)
-      if (isInitializingRef.current) {
-        console.log('[AppProvider] Already initializing (global lock), skipping duplicate call from:', source)
-        return
-      }
-
-      // Skip if already successfully initialized with this user
-      if (initializedRef.current && user?.id === authUser.id && appUser) {
-        console.log('[AppProvider] Already initialized with this user, skipping')
-        return
-      }
-
-      isInitializingRef.current = true
-      console.log('[AppProvider] Initializing user from', source, ':', authUser.id, authUser.email)
-      setUser(authUser)
-
-      try {
-        const userDataSuccess = await fetchUserData(authUser)
-        if (!isMounted) {
-          isInitializingRef.current = false
-          return
-        }
-
-        if (userDataSuccess) {
-          await refreshData()
-          // Only mark as initialized AFTER successful data fetch
-          initializedRef.current = true
-          console.log('[AppProvider] User initialized successfully')
-        } else {
-          console.log('[AppProvider] Failed to fetch user data, will allow retry')
-          // Don't set initializedRef - allow retry on next attempt
-        }
-      } catch (err) {
-        console.error('[AppProvider] Exception during initialization:', err)
-        // Don't set initializedRef - allow retry on next attempt
-      }
-
-      if (isMounted) {
-        setIsLoading(false)
-        isInitializingRef.current = false
-      }
-    }
-
-    const clearUser = () => {
-      if (!isMounted) return
-      setUser(null)
-      setAppUser(null)
-      setOrganization(null)
-      setCampaigns([])
-      setTasks([])
-      setIsLoading(false)
-      initializedRef.current = false
-    }
-
-    // Set up auth listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return
-
-        console.log('[AppProvider] Auth state change:', event, 'session:', session ? 'exists' : 'null', 'user:', session?.user?.email)
-
-        if (event === 'SIGNED_IN' && session?.user) {
-          await initializeUser(session.user, 'SIGNED_IN')
-        } else if (event === 'SIGNED_OUT') {
-          authRetryCountRef.current = 0
-          clearUser()
-        } else if (event === 'INITIAL_SESSION') {
-          if (session?.user) {
-            await initializeUser(session.user, 'INITIAL_SESSION')
-          } else {
-            // No session from INITIAL_SESSION - but don't trust it completely
-            // The checkSession() call will verify with getUser() as a fallback
-            console.log('[AppProvider] INITIAL_SESSION has no session, will verify with getUser()')
-            // Don't clear user state here - let checkSession verify first
-          }
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Token was refreshed successfully - reset retry count
-          setUser(session.user)
-          authRetryCountRef.current = 0
-          console.log('[AppProvider] Token refreshed successfully')
-          // Re-fetch data if we don't have it yet
-          if (!appUser) {
-            await initializeUser(session.user, 'TOKEN_REFRESHED')
-          }
-        } else if (event === 'USER_UPDATED' && session?.user) {
-          // User was updated, refresh user data
-          setUser(session.user)
-        }
-      }
-    )
-
-    // Check session using getUser() which validates with server
-    // This is the source of truth - more reliable than getSession() or INITIAL_SESSION
-    const checkSession = async () => {
-      // Small delay to let onAuthStateChange fire first if it will
-      await new Promise(resolve => setTimeout(resolve, 50))
-
-      if (!isMounted) return
-
-      // Skip if already successfully initialized with data
-      if (initializedRef.current && appUser) {
-        console.log('[AppProvider] Already initialized with data, skipping session check')
-        setIsLoading(false)
-        return
-      }
-
-      console.log('[AppProvider] Checking current session with getUser()...')
-
-      try {
-        // Use getUser() instead of getSession() - it validates with the server
-        const { data: { user: validatedUser }, error } = await supabase.auth.getUser()
-
-        if (!isMounted) return
-
-        if (error) {
-          console.log('[AppProvider] getUser error:', error.message)
-          // If it's a fatal auth error, clear everything
-          if (isFatalAuthError(error)) {
-            clearUser()
-            return
-          }
-          // For other errors, still try to continue if we have a user
-        }
-
-        if (validatedUser) {
-          console.log('[AppProvider] Validated user found:', validatedUser.email)
-          await initializeUser(validatedUser, 'checkSession')
-        } else {
-          console.log('[AppProvider] No valid user found, clearing state')
-          clearUser()
-        }
-      } catch (err) {
-        console.error('[AppProvider] Exception checking session:', err)
-        if (isMounted) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    // Always run checkSession as the source of truth
-    checkSession()
-
-    return () => {
-      isMounted = false
-      subscription.unsubscribe()
-      // Stop auto-refresh to avoid memory leaks
-      supabase.auth.stopAutoRefresh()
-      // Reset refs on unmount so HMR/Strict Mode can re-initialize
-      initializedRef.current = false
-      isInitializingRef.current = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Periodic session validation with retry logic and data recovery
-  useEffect(() => {
-    if (!user) return
-    let isMounted = true
-
-    const validateAndRecoverSession = async () => {
-      // Prevent concurrent validation checks, concurrent initialization, or after unmount
-      if (isAuthCheckingRef.current || isInitializingRef.current || !isMounted) {
-        console.log('[AppProvider] Auth check/init already in progress or unmounted, skipping')
-        return
-      }
-
-      isAuthCheckingRef.current = true
-
-      try {
-        const { user: validatedUser, shouldLogout } = await validateSessionWithRetry()
-
-        if (!isMounted) return
-
-        if (shouldLogout) {
-          console.log('[AppProvider] Session validation failed after retries, redirecting to login')
-          await handleAuthError('periodic:validation')
-        } else if (!validatedUser) {
-          console.log('[AppProvider] Transient validation failure, will retry later')
-        } else {
-          console.log('[AppProvider] Session validated successfully')
-
-          // RECOVERY: If we have a valid user but no appUser data, try to fetch it
-          // Double-check isInitializingRef to avoid concurrent data fetching
-          if (!appUser && validatedUser && !isInitializingRef.current) {
-            console.log('[AppProvider] Detected missing appUser data, attempting recovery...')
-            isInitializingRef.current = true
-            try {
-              const userDataSuccess = await fetchUserData(validatedUser)
-              if (userDataSuccess && isMounted) {
-                await refreshData()
-                initializedRef.current = true
-                console.log('[AppProvider] Data recovery successful')
-              }
-            } finally {
-              isInitializingRef.current = false
-            }
-          }
-        }
-      } catch (err) {
-        console.error('[AppProvider] Session validation error:', err)
-      } finally {
-        isAuthCheckingRef.current = false
-      }
-    }
-
-    // Validate every 5 minutes
-    const intervalId = setInterval(validateAndRecoverSession, 5 * 60 * 1000)
-
-    // Validate on window focus (user returns to tab)
-    const handleFocus = () => {
-      console.log('[AppProvider] Window focused, validating session...')
-      validateAndRecoverSession()
-    }
-    window.addEventListener('focus', handleFocus)
-
-    // Also validate on visibility change (more reliable for background/foreground)
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        console.log('[AppProvider] Page became visible, restarting auto-refresh and re-syncing session...')
-
-        // Restart auto-refresh in case it stopped while page was hidden
-        supabase.auth.startAutoRefresh()
-
-        // Force a fresh session read from cookies
-        // This is critical: getSession() re-reads cookies, ensuring we have
-        // the latest tokens (which middleware may have refreshed)
-        try {
-          const { data: { session } } = await supabase.auth.getSession()
-          console.log('[AppProvider] Re-synced session from cookies:', session ? 'found' : 'null')
-
-          // If we got a session from cookies but don't have appUser, try to recover
-          if (session?.user && !appUser) {
-            console.log('[AppProvider] Have session but missing appUser, recovering...')
-            await validateAndRecoverSession()
-          } else if (!session && user) {
-            // Cookies say no session but we think we have a user - validate
-            console.log('[AppProvider] Cookie session missing, validating with server...')
-            await validateAndRecoverSession()
-          }
-        } catch (err) {
-          console.error('[AppProvider] Error re-syncing session:', err)
-          // Fall back to regular validation
-          await validateAndRecoverSession()
-        }
-      } else {
-        // Page is hidden - stop auto-refresh to save resources
-        console.log('[AppProvider] Page hidden, stopping auto-refresh')
-        supabase.auth.stopAutoRefresh()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    // Immediately attempt recovery if we have user but no appUser
-    // Skip if already initializing (from SIGNED_IN handler)
-    if (!appUser && !isInitializingRef.current) {
-      console.log('[AppProvider] Starting immediate recovery attempt...')
-      validateAndRecoverSession()
-    } else if (!appUser && isInitializingRef.current) {
-      console.log('[AppProvider] Skipping immediate recovery - initialization already in progress')
-    }
-
-    return () => {
-      isMounted = false
-      clearInterval(intervalId)
-      window.removeEventListener('focus', handleFocus)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [user, appUser, supabase, validateSessionWithRetry, handleAuthError, fetchUserData, refreshData])
-
-  // Cross-tab logout synchronization via BroadcastChannel
-  useEffect(() => {
-    // BroadcastChannel is not available in all environments (e.g., SSR, older browsers)
-    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) {
-      console.log('[AppProvider] BroadcastChannel not available, cross-tab sync disabled')
-      return
-    }
-
-    // Clean up existing channel if effect re-runs
-    if (broadcastChannelRef.current) {
-      broadcastChannelRef.current.close()
-      broadcastChannelRef.current = null
-    }
-
-    let isBroadcastLoggingOut = false
-
-    try {
-      const channel = new BroadcastChannel('tacit_auth')
-      broadcastChannelRef.current = channel
-
-      channel.onmessage = async (event) => {
-        console.log('[AppProvider] Received broadcast message:', event.data)
-
-        if (event.data.type === 'LOGOUT') {
-          // Prevent concurrent broadcast-triggered logouts
-          if (isBroadcastLoggingOut) {
-            console.log('[AppProvider] Broadcast logout already in progress, skipping')
-            return
-          }
-          isBroadcastLoggingOut = true
-
-          console.log('[AppProvider] Logout broadcast received from another tab, logging out')
-
-          try {
-            // Clear local state without broadcasting again (prevent loop)
-            setUser(null)
-            setAppUser(null)
-            setOrganization(null)
-            setCampaigns([])
-            setTasks([])
-            authRetryCountRef.current = 0
-            initializedRef.current = false
-
-            // Sign out from Supabase
-            await supabase.auth.signOut()
-            router.push('/login')
-          } catch (e) {
-            console.error('[AppProvider] Error during broadcast logout:', e)
-          } finally {
-            isBroadcastLoggingOut = false
-          }
-        }
-      }
-
-      console.log('[AppProvider] BroadcastChannel initialized for cross-tab sync')
-
-      return () => {
-        channel.close()
-        broadcastChannelRef.current = null
-      }
-    } catch (err) {
-      console.error('[AppProvider] Error setting up BroadcastChannel:', err)
-    }
-  }, [supabase, router])
-
-  // Sign out
-  const signOut = useCallback(async () => {
-    console.log('[AppProvider] Manual signOut called')
-
-    // Prevent duplicate logout
-    if (!user && !appUser) {
-      console.log('[AppProvider] Already logged out')
-      router.push('/login')
-      return
-    }
-
-    try {
-      // Broadcast logout to other tabs before signing out
-      if (broadcastChannelRef.current) {
-        try {
-          broadcastChannelRef.current.postMessage({ type: 'LOGOUT', source: 'manual' })
-        } catch (e) {
-          console.error('[AppProvider] Error broadcasting logout:', e)
-        }
-      }
-
-      await supabase.auth.signOut()
-
-      // Clear state immediately (onAuthStateChange will also fire, but this is faster)
-      setUser(null)
-      setAppUser(null)
-      setOrganization(null)
-      setCampaigns([])
-      setTasks([])
-      authRetryCountRef.current = 0
-      initializedRef.current = false
-
-      router.push('/login')
-      router.refresh()
-    } catch (error) {
-      console.error('Sign out error:', error)
-      // Even if signOut fails, clear local state
-      setUser(null)
-      setAppUser(null)
-      router.push('/login')
-    }
-  }, [supabase, router, user, appUser])
-
-  // Toggle task completion
-  const toggleTask = useCallback(async (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task) return
-
-    const newCompleted = !task.completed
-
-    // Optimistic update
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, completed: newCompleted } : t
-      )
-    )
-
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        completed: newCompleted,
-        completed_at: newCompleted ? new Date().toISOString() : null
-      })
-      .eq('id', taskId)
-
-    if (error) {
-      console.error('Error toggling task:', error)
-      // Revert on error
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === taskId ? { ...t, completed: !newCompleted } : t
-        )
-      )
-    }
-  }, [tasks, supabase])
-
-  // Update campaign
-  const updateCampaign = useCallback(async (campaign: Campaign) => {
-    const { error } = await supabase
-      .from('campaigns')
-      .update({
-        expert_name: campaign.name,
-        expert_role: campaign.role,
-        goal: campaign.goal,
-        status: uiStatusToDb(campaign.status),
-        progress: campaign.progress,
-        total_sessions: campaign.totalSessions,
-        completed_sessions: campaign.completedSessions,
-        capture_mode: campaign.captureMode,
-        expert_email: campaign.expertEmail,
-        departure_date: campaign.departureDate ?? null,
-        updated_by: user?.id,
-      })
-      .eq('id', campaign.id)
-
-    if (error) {
-      console.error('Error updating campaign:', error)
-      throw error
-    }
-
-    setCampaigns((prev) =>
-      prev.map((c) => (c.id === campaign.id ? campaign : c))
-    )
-  }, [supabase, user])
-
-  // Add campaign
-  const addCampaign = useCallback(async (campaign: Omit<Campaign, 'id' | 'topicsCaptured'>) => {
-    if (!appUser) throw new Error('User not authenticated')
-
-    // Auto-generate interviewer guide token
-    const tokenBytes = new Uint8Array(32)
-    crypto.getRandomValues(tokenBytes)
-    const guideToken = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('')
-
-    const { data, error } = await supabase
-      .from('campaigns')
-      .insert({
-        org_id: appUser.orgId,
-        expert_name: campaign.name,
-        expert_role: campaign.role,
-        goal: campaign.goal,
-        status: uiStatusToDb(campaign.status),
-        progress: campaign.progress,
-        total_sessions: campaign.totalSessions,
-        completed_sessions: campaign.completedSessions,
-        capture_mode: campaign.captureMode,
-        expert_email: campaign.expertEmail,
-        departure_date: campaign.departureDate ?? null,
-        self_assessment: campaign.selfAssessment as unknown as Json,
-        collaborators: campaign.collaborators as unknown as Json,
-        created_by: user?.id,
-        subject_type: campaign.subjectType ?? 'person',
-        project_id: campaign.projectId ?? null,
-        team_id: campaign.teamId ?? null,
-        // New fields for redesigned flow
-        project_type: campaign.projectType ?? null,
-        capture_schedule: campaign.captureSchedule ?? null,
-        capture_cadence: campaign.captureCadence ?? null,
-        interview_format: campaign.interviewFormat ?? null,
-        focus_areas: campaign.focusAreas as unknown as Json ?? null,
-        ai_suggested_domains: campaign.suggestedDomains as unknown as Json ?? null,
-        // Auto-generated guide token
-        interviewer_guide_token: guideToken,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error adding campaign:', error)
-      throw error
-    }
-
-    const newCampaign: Campaign = {
-      ...campaign,
-      id: data.id,
-      topicsCaptured: 0,
-    }
-
-    setCampaigns((prev) => [newCampaign, ...prev])
-    return newCampaign
-  }, [supabase, appUser, user])
-
-  // Delete campaign (soft delete)
-  const deleteCampaign = useCallback(async (campaignId: string) => {
-    const { error } = await supabase
-      .from('campaigns')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', campaignId)
-
-    if (error) {
-      console.error('Error deleting campaign:', error)
-      throw error
-    }
-
-    setCampaigns((prev) => prev.filter((c) => c.id !== campaignId))
-  }, [supabase])
+    await fetchAllData(true)
+  }, [fetchAllData])
+
+  const value: AppContextType = useMemo(
+    () => ({
+      user,
+      appUser,
+      organization,
+      isLoading,
+      authError,
+      dataError,
+      hasError,
+      campaigns,
+      tasks,
+      signOut,
+      toggleTask,
+      updateCampaign,
+      addCampaign,
+      deleteCampaign,
+      refreshData,
+      clearErrors,
+      retryAuth,
+    }),
+    [
+      user,
+      appUser,
+      organization,
+      isLoading,
+      authError,
+      dataError,
+      hasError,
+      campaigns,
+      tasks,
+      signOut,
+      toggleTask,
+      updateCampaign,
+      addCampaign,
+      deleteCampaign,
+      refreshData,
+      clearErrors,
+      retryAuth,
+    ]
+  )
 
   return (
-    <AppContext.Provider
-      value={{
-        user,
-        appUser,
-        organization,
-        isLoading,
-        campaigns,
-        tasks,
-        signOut,
-        toggleTask,
-        updateCampaign,
-        addCampaign,
-        deleteCampaign,
-        refreshData,
-      }}
-    >
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   )
 }
+
+// =============================================================================
+// APP PROVIDER - Composes Auth + Data providers
+// =============================================================================
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <DataProvider>
+        <AppContextBridge>
+          {children}
+        </AppContextBridge>
+      </DataProvider>
+    </AuthProvider>
+  )
+}
+
+// =============================================================================
+// HOOK - Backward compatible
+// =============================================================================
 
 export function useApp() {
   const context = useContext(AppContext)

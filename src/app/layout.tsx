@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter, Libre_Baskerville } from 'next/font/google';
 import './globals.css';
-import { Sidebar } from '@/components/layout/sidebar';
-import { MainContent } from '@/components/layout/main-content';
 import { ToastProvider } from '@/components/ui/toast';
 import { AppProvider } from '@/context/app-context';
+import { AppShell } from '@/components/layout/app-shell';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -32,12 +31,9 @@ export default function RootLayout({
       <body className={`${inter.variable} ${libreBaskerville.variable} antialiased min-h-screen bg-background font-sans`}>
         <AppProvider>
           <ToastProvider>
-            <div className="min-h-screen">
-              <Sidebar />
-              <MainContent>
-                {children}
-              </MainContent>
-            </div>
+            <AppShell>
+              {children}
+            </AppShell>
           </ToastProvider>
         </AppProvider>
       </body>
