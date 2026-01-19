@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createRoom, createMeetingToken } from '@/lib/daily'
+import { createRoom, createMeetingToken, getRoom } from '@/lib/daily'
 
 // Use service role to bypass RLS for public interview access
 const supabaseAdmin = createClient(
@@ -40,13 +40,23 @@ export async function GET(request: NextRequest) {
     }
 
     if (!session.room_url) {
-      return NextResponse.json({ error: 'Room not created yet' }, { status: 404 })
+      return NextResponse.json({ error: 'Room not created yet. Please use POST to create.' }, { status: 404 })
     }
 
     // Extract room name from URL
     const roomName = session.room_url.split('/').pop() || ''
     const campaign = session.campaigns as unknown as { expert_name: string } | null
     const expertName = campaign?.expert_name || 'Expert'
+
+    // Verify room still exists in Daily.co (may have expired)
+    const existingRoom = await getRoom(roomName)
+    if (!existingRoom) {
+      // Room expired - tell client to use POST to recreate
+      return NextResponse.json({
+        error: 'Room expired. Please use POST to recreate.',
+        roomExpired: true
+      }, { status: 410 }) // 410 Gone
+    }
 
     // Create new tokens
     const [interviewerToken, guestToken] = await Promise.all([
@@ -115,33 +125,42 @@ export async function POST(request: NextRequest) {
     const campaign = session.campaigns as unknown as { expert_name: string } | null
     const expertName = campaign?.expert_name || 'Expert'
 
-    // If room already exists, return it with fresh tokens
+    // If room already exists, verify it's still valid before returning
     if (session.room_url) {
       const roomName = session.room_url.split('/').pop() || ''
 
-      const [interviewerToken, guestToken] = await Promise.all([
-        createMeetingToken({
-          roomName,
-          userName: interviewerName,
-          isOwner: true,
-          expirySeconds: 7200,
-        }),
-        createMeetingToken({
-          roomName,
-          userName: expertName,
-          isOwner: false,
-          expirySeconds: 7200,
-        }),
-      ])
+      // Check if room still exists in Daily.co (may have expired)
+      const existingRoom = await getRoom(roomName)
 
-      return NextResponse.json({
-        roomUrl: session.room_url,
-        roomName,
-        interviewerToken: interviewerToken.token,
-        guestToken: guestToken.token,
-        interviewerLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/interviewer`,
-        guestLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/guest`,
-      })
+      if (existingRoom) {
+        // Room exists, create fresh tokens
+        const [interviewerToken, guestToken] = await Promise.all([
+          createMeetingToken({
+            roomName,
+            userName: interviewerName,
+            isOwner: true,
+            expirySeconds: 7200,
+          }),
+          createMeetingToken({
+            roomName,
+            userName: expertName,
+            isOwner: false,
+            expirySeconds: 7200,
+          }),
+        ])
+
+        return NextResponse.json({
+          roomUrl: session.room_url,
+          roomName,
+          interviewerToken: interviewerToken.token,
+          guestToken: guestToken.token,
+          interviewerLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/interviewer`,
+          guestLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/interview/${sessionId}/guest`,
+        })
+      }
+
+      // Room expired or doesn't exist - fall through to create a new one
+      console.log(`[Daily] Room ${roomName} expired or not found, creating new room`)
     }
 
     // Create a new Daily.co room (permanent - no expiry for scheduled interviews)
