@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 
 export interface VideoCallHandle {
   leave: () => Promise<void>
+  sendMessage: (data: unknown) => void
 }
 
 interface VideoCallProps {
@@ -28,6 +29,8 @@ interface VideoCallProps {
   onError?: (error: Error) => void
   /** Callback with audio stream for transcription */
   onAudioStreamReady?: (getStream: () => MediaStream | null) => void
+  /** Callback when app message is received from another participant */
+  onAppMessage?: (data: unknown, fromParticipantId: string) => void
   className?: string
 }
 
@@ -39,6 +42,7 @@ export const VideoCall = forwardRef<VideoCallHandle, VideoCallProps>(function Vi
   onLeft,
   onError,
   onAudioStreamReady,
+  onAppMessage,
   className,
 }, ref) {
   const {
@@ -59,21 +63,26 @@ export const VideoCall = forwardRef<VideoCallHandle, VideoCallProps>(function Vi
     startScreenShare,
     stopScreenShare,
     getCombinedAudioStream,
+    sendAppMessage,
   } = useDailyCall({
     onAudioTrack,
+    onAppMessage,
     onError,
   })
 
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const hasAttemptedJoin = useRef(false)
 
-  // Expose leave method to parent via ref
+  // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     leave: async () => {
       await leaveCall()
       onLeft?.()
     },
-  }), [leaveCall, onLeft])
+    sendMessage: (data: unknown) => {
+      sendAppMessage(data)
+    },
+  }), [leaveCall, onLeft, sendAppMessage])
 
   // Auto-join when component mounts (with small delay for SDK initialization)
   useEffect(() => {

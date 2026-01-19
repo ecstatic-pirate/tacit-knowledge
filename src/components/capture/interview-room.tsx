@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from 'react'
 import { VideoCall, VideoCallHandle } from './video-call'
 import { TranscriptPanel } from './transcript-panel'
 import { SessionGuidePanel } from './session-guide-panel'
-import { useRealtimeTranscription } from '@/lib/hooks/use-realtime-transcription'
+import { useRealtimeTranscription, TranscriptLine } from '@/lib/hooks/use-realtime-transcription'
 import {
   CircleNotch,
   Warning,
@@ -47,12 +47,15 @@ export function InterviewRoom({
   const [isProcessing, setIsProcessing] = useState(false)
   const [showSidePanel, setShowSidePanel] = useState(true)
   const [showTranscript, setShowTranscript] = useState(true)
+  // Guest transcript state (received from interviewer via Daily.co messaging)
+  const [guestTranscriptLines, setGuestTranscriptLines] = useState<TranscriptLine[]>([])
+  const [guestInterim, setGuestInterim] = useState('')
   const lastProcessedTimeRef = useRef<number>(0)
   const pendingTranscriptRef = useRef<string>('')
   const getAudioStreamRef = useRef<(() => MediaStream | null) | null>(null)
   const videoCallRef = useRef<VideoCallHandle>(null)
 
-  // Transcription hook
+  // Transcription hook (only active for interviewer)
   const {
     isConnected: isTranscriptionConnected,
     isTranscribing,
@@ -65,6 +68,10 @@ export function InterviewRoom({
     onTranscriptLine: (line) => {
       // Accumulate transcript for processing
       pendingTranscriptRef.current += `${line.speaker}: ${line.text}\n`
+      // Broadcast to guest (interviewer only)
+      if (role === 'interviewer' && videoCallRef.current) {
+        videoCallRef.current.sendMessage({ type: 'transcript_line', line })
+      }
     },
     onUtteranceEnd: () => {
       // Process at natural pauses if enough time has passed (30 seconds minimum)
@@ -74,6 +81,29 @@ export function InterviewRoom({
       }
     },
   })
+
+  // Broadcast interim text to guest (interviewer only)
+  // This effect runs when currentInterim changes
+  const lastBroadcastedInterimRef = useRef('')
+  if (role === 'interviewer' && currentInterim !== lastBroadcastedInterimRef.current) {
+    lastBroadcastedInterimRef.current = currentInterim
+    if (videoCallRef.current && currentInterim) {
+      videoCallRef.current.sendMessage({ type: 'interim', text: currentInterim })
+    }
+  }
+
+  // Handle received messages (for guest to receive transcripts)
+  const handleAppMessage = useCallback((data: unknown) => {
+    if (role !== 'guest') return
+
+    const message = data as { type: string; line?: TranscriptLine; text?: string }
+    if (message.type === 'transcript_line' && message.line) {
+      setGuestTranscriptLines(prev => [...prev, message.line!])
+      setGuestInterim('') // Clear interim when final line arrives
+    } else if (message.type === 'interim' && message.text !== undefined) {
+      setGuestInterim(message.text)
+    }
+  }, [role])
 
   // Handler for receiving audio stream from VideoCall
   const handleAudioStreamReady = useCallback((getStream: () => MediaStream | null) => {
@@ -233,6 +263,7 @@ export function InterviewRoom({
                   onJoined={handleCallJoined}
                   onLeft={handleCallLeft}
                   onAudioStreamReady={handleAudioStreamReady}
+                  onAppMessage={handleAppMessage}
                   className="h-full"
                 />
               </div>
@@ -265,7 +296,7 @@ export function InterviewRoom({
             )}
           </>
         ) : (
-          // Guest view: Just video + transcript
+          // Guest view: Just video + transcript (received from interviewer)
           <div className="flex-1 flex flex-col p-4 gap-4 max-w-4xl mx-auto">
             <div className="flex-1">
               <VideoCall
@@ -275,14 +306,15 @@ export function InterviewRoom({
                 onJoined={handleCallJoined}
                 onLeft={handleCallLeft}
                 onAudioStreamReady={handleAudioStreamReady}
+                onAppMessage={handleAppMessage}
                 className="h-full"
               />
             </div>
             <div className="h-[200px]">
               <TranscriptPanel
-                lines={transcriptLines}
-                currentInterim={currentInterim}
-                isTranscribing={isTranscribing}
+                lines={guestTranscriptLines}
+                currentInterim={guestInterim}
+                isTranscribing={guestTranscriptLines.length > 0 || guestInterim !== ''}
                 className="h-full"
               />
             </div>

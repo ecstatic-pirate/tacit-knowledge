@@ -10,6 +10,8 @@ export interface UseDailyCallOptions {
   onParticipantJoined?: (participant: DailyParticipant) => void
   /** Callback when participant leaves */
   onParticipantLeft?: (participant: DailyParticipant) => void
+  /** Callback when app message is received from another participant */
+  onAppMessage?: (data: unknown, fromParticipantId: string) => void
   /** Callback on errors */
   onError?: (error: Error) => void
 }
@@ -42,10 +44,13 @@ export interface UseDailyCallReturn {
 
   // Get combined audio stream (for Deepgram)
   getCombinedAudioStream: () => MediaStream | null
+
+  // Send app message to other participants
+  sendAppMessage: (data: unknown, recipient?: string | string[]) => void
 }
 
 export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallReturn {
-  const { onAudioTrack, onParticipantJoined, onParticipantLeft, onError } = options
+  const { onAudioTrack, onParticipantJoined, onParticipantLeft, onAppMessage, onError } = options
 
   const [callObject, setCallObject] = useState<DailyCall | null>(null)
   const [isJoining, setIsJoining] = useState(false)
@@ -221,6 +226,13 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
         onError?.(new Error(errorMsg))
       })
 
+      // App message event (for transcript sharing)
+      call.on('app-message', (event) => {
+        if (event?.data && event?.fromId) {
+          onAppMessage?.(event.data, event.fromId)
+        }
+      })
+
       setCallObject(call)
 
       // Join the call
@@ -241,7 +253,7 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
       }
       onError?.(err instanceof Error ? err : new Error(errorMsg))
     }
-  }, [onAudioTrack, onParticipantJoined, onParticipantLeft, onError, updateParticipants, setupLocalVideo])
+  }, [onAudioTrack, onParticipantJoined, onParticipantLeft, onAppMessage, onError, updateParticipants, setupLocalVideo])
 
   // Leave the call
   const leaveCall = useCallback(async () => {
@@ -319,6 +331,18 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
     const call = callObjectRef.current
     if (call) {
       call.stopScreenShare()
+    }
+  }, [])
+
+  // Send app message to other participants (for transcript sharing)
+  const sendAppMessage = useCallback((data: unknown, recipient?: string | string[]) => {
+    const call = callObjectRef.current
+    if (call) {
+      try {
+        call.sendAppMessage(data, recipient || '*')
+      } catch (err) {
+        console.error('[useDailyCall] Failed to send app message:', err)
+      }
     }
   }, [])
 
@@ -439,5 +463,6 @@ export function useDailyCall(options: UseDailyCallOptions = {}): UseDailyCallRet
     startScreenShare,
     stopScreenShare,
     getCombinedAudioStream,
+    sendAppMessage,
   }
 }
