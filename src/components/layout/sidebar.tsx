@@ -13,7 +13,7 @@ const navItems = [
   { label: 'Sessions', href: '/planner', icon: Calendar },
   { label: 'Knowledge Hub', href: '/graph', icon: Lightbulb },
   { label: 'Concierge', href: '/concierge', icon: ChatCircleDots },
-  { label: 'Reports', href: '/reports', icon: FileText, disabled: true },
+  { label: 'Reports', href: '/reports', icon: FileText },
   { label: 'Notifications', href: '/notifications', icon: Bell, disabled: true },
 ];
 
