@@ -84,7 +84,7 @@ export interface Document {
   extractedTopics?: unknown[]
 }
 
-export type TabName = 'dashboard' | 'prepare' | 'capture' | 'planner' | 'reports'
+export type TabName = 'campaigns' | 'prepare' | 'capture' | 'planner' | 'reports'
 
 // Campaign subject type is now re-exported from app-context
 // Keeping the comment for documentation - valid values: 'person' | 'project'

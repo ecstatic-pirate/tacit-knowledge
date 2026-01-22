@@ -17,6 +17,8 @@ import {
   CaretDown,
   ArrowRight,
   ListBullets,
+  X,
+  Crosshair,
 } from 'phosphor-react'
 import { cn } from '@/lib/utils'
 
@@ -66,20 +68,33 @@ function StatusIcon({ status, size = 'sm' }: { status: CoverageStatus; size?: 's
   }
 }
 
-function TopicChip({ node }: { node: LiveGraphNode }) {
+interface TopicChipProps {
+  node: LiveGraphNode
+  isSelected?: boolean
+  onClick?: (node: LiveGraphNode) => void
+}
+
+function TopicChip({ node, isSelected, onClick }: TopicChipProps) {
   const colors = statusColors[node.coverageStatus]
+  const isClickable = !!onClick
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => onClick?.(node)}
+      disabled={!isClickable}
       className={cn(
-        'px-2 py-1 rounded-md border text-xs inline-flex items-center gap-1.5',
+        'px-2 py-1 rounded-md border text-xs inline-flex items-center gap-1.5 transition-all',
         colors.bg,
-        colors.border
+        colors.border,
+        isClickable && 'cursor-pointer hover:ring-2 hover:ring-primary/30 hover:ring-offset-1',
+        isSelected && 'ring-2 ring-primary ring-offset-1 bg-primary/10',
+        !isClickable && 'cursor-default'
       )}
     >
       <StatusIcon status={node.coverageStatus} size="xs" />
-      <span className={cn('font-medium', colors.text)}>{node.label}</span>
-    </div>
+      <span className={cn('font-medium', isSelected ? 'text-primary' : colors.text)}>{node.label}</span>
+    </button>
   )
 }
 
@@ -133,6 +148,7 @@ export function SessionGuidePanel({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [isMoreQuestionsOpen, setIsMoreQuestionsOpen] = useState(false)
   const [isTopicsOpen, setIsTopicsOpen] = useState(false)
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null)
 
   // Data hooks
   const {
@@ -142,6 +158,12 @@ export function SessionGuidePanel({
     coveragePercentage,
   } = useLiveGraph({ campaignId })
 
+  // Find the selected topic's label for the API call
+  const selectedTopic = useMemo(() =>
+    nodes.find(n => n.id === selectedTopicId),
+    [nodes, selectedTopicId]
+  )
+
   const {
     guidance,
     isLoading: isLoadingGuidance,
@@ -149,7 +171,24 @@ export function SessionGuidePanel({
   } = useSessionGuidance({
     sessionId,
     recentTranscript,
+    focusTopic: selectedTopic?.label,
   })
+
+  // Handle topic selection
+  const handleTopicClick = useCallback((node: LiveGraphNode) => {
+    if (selectedTopicId === node.id) {
+      // Deselect if clicking the same topic
+      setSelectedTopicId(null)
+    } else {
+      setSelectedTopicId(node.id)
+      setCurrentQuestionIndex(0) // Reset question index when topic changes
+    }
+  }, [selectedTopicId])
+
+  const clearTopicSelection = useCallback(() => {
+    setSelectedTopicId(null)
+    setCurrentQuestionIndex(0)
+  }, [])
 
   // Group nodes by coverage status
   const groupedNodes = useMemo(() => {
@@ -243,9 +282,21 @@ export function SessionGuidePanel({
         {/* Hero Question Section */}
         {currentQuestion && (
           <div className="p-4 bg-primary/5 border-b border-primary/10">
-            <div className="flex items-center gap-2 mb-2">
-              <ChatCircle className="w-4 h-4 text-primary" weight="fill" />
-              <span className="text-xs font-semibold text-primary uppercase tracking-wide">Ask Next</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <ChatCircle className="w-4 h-4 text-primary" weight="fill" />
+                <span className="text-xs font-semibold text-primary uppercase tracking-wide">Ask Next</span>
+              </div>
+              {selectedTopic && (
+                <button
+                  onClick={clearTopicSelection}
+                  className="flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary transition-colors"
+                >
+                  <Crosshair className="w-3 h-3" weight="bold" />
+                  <span className="max-w-[120px] truncate">{selectedTopic.label}</span>
+                  <X className="w-3 h-3" weight="bold" />
+                </button>
+              )}
             </div>
             <div className="bg-white rounded-lg border border-primary/20 p-4 shadow-sm">
               <p className="text-sm text-foreground leading-relaxed mb-3">
@@ -277,7 +328,11 @@ export function SessionGuidePanel({
               {currentTopic && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-muted-foreground">Now:</span>
-                  <TopicChip node={currentTopic} />
+                  <TopicChip
+                    node={currentTopic}
+                    onClick={handleTopicClick}
+                    isSelected={selectedTopicId === currentTopic.id}
+                  />
                 </div>
               )}
             </div>
@@ -363,6 +418,11 @@ export function SessionGuidePanel({
             </button>
             {isTopicsOpen && (
               <div className="px-4 pb-3 space-y-3">
+                {/* Hint about clicking topics */}
+                <p className="text-[10px] text-muted-foreground/70 italic">
+                  Click a topic to get questions about it
+                </p>
+
                 {/* Still to Cover */}
                 {groupedNodes.not_discussed.length > 0 && (
                   <div>
@@ -371,7 +431,12 @@ export function SessionGuidePanel({
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
                       {groupedNodes.not_discussed.map(node => (
-                        <TopicChip key={node.id} node={node} />
+                        <TopicChip
+                          key={node.id}
+                          node={node}
+                          onClick={handleTopicClick}
+                          isSelected={selectedTopicId === node.id}
+                        />
                       ))}
                     </div>
                   </div>
@@ -385,7 +450,12 @@ export function SessionGuidePanel({
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
                       {groupedNodes.mentioned.map(node => (
-                        <TopicChip key={node.id} node={node} />
+                        <TopicChip
+                          key={node.id}
+                          node={node}
+                          onClick={handleTopicClick}
+                          isSelected={selectedTopicId === node.id}
+                        />
                       ))}
                     </div>
                   </div>
@@ -399,7 +469,12 @@ export function SessionGuidePanel({
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
                       {groupedNodes.covered.map(node => (
-                        <TopicChip key={node.id} node={node} />
+                        <TopicChip
+                          key={node.id}
+                          node={node}
+                          onClick={handleTopicClick}
+                          isSelected={selectedTopicId === node.id}
+                        />
                       ))}
                     </div>
                   </div>

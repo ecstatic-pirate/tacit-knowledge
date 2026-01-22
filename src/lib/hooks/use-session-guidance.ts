@@ -21,6 +21,7 @@ export interface GuidanceContext {
 export interface UseSessionGuidanceOptions {
   sessionId: string
   recentTranscript?: string
+  focusTopic?: string
   autoRefreshInterval?: number
   enabled?: boolean
 }
@@ -40,6 +41,7 @@ export function useSessionGuidance(options: UseSessionGuidanceOptions): UseSessi
   const {
     sessionId,
     recentTranscript,
+    focusTopic,
     autoRefreshInterval = DEFAULT_AUTO_REFRESH_INTERVAL,
     enabled = true,
   } = options
@@ -68,6 +70,7 @@ export function useSessionGuidance(options: UseSessionGuidanceOptions): UseSessi
         body: JSON.stringify({
           sessionId,
           recentTranscript,
+          focusTopic,
         }),
       })
 
@@ -96,7 +99,7 @@ export function useSessionGuidance(options: UseSessionGuidanceOptions): UseSessi
     } finally {
       setIsLoading(false)
     }
-  }, [sessionId, recentTranscript, enabled])
+  }, [sessionId, recentTranscript, focusTopic, enabled])
 
   // Auto-refresh timer management
   useEffect(() => {
@@ -143,6 +146,18 @@ export function useSessionGuidance(options: UseSessionGuidanceOptions): UseSessi
       return () => clearTimeout(debounce)
     }
   }, [sessionId, recentTranscript, fetchGuidance, enabled])
+
+  // Refresh immediately when focus topic changes
+  const lastFocusTopicRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!sessionId || !enabled) return
+
+    // Only fetch if focusTopic actually changed (not on initial mount)
+    if (lastFocusTopicRef.current !== undefined && lastFocusTopicRef.current !== focusTopic) {
+      fetchGuidance()
+    }
+    lastFocusTopicRef.current = focusTopic
+  }, [sessionId, focusTopic, fetchGuidance, enabled])
 
   // Toggle auto-refresh
   const toggleAutoRefresh = useCallback(() => {

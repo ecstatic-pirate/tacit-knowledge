@@ -264,7 +264,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
     if (campaignError || !campaignData) {
       console.error('Error fetching campaign:', campaignError)
-      router.push('/dashboard')
+      router.push('/campaigns')
       return
     }
 
@@ -1123,7 +1123,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         <div className="text-center">
           <Warning className="w-12 h-12 text-muted-foreground mx-auto mb-4" weight="bold" />
           <h1 className="text-xl font-semibold mb-2">Campaign not found</h1>
-          <Button onClick={() => router.push('/dashboard')}>Go to Dashboard</Button>
+          <Button onClick={() => router.push('/campaigns')}>Go to Campaigns</Button>
         </div>
       </div>
     )

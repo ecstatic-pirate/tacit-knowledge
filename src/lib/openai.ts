@@ -197,15 +197,24 @@ export async function getSessionGuidance(
   goal: string,
   plannedQuestions: string[],
   topicsCovered: string[],
-  recentTranscript: string
+  recentTranscript: string,
+  focusTopic?: string
 ): Promise<SessionGuidanceResult> {
   const openai = getOpenAIClient()
+
+  // Build the prompt based on whether a focus topic is specified
+  const focusInstruction = focusTopic
+    ? `IMPORTANT: The interviewer wants to focus on the topic "${focusTopic}". Generate 3 specific, probing questions about this topic to help extract deep tacit knowledge.`
+    : `Based on what was just discussed, provide 3 follow-up questions to dig deeper into what was just said.`
+
   const response = await openai.responses.create({
     model: MODELS.FAST,
     input: `You are an AI coach helping an interviewer capture tacit knowledge in real-time.
 
 Expert being interviewed: ${expertName}
 Interview goal: ${goal}
+
+${focusTopic ? `FOCUS TOPIC: ${focusTopic}` : ''}
 
 Planned questions (not yet asked):
 ${plannedQuestions.slice(0, 5).map((q, i) => `${i + 1}. ${q}`).join('\n')}
@@ -215,11 +224,12 @@ Topics already covered: ${topicsCovered.join(', ') || 'None yet'}
 Recent transcript (last few minutes):
 ${recentTranscript.slice(-3000) || 'No transcript yet'}
 
-Based on what was just discussed, provide:
-1. 3 follow-up questions to dig deeper into what was just said
-2. Topics detected in the recent conversation
-3. Topics or knowledge areas to probe further
-4. A brief tip for the interviewer
+${focusInstruction}
+
+Also provide:
+- Topics detected in the recent conversation
+- Topics or knowledge areas to probe further
+- A brief tip for the interviewer
 
 Respond in JSON format:
 {

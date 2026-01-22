@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Sparkle, Plus, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText, ChatCircleDots } from 'phosphor-react';
+import { Sparkle, Plus, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText, ChatCircleDots, House } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/app-context';
 import { useState } from 'react';
 
 const navItems = [
-  { label: 'Campaigns', href: '/dashboard', icon: ChartBar },
+  { label: 'Home', href: '/home', icon: House },
+  { label: 'Campaigns', href: '/campaigns', icon: ChartBar },
   { label: 'Sessions', href: '/planner', icon: Calendar },
   { label: 'Knowledge Hub', href: '/graph', icon: Lightbulb },
   { label: 'Concierge', href: '/concierge', icon: ChatCircleDots },
@@ -81,7 +82,7 @@ export function Sidebar() {
       >
         {/* Header */}
         <div className="p-6 border-b border-stone-200 dark:border-stone-800">
-          <Link href="/dashboard" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
+          <Link href="/home" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
             <div className="flex items-center justify-center w-8 h-8 rounded bg-stone-900 dark:bg-stone-100 text-stone-50 dark:text-stone-900">
               <Sparkle className="w-5 h-5" weight="fill" />
             </div>
@@ -102,7 +103,7 @@ export function Sidebar() {
         {/* Navigation Links */}
         <nav className="flex-1 px-3 py-6 space-y-1">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href === '/dashboard' && pathname === '/');
+            const isActive = pathname === item.href || (item.href === '/home' && pathname === '/');
             const Icon = item.icon;
 
             if (item.disabled) {

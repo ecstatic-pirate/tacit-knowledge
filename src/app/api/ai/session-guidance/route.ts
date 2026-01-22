@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { sessionId, recentTranscript } = await request.json()
+    const { sessionId, recentTranscript, focusTopic } = await request.json()
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
       campaign.goal || 'Capture tacit knowledge',
       plannedQuestions,
       session.topics || [],
-      transcript || ''
+      transcript || '',
+      focusTopic
     )
 
     return NextResponse.json({

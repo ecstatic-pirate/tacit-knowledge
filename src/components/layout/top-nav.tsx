@@ -9,7 +9,8 @@ import { useApp } from '@/context/app-context';
 import { useState } from 'react';
 
 const navItems = [
-  { label: 'Campaigns', href: '/dashboard' },
+  { label: 'Home', href: '/home' },
+  { label: 'Campaigns', href: '/campaigns' },
   { label: 'Sessions', href: '/planner' },
   { label: 'Knowledge', href: '/graph' },
   { label: 'Reports', href: '/reports' },
@@ -38,7 +39,7 @@ export function TopNav() {
     <header className="sticky top-0 z-50 w-full border-b bg-background">
       <div className="max-w-5xl mx-auto flex h-14 items-center px-6">
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href="/home" className="flex items-center gap-2">
           <div className="flex items-center justify-center w-7 h-7 rounded bg-foreground text-background">
             <Brain className="w-4 h-4" weight="bold" />
           </div>
@@ -49,7 +50,7 @@ export function TopNav() {
         <nav className="flex-1 flex items-center justify-center gap-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href ||
-              (item.href === '/dashboard' && pathname === '/');
+              (item.href === '/home' && pathname === '/');
 
             return (
               <Link key={item.href} href={item.href}>

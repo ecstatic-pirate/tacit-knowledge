@@ -246,7 +246,7 @@ const DEMO_DOCUMENTS_PROJECT: DemoDocument[] = [
 5. Review and create
 
 ### Running Sessions
-1. Schedule from campaign dashboard
+1. Schedule from campaigns page
 2. Join video room with Daily.co
 3. Real-time transcription
 4. AI topic tracking
@@ -350,6 +350,8 @@ const subjectTypeOptions: Array<{
   label: string
   description: string
   icon: typeof UserCircle
+  disabled?: boolean
+  comingSoon?: boolean
 }> = [
   {
     id: 'person',
@@ -362,6 +364,8 @@ const subjectTypeOptions: Array<{
     label: 'Project',
     description: 'Document knowledge about a project or process',
     icon: Folder,
+    disabled: true,
+    comingSoon: true,
   },
 ]
 
@@ -854,21 +858,34 @@ export function CampaignForm({
               <div className="grid gap-3">
                 {subjectTypeOptions.map((option) => {
                   const Icon = option.icon
+                  const isDisabled = option.disabled
                   return (
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => handleSubjectTypeSelect(option.id)}
+                      onClick={() => {
+                        if (!isDisabled) handleSubjectTypeSelect(option.id)
+                      }}
+                      disabled={isDisabled}
                       className={cn(
                         'flex items-center gap-4 p-4 rounded-lg transition-colors border text-left',
-                        'border-border hover:bg-secondary/30 hover:border-foreground/20'
+                        isDisabled
+                          ? 'cursor-not-allowed opacity-60 border-border'
+                          : 'border-border hover:bg-secondary/30 hover:border-foreground/20'
                       )}
                     >
                       <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-secondary text-muted-foreground">
                         <Icon className="w-6 h-6" weight="bold" />
                       </div>
                       <div className="flex-1">
-                        <span className="font-medium">{option.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{option.label}</span>
+                          {option.comingSoon && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                              Coming Soon
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground mt-0.5">
                           {option.description}
                         </p>

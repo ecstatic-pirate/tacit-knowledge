@@ -72,13 +72,13 @@ export default function CaptureSessionPage() {
           <div className="flex gap-3 pt-2">
             <Button
               onClick={() => {
-                showToast('Redirecting to dashboard...');
+                showToast('Redirecting to campaigns...');
                 closeModal();
-                router.push('/dashboard');
+                router.push('/campaigns');
               }}
               className="flex-1"
             >
-              View Dashboard
+              View Campaigns
               <ArrowRight className="w-4 h-4 ml-2" weight="bold" />
             </Button>
             <Button
