@@ -798,6 +798,15 @@ export function CampaignForm({
   const handleNext = async () => {
     if (!validateStep(currentStep)) return
 
+    // Auto-add pending collaborator/contributor when leaving Collaborators step (step 2)
+    if (currentStep === 2 && newCollaborator.name && newCollaborator.email) {
+      setFormData({
+        ...formData,
+        collaborators: [...formData.collaborators, newCollaborator],
+      })
+      setNewCollaborator({ name: '', email: '', role: 'teammate' })
+    }
+
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1)
     }

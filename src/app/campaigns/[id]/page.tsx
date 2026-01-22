@@ -492,8 +492,47 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
   const resendInvitation = async (tokenId: string) => {
     setResending(tokenId)
-    showToast('Invitation resent (placeholder)', 'info')
-    setResending(null)
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/send-invitation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenId }),
+      })
+      if (response.ok) {
+        showToast('Invitation sent!', 'success')
+      } else {
+        const error = await response.json()
+        showToast(error.error || 'Failed to send invitation', 'error')
+      }
+    } catch (error) {
+      console.error('Error sending invitation:', error)
+      showToast('Failed to send invitation', 'error')
+    } finally {
+      setResending(null)
+    }
+  }
+
+  const sendCollaboratorInvitation = async (email: string, name: string, role?: string) => {
+    setResending(email)
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/send-invitation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, role, type: 'collaborator' }),
+      })
+      if (response.ok) {
+        showToast('Invitation sent!', 'success')
+        fetchData() // Refresh to show the new token
+      } else {
+        const error = await response.json()
+        showToast(error.error || 'Failed to send invitation', 'error')
+      }
+    } catch (error) {
+      console.error('Error sending invitation:', error)
+      showToast('Failed to send invitation', 'error')
+    } finally {
+      setResending(null)
+    }
   }
 
   // Load transcripts for completed sessions
@@ -1984,7 +2023,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                       </Button>
                     </div>
                   </div>
-                  <div className="px-4 pb-4">
+                  <div className="px-4 pb-4 flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1997,6 +2036,19 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                         <Copy className="w-4 h-4 mr-1.5" />
                       )}
                       Get Link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendCollaboratorInvitation(collab.email, collab.name, collab.role)}
+                      disabled={resending === collab.email}
+                    >
+                      {resending === collab.email ? (
+                        <CircleNotch className="w-4 h-4 mr-1.5 animate-spin" weight="bold" />
+                      ) : (
+                        <PaperPlaneTilt className="w-4 h-4 mr-1.5" />
+                      )}
+                      Send Email
                     </Button>
                   </div>
                 </div>

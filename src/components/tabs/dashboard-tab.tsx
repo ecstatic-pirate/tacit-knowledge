@@ -78,16 +78,11 @@ export function DashboardTab({
   return (
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <PageHeader
-            title="Campaigns"
-            subtitle="Track and manage your knowledge capture campaigns."
-          />
-          <Button onClick={() => router.push('/new')} size="sm">
-            <Plus className="w-4 h-4 mr-2" weight="bold" />
-            New Campaign
-          </Button>
-        </div>
+        <PageHeader
+          title="Campaigns"
+          subtitle="Track and manage your knowledge capture campaigns."
+          className="mb-6"
+        />
 
         {/* Filter Row */}
         <div className={cn('flex items-center justify-between gap-4', spacing.marginBottomSection)}>
@@ -96,11 +91,17 @@ export function DashboardTab({
             value={filterType}
             onChange={setFilterType}
           />
-          <ExpandableSearch
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search campaigns..."
-          />
+          <div className="flex items-center gap-3">
+            <ExpandableSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search campaigns..."
+            />
+            <Button onClick={() => router.push('/new')} className="h-9">
+              <Plus className="w-4 h-4 mr-2" weight="bold" />
+              New Campaign
+            </Button>
+          </div>
         </div>
 
         {/* Campaigns List */}
