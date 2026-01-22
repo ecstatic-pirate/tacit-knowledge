@@ -78,11 +78,16 @@ export function DashboardTab({
   return (
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
-        <PageHeader
-          title="Campaigns"
-          subtitle="Track and manage your knowledge capture campaigns."
-          className="mb-6"
-        />
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <PageHeader
+            title="Campaigns"
+            subtitle="Track and manage your knowledge capture campaigns."
+          />
+          <Button onClick={() => router.push('/new')} size="sm">
+            <Plus className="w-4 h-4 mr-2" weight="bold" />
+            New Campaign
+          </Button>
+        </div>
 
         {/* Filter Row */}
         <div className={cn('flex items-center justify-between gap-4', spacing.marginBottomSection)}>

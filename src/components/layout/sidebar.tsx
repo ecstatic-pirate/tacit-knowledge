@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Sparkle, Plus, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText, ChatCircleDots, House } from 'phosphor-react';
+import { Sparkle, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText, ChatCircleDots, House } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/app-context';
 import { useState } from 'react';
@@ -87,16 +87,6 @@ export function Sidebar() {
               <Sparkle className="w-5 h-5" weight="fill" />
             </div>
             <span className="font-serif font-bold text-2xl text-stone-900 dark:text-stone-100">Tacit</span>
-          </Link>
-        </div>
-
-        {/* New Campaign Button */}
-        <div className="px-4 py-4 border-b border-stone-200 dark:border-stone-800">
-          <Link href="/new" onClick={() => setIsOpen(false)}>
-            <Button className="w-full" size="sm">
-              <Plus className="w-4 h-4 mr-2" weight="bold" />
-              New Campaign
-            </Button>
           </Link>
         </div>
 
