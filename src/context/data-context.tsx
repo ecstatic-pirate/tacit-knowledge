@@ -75,6 +75,13 @@ export interface Campaign {
   interviewFormat?: InterviewFormat
   focusAreas?: FocusArea[]
   suggestedDomains?: SuggestedDomain[]
+  initiativeType?: 'tool' | 'platform' | 'process' | 'integration'
+  initiativeStatus?: 'planned' | 'active' | 'scaling' | 'retired'
+  teamSize?: number
+  techStack?: string[]
+  businessUnit?: string
+  lastCheckIn?: string
+  region?: string
 }
 
 export interface Task {
@@ -93,6 +100,10 @@ export interface AppUser {
   avatarUrl?: string
   role: string
   orgId: string
+  roleType?: 'management' | 'builder' | 'both'
+  region?: string
+  department?: string
+  expertiseAreas?: string[]
 }
 
 interface AppData {
@@ -291,6 +302,13 @@ function mapDBCampaignToApp(dbCampaign: DBCampaign, topicsCount: number): Campai
     interviewFormat: (dbCampaign as Record<string, unknown>).interview_format as InterviewFormat | undefined,
     focusAreas: (dbCampaign as Record<string, unknown>).focus_areas as FocusArea[] | undefined,
     suggestedDomains: (dbCampaign as Record<string, unknown>).ai_suggested_domains as SuggestedDomain[] | undefined,
+    initiativeType: (dbCampaign as Record<string, unknown>).initiative_type as Campaign['initiativeType'],
+    initiativeStatus: (dbCampaign as Record<string, unknown>).initiative_status as Campaign['initiativeStatus'],
+    teamSize: (dbCampaign as Record<string, unknown>).team_size as number | undefined,
+    techStack: (dbCampaign as Record<string, unknown>).tech_stack as string[] | undefined,
+    businessUnit: (dbCampaign as Record<string, unknown>).business_unit as string | undefined,
+    lastCheckIn: (dbCampaign as Record<string, unknown>).last_check_in as string | undefined,
+    region: (dbCampaign as Record<string, unknown>).region as string | undefined,
   }
 }
 
@@ -359,6 +377,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { appUser: null, organization: null, error: 'User not found' }
       }
 
+      // Load user profile
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .single()
+
       const appUser: AppUser = {
         id: userData.id,
         email: userData.email,
@@ -366,6 +391,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         avatarUrl: userData.avatar_url ?? undefined,
         role: userData.role,
         orgId: userData.org_id,
+        roleType: profileData?.role_type as AppUser['roleType'],
+        region: profileData?.region ?? undefined,
+        department: profileData?.department ?? undefined,
+        expertiseAreas: profileData?.expertise_areas ?? undefined,
       }
 
       // Fetch organization
@@ -621,6 +650,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         capture_mode: campaign.captureMode,
         expert_email: campaign.expertEmail,
         departure_date: campaign.departureDate ?? null,
+        initiative_type: campaign.initiativeType ?? null,
+        initiative_status: campaign.initiativeStatus ?? null,
+        team_size: campaign.teamSize ?? null,
+        tech_stack: campaign.techStack ?? null,
+        business_unit: campaign.businessUnit ?? null,
+        region: campaign.region ?? null,
+        last_check_in: campaign.lastCheckIn ?? null,
         updated_by: authState.user?.id,
       })
       .eq('id', campaign.id)
@@ -671,6 +707,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         focus_areas: campaign.focusAreas as unknown as Json ?? null,
         ai_suggested_domains: campaign.suggestedDomains as unknown as Json ?? null,
         interviewer_guide_token: guideToken,
+        initiative_type: campaign.initiativeType ?? null,
+        initiative_status: campaign.initiativeStatus ?? null,
+        team_size: campaign.teamSize ?? null,
+        tech_stack: campaign.techStack ?? null,
+        business_unit: campaign.businessUnit ?? null,
+        region: campaign.region ?? null,
       })
       .select()
       .single()

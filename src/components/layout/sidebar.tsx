@@ -3,20 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Sparkle, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText, ChatCircleDots, House } from 'phosphor-react';
+import { Sparkle, SignOut, ChartBar, Calendar, Lightbulb, List, X, Bell, FileText, ChatCircleDots, House, ChartPieSlice } from 'phosphor-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/app-context';
 import { useState } from 'react';
 
-const navItems = [
-  { label: 'Home', href: '/home', icon: House },
-  { label: 'Campaigns', href: '/campaigns', icon: ChartBar },
-  { label: 'Sessions', href: '/planner', icon: Calendar },
-  { label: 'Knowledge Hub', href: '/graph', icon: Lightbulb },
-  { label: 'Concierge', href: '/concierge', icon: ChatCircleDots },
-  { label: 'Reports', href: '/reports', icon: FileText },
-  { label: 'Notifications', href: '/notifications', icon: Bell, disabled: true },
-];
+function getNavItems(roleType?: string) {
+  return [
+    { label: 'Home', href: '/home', icon: House },
+    { label: roleType === 'management' ? 'All Initiatives' : 'Campaigns', href: '/campaigns', icon: ChartBar },
+    { label: 'Portfolio', href: '/portfolio', icon: ChartPieSlice },
+    { label: 'Sessions', href: '/planner', icon: Calendar },
+    { label: 'Knowledge Hub', href: '/graph', icon: Lightbulb },
+    { label: 'Concierge', href: '/concierge', icon: ChatCircleDots },
+    { label: 'Reports', href: '/reports', icon: FileText },
+    { label: 'Notifications', href: '/notifications', icon: Bell, disabled: true },
+  ];
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -92,7 +95,7 @@ export function Sidebar() {
 
         {/* Navigation Links */}
         <nav className="flex-1 px-3 py-6 space-y-1">
-          {navItems.map((item) => {
+          {getNavItems(appUser?.roleType).map((item) => {
             const isActive = pathname === item.href || (item.href === '/home' && pathname === '/');
             const Icon = item.icon;
 

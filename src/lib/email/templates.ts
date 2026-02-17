@@ -580,6 +580,52 @@ END:VCALENDAR`
   return icsContent
 }
 
+// Check-in request email
+export function checkInRequestEmail(params: {
+  recipientName: string
+  campaignName: string
+  organizationName?: string
+  checkInUrl: string
+  expiresInDays: number
+}) {
+  const { recipientName, campaignName, organizationName, checkInUrl, expiresInDays } = params
+
+  const safeName = escapeHtml(recipientName)
+  const safeCampaignName = escapeHtml(campaignName)
+  const safeOrgName = escapeHtml(organizationName)
+
+  const content = `
+    <h1 style="font-family: ${fonts.heading}; font-size: 28px; font-weight: 600; color: ${colors.primary}; margin: 0 0 24px 0;">
+      Check-in Request
+    </h1>
+
+    <p style="margin: 0 0 20px 0; font-size: 16px;">
+      Hi ${safeName},
+    </p>
+
+    <p style="margin: 0 0 20px 0; font-size: 16px;">
+      ${safeOrgName ? `${safeOrgName} is` : "We're"} requesting a progress check-in for
+      <strong>${safeCampaignName}</strong>. Please take a moment to share your latest update.
+    </p>
+
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 32px 0;">
+      <tr>
+        <td style="background-color: ${colors.primary}; border-radius: 8px;">
+          <a href="${checkInUrl}" target="_blank" style="display: inline-block; padding: 16px 32px; color: white; text-decoration: none; font-weight: 600; font-size: 16px;">
+            Complete Check-in
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: ${colors.muted};">
+      This link expires in ${expiresInDays} days.
+    </p>
+  `
+
+  return emailWrapper(content)
+}
+
 // Reminder email for collaborator
 export function collaboratorReminderEmail(params: {
   collaboratorName: string

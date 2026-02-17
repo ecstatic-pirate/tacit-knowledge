@@ -52,6 +52,12 @@ function PreparePageContent() {
         subjectType: data.subjectType,
         projectId: projectId,
         teamId: data.teamId,
+        initiativeType: data.initiativeType,
+        initiativeStatus: data.initiativeStatus,
+        teamSize: data.teamSize,
+        techStack: data.techStack,
+        businessUnit: data.businessUnit,
+        region: data.region,
       });
 
       // Create demo documents if selected

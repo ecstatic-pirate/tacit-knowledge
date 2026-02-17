@@ -9,6 +9,8 @@ import {
   Lightbulb,
   FileText,
   Plus,
+  Warning,
+  ArrowRight,
 } from 'phosphor-react';
 import { useApp } from '@/context/app-context';
 import { createClient } from '@/lib/supabase/client';
@@ -19,6 +21,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { LoadingState } from '@/components/ui/loading-state';
 import { useKnowledgeHubData } from '@/components/knowledge-hub';
+import { ProfileSetupModal } from '@/components/onboarding/profile-setup-modal';
+import { getCheckInStatus } from '@/lib/initiative-helpers';
 import {
   components,
   containers,
@@ -78,9 +82,15 @@ function normalizeAiSuggestedTopics(data: unknown): Session['aiSuggestedTopics']
   return [];
 }
 
+interface Suggestion {
+  type: 'stale-checkin' | 'missing-fields';
+  campaignId: string;
+  message: string;
+}
+
 export default function HomePage() {
   const router = useRouter();
-  const { campaigns } = useApp();
+  const { campaigns, appUser, user, refreshData } = useApp();
   const supabase = useMemo(() => createClient(), []);
   const { stats, isLoading: knowledgeLoading, error: knowledgeError } = useKnowledgeHubData();
 
@@ -89,6 +99,34 @@ export default function HomePage() {
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
 
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+
+  // Check if user needs onboarding
+  useEffect(() => {
+    if (!user || onboardingChecked) return;
+
+    async function checkProfile() {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      if (!data) {
+        setShowOnboarding(true);
+      }
+      setOnboardingChecked(true);
+    }
+
+    checkProfile();
+  }, [user, supabase, onboardingChecked]);
+
+  const roleType = appUser?.roleType ?? 'builder';
+  const showBuilder = roleType === 'builder' || roleType === 'both';
+  const showManagement = roleType === 'management' || roleType === 'both';
+
   const sortedCampaigns = useMemo(() => {
     return [...campaigns].sort((a, b) => {
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -96,6 +134,48 @@ export default function HomePage() {
       return bTime - aTime;
     });
   }, [campaigns]);
+
+  // Concierge suggestions for builders
+  const suggestions = useMemo<Suggestion[]>(() => {
+    if (!showBuilder) return [];
+    const items: Suggestion[] = [];
+
+    for (const c of campaigns) {
+      if (items.length >= 3) break;
+      const checkIn = getCheckInStatus(c.lastCheckIn);
+      if (checkIn.isStale) {
+        items.push({
+          type: 'stale-checkin',
+          campaignId: c.id,
+          message: `Time for a check-in on ${c.name}`,
+        });
+      }
+    }
+
+    for (const c of campaigns) {
+      if (items.length >= 3) break;
+      if (!c.initiativeType || !c.businessUnit) {
+        items.push({
+          type: 'missing-fields',
+          campaignId: c.id,
+          message: `Complete your initiative profile for ${c.name}`,
+        });
+      }
+    }
+
+    return items.slice(0, 3);
+  }, [campaigns, showBuilder]);
+
+  // Region breakdown for management
+  const regionBreakdown = useMemo(() => {
+    if (!showManagement) return [];
+    const counts: Record<string, number> = {};
+    for (const c of campaigns) {
+      const r = c.region || 'Unassigned';
+      counts[r] = (counts[r] || 0) + 1;
+    }
+    return Object.entries(counts).map(([region, count]) => ({ region, count }));
+  }, [campaigns, showManagement]);
 
   useEffect(() => {
     let isMounted = true;
@@ -309,6 +389,19 @@ export default function HomePage() {
   return (
     <div className={containers.pageContainer}>
       <div className={containers.wideContainer}>
+        {/* Onboarding Modal */}
+        {user && (
+          <ProfileSetupModal
+            isOpen={showOnboarding}
+            onComplete={() => {
+              setShowOnboarding(false);
+              refreshData();
+            }}
+            userId={user.id}
+            defaultName={appUser?.fullName}
+          />
+        )}
+
         <PageHeader
           title="Home"
           subtitle="A quick snapshot of campaigns, sessions, and knowledge capture."
@@ -318,7 +411,7 @@ export default function HomePage() {
         <div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-4', spacing.marginBottomSection)}>
           <div className={components.card}>
             <div className="flex items-center justify-between">
-              <p className={typography.label}>Campaigns</p>
+              <p className={typography.label}>{showManagement ? 'All Initiatives' : 'Campaigns'}</p>
               <Users className="w-4 h-4 text-muted-foreground" weight="bold" />
             </div>
             <div className="mt-4 text-2xl font-semibold">{campaigns.length}</div>
@@ -352,11 +445,25 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Management: Region breakdown */}
+        {showManagement && regionBreakdown.length > 0 && (
+          <div className={cn('grid gap-4 grid-cols-3', spacing.marginBottomSection)}>
+            {regionBreakdown.map(({ region, count }) => (
+              <div key={region} className={components.cardCompact}>
+                <p className="text-xs font-medium text-muted-foreground">{region}</p>
+                <p className="text-xl font-semibold mt-1">{count} initiative{count !== 1 ? 's' : ''}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-3">
           <section className={cn('lg:col-span-2', components.card)}>
             <div className={cn('flex items-start justify-between', sectionHeader.container)}>
               <div>
-                <h3 className="text-sm font-semibold tracking-wide text-foreground font-sans">Recent Campaigns</h3>
+                <h3 className="text-sm font-semibold tracking-wide text-foreground font-sans">
+                  {showManagement && !showBuilder ? 'All Initiatives' : 'Recent Campaigns'}
+                </h3>
               </div>
               <Link href="/campaigns" className="text-sm text-muted-foreground hover:text-foreground">
                 View all
@@ -367,6 +474,45 @@ export default function HomePage() {
           </section>
 
           <div className="space-y-6">
+            {/* Concierge Suggestions for builders */}
+            {showBuilder && suggestions.length > 0 && (
+              <section className={components.card}>
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-sm font-semibold tracking-wide text-foreground font-sans">Concierge Suggestions</h3>
+                </div>
+                <div className={listContainer.container}>
+                  {suggestions.map((s) => (
+                    <div
+                      key={`${s.type}-${s.campaignId}`}
+                      className={cn(listContainer.itemCompact, 'cursor-pointer')}
+                      onClick={() => router.push(`/campaigns/${s.campaignId}`)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Warning className="w-4 h-4 text-amber-500 flex-shrink-0" weight="fill" />
+                        <p className="text-sm">{s.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Management: quick link to portfolio */}
+            {showManagement && (
+              <div
+                className={cn(components.cardCompact, 'cursor-pointer hover:border-foreground/20 transition-colors')}
+                onClick={() => router.push('/portfolio')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Portfolio Dashboard</p>
+                    <p className="text-xs text-muted-foreground">View all initiatives across regions</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
             <section className={components.card}>
               <div className="flex items-start justify-between mb-4">
                 <div>

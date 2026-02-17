@@ -35,6 +35,13 @@ import {
   Briefcase,
   Sparkle,
   Scroll,
+  MapPin,
+  Stack,
+  Wrench,
+  GitBranch,
+  Buildings,
+  UsersFour,
+  ClipboardText,
 } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -42,6 +49,8 @@ import { cn } from '@/lib/utils'
 import { Modal } from '@/components/ui/modal'
 import type { CampaignAccessToken, CollaboratorResponse, Campaign, SelfAssessment, Json, Participant, ParticipantStatus } from '@/lib/supabase/database.types'
 import { containers } from '@/lib/design-system'
+import { getMaturityInfo, getInitiativeTypeLabel, getCheckInStatus, calculateSimilarity } from '@/lib/initiative-helpers'
+import { useApp } from '@/context/app-context'
 import { SessionForm, SessionList } from '@/components/sessions'
 import { useKnowledgeCoverageStats } from '@/lib/hooks/use-knowledge-coverage'
 import { CoverageBar } from '@/components/ui/coverage-bar'
@@ -198,6 +207,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const router = useRouter()
   const { showToast } = useToast()
   const supabase = createClient()
+  const { campaigns: allCampaigns } = useApp()
 
   const [loading, setLoading] = useState(true)
   const [campaign, setCampaign] = useState<CampaignWithDetails | null>(null)
@@ -228,6 +238,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   // Topics modal state
   const [topicModalOpen, setTopicModalOpen] = useState(false)
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
+
+  // Check-in state
+  const [requestingCheckIn, setRequestingCheckIn] = useState(false)
+  const [checkInHistory, setCheckInHistory] = useState<CampaignAccessToken[]>([])
+  const [expandedCheckIns, setExpandedCheckIns] = useState<Set<string>>(new Set())
 
   // Generation status (from database for persistence)
   const topicsGenerationStatus = campaign?.topics_generation_status as string | null
@@ -408,6 +423,19 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       setParticipants(participantsData)
     }
 
+    // Fetch check-in history
+    const { data: checkInData } = await supabase
+      .from('campaign_access_tokens')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .eq('token_type', 'check_in')
+      .not('submitted_at', 'is', null)
+      .order('submitted_at', { ascending: false })
+
+    if (checkInData) {
+      setCheckInHistory(checkInData)
+    }
+
     setLoading(false)
   }, [supabase, campaignId, router])
 
@@ -532,6 +560,42 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       showToast('Failed to send invitation', 'error')
     } finally {
       setResending(null)
+    }
+  }
+
+  // Request check-in from collaborators
+  const requestCheckIn = async () => {
+    if (!campaign) return
+    setRequestingCheckIn(true)
+    try {
+      const collaborators = (campaign.collaborators as Collaborator[] | null) || []
+      if (collaborators.length === 0) {
+        showToast('No collaborators to send check-in to. Add collaborators first.', 'error')
+        return
+      }
+
+      const baseUrl = window.location.origin
+
+      // Create check-in tokens for each collaborator and send emails
+      const response = await fetch(`/api/campaigns/${campaignId}/request-check-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseUrl }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        showToast(`Check-in requests sent to ${data.count || 0} recipients!`, 'success')
+        fetchData()
+      } else {
+        const error = await response.json()
+        showToast(error.error || 'Failed to send check-in requests', 'error')
+      }
+    } catch (error) {
+      console.error('Error requesting check-in:', error)
+      showToast('Failed to send check-in requests', 'error')
+    } finally {
+      setRequestingCheckIn(false)
     }
   }
 
@@ -1208,11 +1272,33 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 </div>
               )}
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-semibold">{campaign.expert_name}</h1>
                   {isProjectCampaign && campaign.project_type && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground">
                       {projectTypeLabels[campaign.project_type] || campaign.project_type}
+                    </span>
+                  )}
+                  {campaign.initiative_status && (() => {
+                    const maturity = getMaturityInfo(campaign.initiative_status)
+                    return (
+                      <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium border', maturity.color, maturity.bgColor, maturity.borderColor)}>
+                        {maturity.label}
+                      </span>
+                    )
+                  })()}
+                  {campaign.initiative_type && (() => {
+                    const typeLabel = getInitiativeTypeLabel(campaign.initiative_type)
+                    return typeLabel ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">
+                        {typeLabel}
+                      </span>
+                    ) : null
+                  })()}
+                  {campaign.region && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" weight="bold" />
+                      {campaign.region}
                     </span>
                   )}
                 </div>
@@ -1414,6 +1500,298 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         </section>
+
+            {/* Initiative Details Section */}
+            {(campaign.initiative_type || campaign.initiative_status || campaign.team_size || campaign.tech_stack || campaign.business_unit || campaign.region || campaign.last_check_in) && (
+              <section className="mb-8">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Briefcase className="w-5 h-5" weight="bold" />
+                  Initiative Details
+                </h2>
+                <div className="border rounded-lg bg-card p-5">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {campaign.initiative_type && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Initiative Type</p>
+                        <p className="font-medium capitalize">{getInitiativeTypeLabel(campaign.initiative_type) || campaign.initiative_type}</p>
+                      </div>
+                    )}
+                    {campaign.initiative_status && (() => {
+                      const maturity = getMaturityInfo(campaign.initiative_status)
+                      return (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Maturity Stage</p>
+                          <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium border', maturity.color, maturity.bgColor, maturity.borderColor)}>
+                            {maturity.label}
+                          </span>
+                        </div>
+                      )
+                    })()}
+                    {campaign.team_size && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Team Size</p>
+                        <p className="font-medium flex items-center gap-1">
+                          <UsersFour className="w-4 h-4 text-muted-foreground" weight="bold" />
+                          {campaign.team_size} {campaign.team_size === 1 ? 'person' : 'people'}
+                        </p>
+                      </div>
+                    )}
+                    {campaign.business_unit && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Business Unit</p>
+                        <p className="font-medium flex items-center gap-1">
+                          <Buildings className="w-4 h-4 text-muted-foreground" weight="bold" />
+                          {campaign.business_unit}
+                        </p>
+                      </div>
+                    )}
+                    {campaign.region && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Region</p>
+                        <p className="font-medium flex items-center gap-1">
+                          <MapPin className="w-4 h-4 text-muted-foreground" weight="bold" />
+                          {campaign.region}
+                        </p>
+                      </div>
+                    )}
+                    {campaign.last_check_in && (() => {
+                      const checkIn = getCheckInStatus(campaign.last_check_in)
+                      return (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Last Check-in</p>
+                          <p className={cn('font-medium flex items-center gap-1', checkIn.isStale ? 'text-amber-600' : '')}>
+                            <Clock className="w-4 h-4 text-muted-foreground" weight="bold" />
+                            {checkIn.label}
+                          </p>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                  {campaign.tech_stack && campaign.tech_stack.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Tech Stack</p>
+                      <div className="flex flex-wrap gap-2">
+                        {campaign.tech_stack.map((tech) => (
+                          <span key={tech} className="px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Check-in Section */}
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <ClipboardText className="w-5 h-5" weight="bold" />
+                  Check-ins
+                </h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={requestCheckIn}
+                  disabled={requestingCheckIn}
+                >
+                  {requestingCheckIn ? (
+                    <>
+                      <CircleNotch className="w-4 h-4 animate-spin mr-2" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <PaperPlaneTilt className="w-4 h-4 mr-2" />
+                      Request Check-in
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {campaign.last_check_in && (
+                <p className="text-sm text-muted-foreground mb-4">
+                  Last check-in: {getCheckInStatus(campaign.last_check_in).label}
+                </p>
+              )}
+
+              {checkInHistory.length > 0 ? (
+                <div className="border rounded-lg bg-card divide-y">
+                  {checkInHistory.map(checkIn => (
+                    <div key={checkIn.id} className="p-4">
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => {
+                          setExpandedCheckIns(prev => {
+                            const next = new Set(prev)
+                            if (next.has(checkIn.id)) next.delete(checkIn.id)
+                            else next.add(checkIn.id)
+                            return next
+                          })
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Check className="w-4 h-4 text-emerald-600" weight="bold" />
+                          <div>
+                            <p className="text-sm font-medium">{checkIn.name || checkIn.email}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {checkIn.submitted_at ? new Date(checkIn.submitted_at).toLocaleDateString(undefined, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              }) : ''}
+                            </p>
+                          </div>
+                        </div>
+                        {expandedCheckIns.has(checkIn.id) ? (
+                          <CaretUp className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <CaretDown className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      {expandedCheckIns.has(checkIn.id) && checkIn.draft_data && (
+                        <div className="mt-3 pl-7 space-y-2">
+                          {Object.entries(checkIn.draft_data as Record<string, string>).map(([key, value]) => (
+                            <div key={key}>
+                              <p className="text-xs font-medium text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</p>
+                              <p className="text-sm">{value || '-'}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="border rounded-lg bg-card p-6 text-center">
+                  <ClipboardText className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">No check-ins yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Request a check-in from collaborators to track progress</p>
+                </div>
+              )}
+            </section>
+
+            {/* Related Initiatives */}
+            {allCampaigns.length > 1 && (campaign.tech_stack || campaign.business_unit || campaign.region || campaign.initiative_status) && (() => {
+              const currentInitiative = {
+                techStack: campaign.tech_stack ?? undefined,
+                businessUnit: campaign.business_unit ?? undefined,
+                region: campaign.region ?? undefined,
+                initiativeStatus: campaign.initiative_status ?? undefined,
+              }
+              const related = allCampaigns
+                .filter(c => c.id !== campaign.id)
+                .map(c => ({
+                  campaign: c,
+                  ...calculateSimilarity(currentInitiative, {
+                    techStack: c.techStack ?? undefined,
+                    businessUnit: c.businessUnit ?? undefined,
+                    region: c.region ?? undefined,
+                    initiativeStatus: c.initiativeStatus ?? undefined,
+                  }),
+                }))
+                .filter(r => r.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3)
+
+              if (related.length === 0) return null
+
+              return (
+                <section className="mb-8">
+                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <GitBranch className="w-5 h-5" weight="bold" />
+                    Related Initiatives
+                  </h2>
+                  <div className="space-y-3">
+                    {related.map(({ campaign: rel, score, reasons }) => (
+                      <div key={rel.id} className="border rounded-lg bg-card p-4 flex items-center justify-between hover:border-primary/30 transition-colors">
+                        <div>
+                          <p className="font-medium">{rel.name}</p>
+                          <p className="text-sm text-muted-foreground">{reasons.join(' · ')}</p>
+                        </div>
+                        <button
+                          onClick={() => router.push(`/campaigns/${rel.id}`)}
+                          className="text-sm text-primary hover:underline font-medium flex items-center gap-1"
+                        >
+                          View
+                          <ArrowSquareOut className="w-3.5 h-3.5" weight="bold" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )
+            })()}
+
+            {/* Check-in Section */}
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Clipboard className="w-5 h-5" weight="bold" />
+                  Check-ins
+                </h2>
+                <Button
+                  onClick={requestCheckIn}
+                  disabled={requestingCheckIn}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  {requestingCheckIn ? (
+                    <CircleNotch className="w-4 h-4 animate-spin" weight="bold" />
+                  ) : (
+                    <PaperPlaneTilt className="w-4 h-4" weight="bold" />
+                  )}
+                  {requestingCheckIn ? 'Sending...' : 'Request Check-in'}
+                </Button>
+              </div>
+              {checkInHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {checkInHistory.map(ci => (
+                    <div key={ci.id} className="border rounded-lg bg-card">
+                      <button
+                        onClick={() => setExpandedCheckIns(prev => {
+                          const next = new Set(prev)
+                          next.has(ci.id) ? next.delete(ci.id) : next.add(ci.id)
+                          return next
+                        })}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/50 transition-colors rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{ci.name || ci.email}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {ci.submitted_at ? new Date(ci.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pending'}
+                          </p>
+                        </div>
+                        {expandedCheckIns.has(ci.id) ? (
+                          <CaretUp className="w-4 h-4 text-muted-foreground" weight="bold" />
+                        ) : (
+                          <CaretDown className="w-4 h-4 text-muted-foreground" weight="bold" />
+                        )}
+                      </button>
+                      {expandedCheckIns.has(ci.id) && ci.draft_data && (
+                        <div className="px-4 pb-4 border-t">
+                          <div className="pt-3 space-y-2">
+                            {Object.entries(ci.draft_data as Record<string, string>).map(([key, value]) => (
+                              <div key={key}>
+                                <p className="text-xs font-medium text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</p>
+                                <p className="text-sm">{value || '—'}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="border rounded-lg bg-card p-6 text-center text-muted-foreground">
+                  <Clipboard className="w-8 h-8 mx-auto mb-2" weight="bold" />
+                  <p className="text-sm">No check-ins submitted yet</p>
+                  <p className="text-xs">Request a check-in to gather updates from collaborators</p>
+                </div>
+              )}
+            </section>
           </>
         )}
 

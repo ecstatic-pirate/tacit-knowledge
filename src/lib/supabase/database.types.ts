@@ -135,11 +135,15 @@ export type Database = {
           goal: string | null
           id: string
           interview_format: string | null
+          initiative_status: string | null
+          initiative_type: string | null
           interviewer_guide_token: string | null
+          last_check_in: string | null
           org_id: string
           progress: number | null
           project_id: string | null
           project_type: string | null
+          region: string | null
           self_assessment: Json | null
           session_duration: number | null
           sessions_generation_error: string | null
@@ -149,6 +153,9 @@ export type Database = {
           status: string | null
           subject_type: string | null
           team_id: string | null
+          team_size: number | null
+          tech_stack: string[] | null
+          business_unit: string | null
           topics_generation_error: string | null
           topics_generation_started_at: string | null
           topics_generation_status: string | null
@@ -177,11 +184,15 @@ export type Database = {
           goal?: string | null
           id?: string
           interview_format?: string | null
+          initiative_status?: string | null
+          initiative_type?: string | null
           interviewer_guide_token?: string | null
+          last_check_in?: string | null
           org_id: string
           progress?: number | null
           project_id?: string | null
           project_type?: string | null
+          region?: string | null
           self_assessment?: Json | null
           session_duration?: number | null
           sessions_generation_error?: string | null
@@ -191,6 +202,9 @@ export type Database = {
           status?: string | null
           subject_type?: string | null
           team_id?: string | null
+          team_size?: number | null
+          tech_stack?: string[] | null
+          business_unit?: string | null
           topics_generation_error?: string | null
           topics_generation_started_at?: string | null
           topics_generation_status?: string | null
@@ -219,11 +233,15 @@ export type Database = {
           goal?: string | null
           id?: string
           interview_format?: string | null
+          initiative_status?: string | null
+          initiative_type?: string | null
           interviewer_guide_token?: string | null
+          last_check_in?: string | null
           org_id?: string
           progress?: number | null
           project_id?: string | null
           project_type?: string | null
+          region?: string | null
           self_assessment?: Json | null
           session_duration?: number | null
           sessions_generation_error?: string | null
@@ -233,6 +251,9 @@ export type Database = {
           status?: string | null
           subject_type?: string | null
           team_id?: string | null
+          team_size?: number | null
+          tech_stack?: string[] | null
+          business_unit?: string | null
           topics_generation_error?: string | null
           topics_generation_started_at?: string | null
           topics_generation_status?: string | null
@@ -1684,6 +1705,39 @@ export type Database = {
           },
         ]
       }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          department: string | null
+          expertise_areas: string[] | null
+          id: string
+          region: string | null
+          role_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department?: string | null
+          expertise_areas?: string[] | null
+          id?: string
+          region?: string | null
+          role_type?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string | null
+          expertise_areas?: string[] | null
+          id?: string
+          region?: string | null
+          role_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           avatar_url: string | null
@@ -1940,6 +1994,7 @@ export type Topic = Database['public']['Tables']['topics']['Row']
 export type Task = Database['public']['Tables']['tasks']['Row']
 export type User = Database['public']['Tables']['users']['Row']
 export type Organization = Database['public']['Tables']['organizations']['Row']
+export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 export type CampaignAccessToken = Database['public']['Tables']['campaign_access_tokens']['Row']
 export type CollaboratorResponse = Database['public']['Tables']['collaborator_responses']['Row']
 export type Participant = Database['public']['Tables']['participants']['Row']
