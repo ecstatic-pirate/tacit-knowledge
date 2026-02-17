@@ -74,7 +74,7 @@ export async function POST(
   // Send expert invitation (only for expert campaigns, not project campaigns)
   const expertToken = tokens.find(t => t.token_type === 'expert')
   if (expertToken && campaign.expert_email && campaign.subject_type !== 'project') {
-    const assessmentUrl = `${baseUrl}/assess/${expertToken.token}`
+    const assessmentUrl = `${baseUrl}/assess/${expertToken.token_value}`
 
     try {
       await sendEmail({
@@ -104,7 +104,7 @@ export async function POST(
     // Collaborators in project campaigns are treated as contributors
     const contributorTokens = tokens.filter(t => t.token_type === 'collaborator' || t.token_type === 'contributor')
     for (const token of contributorTokens) {
-      const surveyUrl = `${baseUrl}/project-survey/${token.token}`
+      const surveyUrl = `${baseUrl}/project-survey/${token.token_value}`
 
       try {
         await sendEmail({
@@ -130,7 +130,7 @@ export async function POST(
     // For expert campaigns, send collaborator invitations (original behavior)
     const collaboratorTokens = tokens.filter(t => t.token_type === 'collaborator')
     for (const token of collaboratorTokens) {
-      const feedbackUrl = `${baseUrl}/feedback/${token.token}`
+      const feedbackUrl = `${baseUrl}/feedback/${token.token_value}`
 
       try {
         await sendEmail({

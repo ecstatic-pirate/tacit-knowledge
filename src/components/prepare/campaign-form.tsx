@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { User, Sparkle, CircleNotch, ArrowRight, ArrowLeft, Check, Users, Plus, X, UserCircle, Folder, Calendar, Lightning, Lightbulb, Info, CheckCircle, Files, FileText, Clock, Wrench } from 'phosphor-react'
+import { User, Sparkle, CircleNotch, ArrowRight, ArrowLeft, Check, Users, Plus, X, UserCircle, Folder, Calendar, Lightning, Lightbulb, Info, CheckCircle, Files, FileText, Clock } from 'phosphor-react'
 import { Input, Textarea } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { TeamSelector } from './team-selector'
-import { REGIONS, INITIATIVE_TYPES, MATURITY_STAGES } from '@/lib/initiative-helpers'
 import type { CampaignSubjectType } from '@/types'
 
 interface CampaignFormProps {
@@ -65,13 +64,6 @@ export interface CampaignFormData {
   suggestedDomains?: { name: string; confidence: number; description: string }[]
   // Demo documents
   selectedDemoDocuments?: DemoDocument[]
-  // Initiative details (Mercedes AI Portfolio)
-  initiativeType?: 'tool' | 'platform' | 'process' | 'integration'
-  initiativeStatus?: 'planned' | 'active' | 'scaling' | 'retired'
-  teamSize?: number
-  techStack?: string[]
-  businessUnit?: string
-  region?: string
 }
 
 // Demo documents based on the Tacit Knowledge Capture codebase
@@ -641,7 +633,6 @@ export function CampaignForm({
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLocalhost, setIsLocalhost] = useState(false)
-  const [techStackInput, setTechStackInput] = useState('')
 
   // Prefetch teams immediately when form loads
   const [teams, setTeams] = useState<Array<{ id: string; name: string; description: string | null; color: string | null }>>([])
@@ -977,7 +968,6 @@ export function CampaignForm({
         <>
           {/* Step 0: Expert Profile */}
           {currentStep === 0 && (
-            <>
             <div className="border rounded-lg bg-card">
               <div className="p-4 border-b flex items-center gap-3">
                 <div className="p-2 rounded-md bg-secondary">
@@ -1025,142 +1015,6 @@ export function CampaignForm({
                 />
               </div>
             </div>
-
-            {/* Initiative Details */}
-            <div className="border rounded-lg bg-card">
-              <div className="p-4 border-b flex items-center gap-3">
-                <div className="p-2 rounded-md bg-secondary">
-                  <Wrench className="w-4 h-4 text-muted-foreground" weight="bold" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Initiative Details</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Optional metadata for portfolio tracking
-                  </p>
-                </div>
-              </div>
-              <div className="p-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Region</label>
-                  <select
-                    value={formData.region || ''}
-                    onChange={(e) => setFormData({ ...formData, region: e.target.value || undefined })}
-                    className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                  >
-                    <option value="">Select region...</option>
-                    {REGIONS.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Initiative Type</label>
-                  <select
-                    value={formData.initiativeType || ''}
-                    onChange={(e) => setFormData({ ...formData, initiativeType: (e.target.value || undefined) as CampaignFormData['initiativeType'] })}
-                    className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                  >
-                    <option value="">Select type...</option>
-                    {(Object.entries(INITIATIVE_TYPES) as [string, { label: string }][]).map(([key, val]) => (
-                      <option key={key} value={key}>{val.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Initiative Status</label>
-                  <div className="flex flex-wrap gap-2">
-                    {(Object.entries(MATURITY_STAGES) as [string, { label: string; color: string; bgColor: string; borderColor: string }][]).map(([key, val]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, initiativeStatus: key as CampaignFormData['initiativeStatus'] })}
-                        className={cn(
-                          'px-3 py-1.5 rounded-md text-sm font-medium transition-colors border',
-                          formData.initiativeStatus === key
-                            ? `${val.bgColor} ${val.color} ${val.borderColor}`
-                            : 'border-border hover:bg-secondary/30'
-                        )}
-                      >
-                        {val.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <Input
-                  label="Team Size"
-                  type="number"
-                  placeholder="e.g., 5"
-                  value={formData.teamSize?.toString() || ''}
-                  onChange={(e) => setFormData({ ...formData, teamSize: e.target.value ? parseInt(e.target.value, 10) : undefined })}
-                  hint="Number of people working on this initiative"
-                />
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Tech Stack</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g., Python, TensorFlow, AWS"
-                      value={techStackInput}
-                      onChange={(e) => setTechStackInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ',') {
-                          e.preventDefault()
-                          const tags = techStackInput.split(',').map(t => t.trim()).filter(Boolean)
-                          if (tags.length > 0) {
-                            setFormData({ ...formData, techStack: [...(formData.techStack || []), ...tags] })
-                            setTechStackInput('')
-                          }
-                        }
-                      }}
-                      className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        const tags = techStackInput.split(',').map(t => t.trim()).filter(Boolean)
-                        if (tags.length > 0) {
-                          setFormData({ ...formData, techStack: [...(formData.techStack || []), ...tags] })
-                          setTechStackInput('')
-                        }
-                      }}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  {formData.techStack && formData.techStack.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {formData.techStack.map((tech, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary text-xs font-medium">
-                          {tech}
-                          <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, techStack: formData.techStack!.filter((_, j) => j !== i) })}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="w-3 h-3" weight="bold" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">Press Enter or comma to add tags</p>
-                </div>
-
-                <Input
-                  label="Business Unit"
-                  placeholder="e.g., Autonomous Driving, MBUX"
-                  value={formData.businessUnit || ''}
-                  onChange={(e) => setFormData({ ...formData, businessUnit: e.target.value || undefined })}
-                />
-              </div>
-            </div>
-            </>
           )}
 
           {/* Step 1: Team Selection */}

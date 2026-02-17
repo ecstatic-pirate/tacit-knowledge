@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 import { containers } from '@/lib/design-system';
-import { getMaturityInfo, REGIONS } from '@/lib/initiative-helpers';
 
 interface AISuggestion {
   id: string;
@@ -27,12 +26,6 @@ export default function DashboardPage() {
   const { showToast } = useToast();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const [regionFilter, setRegionFilter] = useState<string>('all');
-
-  const filteredCampaigns = useMemo(() => {
-    if (regionFilter === 'all') return campaigns;
-    return campaigns.filter((c) => c.region === regionFilter);
-  }, [campaigns, regionFilter]);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -218,34 +211,8 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Region Filter Bar */}
-      <div className={containers.pageContainer}>
-        <div className={containers.wideContainer}>
-          <div className="flex items-center gap-3 mb-4">
-            <label htmlFor="region-filter" className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-              Region
-            </label>
-            <select
-              id="region-filter"
-              value={regionFilter}
-              onChange={(e) => setRegionFilter(e.target.value)}
-              className="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            >
-              <option value="all">All Regions</option>
-              {REGIONS.map((region) => (
-                <option key={region} value={region}>{region}</option>
-              ))}
-            </select>
-            {regionFilter !== 'all' && (
-              <span className="text-xs text-muted-foreground">
-                {filteredCampaigns.length} initiative{filteredCampaigns.length !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
       <DashboardTab
-        campaigns={filteredCampaigns}
+        campaigns={campaigns}
         tasks={tasks}
         onViewCampaignDetails={handleViewCampaignDetails}
         onEditCampaign={handleEditCampaign}

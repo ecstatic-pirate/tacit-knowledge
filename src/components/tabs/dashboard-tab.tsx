@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { getMaturityInfo } from '@/lib/initiative-helpers';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -138,17 +137,7 @@ export function DashboardTab({
                     {campaign.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{campaign.name}</p>
-                      {campaign.initiativeStatus && (() => {
-                        const maturity = getMaturityInfo(campaign.initiativeStatus);
-                        return (
-                          <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded border', maturity.color, maturity.bgColor, maturity.borderColor)}>
-                            {maturity.label}
-                          </span>
-                        );
-                      })()}
-                    </div>
+                    <p className="font-medium">{campaign.name}</p>
                     <p className="text-sm text-muted-foreground">
                       {campaign.role}
                     </p>
